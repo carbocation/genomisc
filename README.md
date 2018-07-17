@@ -1,2 +1,2 @@
-# plink
-A library to parse a subset of PLINK data types in golang
+# genomisc
+Miscellaneous genomics tools and data structures in golang
