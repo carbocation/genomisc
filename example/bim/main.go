@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/carbocation/plink"
+	"github.com/carbocation/genomisc"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		log.Fatalln("No path provided")
 	}
 
-	b, err := plink.OpenBIM(*path)
+	b, err := genomisc.OpenBIM(*path)
 	if err != nil {
 		log.Fatalln(err)
 	}

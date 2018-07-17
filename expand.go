@@ -1,4 +1,4 @@
-package plink
+package genomisc
 
 import (
 	"log"

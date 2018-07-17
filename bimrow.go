@@ -1,4 +1,4 @@
-package plink
+package genomisc
 
 // Map columns in the BIM file to their positions
 const (
