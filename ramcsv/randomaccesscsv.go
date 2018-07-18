@@ -22,6 +22,7 @@ type RAMCSV struct {
 	file   *os.File
 }
 
+// NewRAMCSV is optimized for very long lines such as those in the UK Biobank.
 func NewRAMCSV(file *os.File, rdr *csv.Reader) *RAMCSV {
 	file.Seek(0, 0) // Make sure our current offset is at the start of the file
 
@@ -32,8 +33,15 @@ func NewRAMCSV(file *os.File, rdr *csv.Reader) *RAMCSV {
 	}
 
 	// To initialize, scan through the entire file once to identify the offsets
-	// at each line.
+	// at each line. Note that the UKBB header for CSV is ~112 kilobytes, and the
+	// default max for Scanner is 64k. Therefore, set a larger buffer to prevent
+	// issues.
 	scanner := bufio.NewScanner(ram.file)
+
+	maxCap := 10 * 1024 * 1024
+	buf := make([]byte, maxCap) // 10 MB instead of 64k. ~100x the UKBB header.
+	scanner.Buffer(buf, maxCap)
+
 	scanner.Split(scanLinesNondestructive)
 	var b []byte
 	for scanner.Scan() {
