@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"os"
 )
 
@@ -48,6 +49,10 @@ func NewRAMCSV(file *os.File, rdr *csv.Reader) *RAMCSV {
 }
 
 func (ram *RAMCSV) Read(line int) ([]string, error) {
+	if len(ram.m)-1 < line {
+		return nil, fmt.Errorf("Line %d is greater than the length of the file (%d)", line, len(ram.m))
+	}
+
 	val := make([]byte, ram.m[line].Length)
 	if _, err := ram.file.ReadAt(val, ram.m[line].Offset); err != nil {
 		return nil, err
