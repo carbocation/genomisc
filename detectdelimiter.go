@@ -2,7 +2,6 @@ package genomisc
 
 import (
 	"io"
-	"log"
 
 	"github.com/csimplestring/go-csv/detector"
 )
@@ -19,8 +18,6 @@ func DetermineDelimiter(r io.Reader) rune {
 	d.Configure(&sampleLines, &nonDelimiterRegexString)
 
 	delimiters := d.DetectDelimiter(r, '"')
-
-	log.Println(delimiters)
 
 	if len(delimiters) > 0 {
 		return rune(delimiters[0][0])
