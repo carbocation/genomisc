@@ -51,6 +51,8 @@ func NewRAMCSV(file *os.File, rdr *csv.Reader) *RAMCSV {
 func (ram *RAMCSV) Read(line int) ([]string, error) {
 	if len(ram.m)-1 < line {
 		return nil, fmt.Errorf("Line %d is greater than the length of the file (%d)", line, len(ram.m))
+	} else if line < 0 {
+		return nil, fmt.Errorf("A negative line number %d was requested", line)
 	}
 
 	val := make([]byte, ram.m[line].Length)
