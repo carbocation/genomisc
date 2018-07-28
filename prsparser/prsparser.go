@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 type PRSParser struct {
@@ -15,16 +14,7 @@ type PRSParser struct {
 func New(layout string) (*PRSParser, error) {
 	l, exists := Layouts[layout]
 	if !exists {
-		b := strings.Builder{}
-		i := 0
-		for m := range Layouts {
-			if i != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(m)
-			i++
-		}
-		return nil, fmt.Errorf("Layout %s is not found. Valid layout names include: %s", layout, b.String())
+		return nil, fmt.Errorf("Layout %s is not found. Valid layout names include: %s", layout, LayoutNames())
 	}
 
 	return NewWithLayout(l)

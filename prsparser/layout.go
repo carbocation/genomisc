@@ -1,5 +1,7 @@
 package prsparser
 
+import "strings"
+
 type Layout struct {
 	Delimiter       rune
 	Comment         rune
@@ -22,4 +24,18 @@ var Layouts = map[string]Layout{
 		ColPosition:     4,
 		ColScore:        2,
 	},
+}
+
+func LayoutNames() string {
+	b := strings.Builder{}
+	i := 0
+	for m := range Layouts {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(m)
+		i++
+	}
+
+	return b.String()
 }
