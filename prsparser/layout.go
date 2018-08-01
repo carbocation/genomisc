@@ -34,7 +34,7 @@ var Layouts = map[string]Layout{
 		ColAllele2:      4,
 		ColChromosome:   0,
 		ColPosition:     1,
-		ColScore:        5,
+		ColScore:        6,
 		Parser:          &ldpredParseRow,
 	},
 }
