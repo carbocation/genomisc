@@ -27,7 +27,7 @@ var Layouts = map[string]Layout{
 		Parser:          &defaultParseRow,
 	},
 	"LDPRED": {
-		Delimiter:       '\t',
+		Delimiter:       ' ',
 		Comment:         '#',
 		ColEffectAllele: 3,
 		ColAllele1:      3,

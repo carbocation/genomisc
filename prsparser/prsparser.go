@@ -27,6 +27,7 @@ func NewWithLayout(layout *Layout) (*PRSParser, error) {
 	n.CSVReaderSettings = &csv.Reader{}
 	n.CSVReaderSettings.Comma = layout.Delimiter
 	n.CSVReaderSettings.Comment = layout.Comment
+	n.CSVReaderSettings.TrimLeadingSpace = true
 
 	return n, nil
 }
