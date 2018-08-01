@@ -29,7 +29,7 @@ var Layouts = map[string]Layout{
 	"LDPRED": {
 		Delimiter:       ' ',
 		Comment:         '#',
-		ColEffectAllele: 3,
+		ColEffectAllele: 4,
 		ColAllele1:      3,
 		ColAllele2:      4,
 		ColChromosome:   0,
