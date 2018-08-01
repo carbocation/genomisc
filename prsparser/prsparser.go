@@ -4,11 +4,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type PRSParser struct {
 	CSVReaderSettings *csv.Reader
-	Layout            Layout
+	Layout            *Layout
 }
 
 func New(layout string) (*PRSParser, error) {
@@ -17,10 +18,10 @@ func New(layout string) (*PRSParser, error) {
 		return nil, fmt.Errorf("Layout %s is not found. Valid layout names include: %s", layout, LayoutNames())
 	}
 
-	return NewWithLayout(l)
+	return NewWithLayout(&l)
 }
 
-func NewWithLayout(layout Layout) (*PRSParser, error) {
+func NewWithLayout(layout *Layout) (*PRSParser, error) {
 	n := &PRSParser{}
 	n.Layout = layout
 	n.CSVReaderSettings = &csv.Reader{}
@@ -31,23 +32,44 @@ func NewWithLayout(layout Layout) (*PRSParser, error) {
 }
 
 func (prsp *PRSParser) ParseRow(row []string) (PRS, error) {
-	p := PRS{}
-	p.EffectAllele = Allele(row[prsp.Layout.ColEffectAllele])
-	p.Allele1 = Allele(row[prsp.Layout.ColAllele1])
-	p.Allele2 = Allele(row[prsp.Layout.ColAllele2])
-	p.Chromosome = row[prsp.Layout.ColChromosome]
+	if prsp.Layout.Parser == nil {
+		return defaultParseRow(prsp.Layout, row)
+	}
 
-	if pos, err := strconv.Atoi(row[prsp.Layout.ColPosition]); err != nil {
+	return (*prsp.Layout.Parser)(prsp.Layout, row)
+}
+
+var defaultParseRow = func(layout *Layout, row []string) (PRS, error) {
+	p := PRS{}
+	p.EffectAllele = Allele(row[layout.ColEffectAllele])
+	p.Allele1 = Allele(row[layout.ColAllele1])
+	p.Allele2 = Allele(row[layout.ColAllele2])
+	p.Chromosome = row[layout.ColChromosome]
+
+	if pos, err := strconv.Atoi(row[layout.ColPosition]); err != nil {
 		return p, err
 	} else {
 		p.Position = pos
 	}
 
-	if score, err := strconv.ParseFloat(row[prsp.Layout.ColScore], 64); err != nil {
+	if score, err := strconv.ParseFloat(row[layout.ColScore], 64); err != nil {
 		return p, err
 	} else {
 		p.Score = score
 	}
+
+	return p, nil
+}
+
+var ldpredParseRow = func(layout *Layout, row []string) (PRS, error) {
+	// Parse as usual...
+	p, err := defaultParseRow(layout, row)
+	if err != nil {
+		return p, err
+	}
+
+	// ... but remove the chrom_ prefix from the chomosome column
+	p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chrom_")
 
 	return p, nil
 }
