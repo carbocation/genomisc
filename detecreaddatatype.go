@@ -61,7 +61,7 @@ func MaybeDecompressReadCloserFromFile(f *os.File) (io.ReadCloser, error) {
 		return nil, err
 	}
 	// Reset your original reader
-	defer f.Seek(0, 0)
+	f.Seek(0, 0)
 
 	switch dt {
 	case DataTypeGzip:
