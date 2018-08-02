@@ -40,6 +40,9 @@ func DetectDataType(r io.ReadSeeker) (DataType, error) {
 		return DataTypeInvalid, err
 	}
 
+	// Reset your original reader
+	defer r.Seek(0, 0)
+
 	// Match known signatures
 	for dt, sig := range byteCodeSigs {
 		for position := range sig {
@@ -59,7 +62,6 @@ func MaybeDecompressReadCloserFromFile(f *os.File) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	f.Seek(0, 0)
 
 	switch dt {
 	case DataTypeGzip:
