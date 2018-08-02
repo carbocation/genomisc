@@ -41,13 +41,14 @@ func DetectDataType(r io.Reader) (DataType, error) {
 	}
 
 	// Match known signatures
+Outer:
 	for dt, sig := range byteCodeSigs {
-		for position, _ := range sig {
+		for position := range sig {
 			if buff[position] != sig[position] {
-				break
+				continue Outer
 			}
-			return dt, nil
 		}
+		return dt, nil
 	}
 
 	return DataTypeNoCompression, nil
