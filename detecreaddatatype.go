@@ -34,18 +34,15 @@ var byteCodeSigs = map[DataType][]byte{
 // DetectDataType attempts to detect the data type of a stream by checking
 // against a set of known data types.  Byte code signatures from
 // https://stackoverflow.com/a/19127748/199475
-func DetectDataType(r io.ReadSeeker) (DataType, error) {
+func DetectDataType(r io.Reader) (DataType, error) {
 	buff := make([]byte, 6)
 	if _, err := r.Read(buff); err != nil {
 		return DataTypeInvalid, err
 	}
 
-	// Reset your original reader
-	defer r.Seek(0, 0)
-
 	// Match known signatures
 	for dt, sig := range byteCodeSigs {
-		for position := range sig {
+		for position, _ := range sig {
 			if buff[position] != sig[position] {
 				break
 			}
@@ -62,6 +59,8 @@ func MaybeDecompressReadCloserFromFile(f *os.File) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Reset your original reader
+	defer f.Seek(0, 0)
 
 	switch dt {
 	case DataTypeGzip:
