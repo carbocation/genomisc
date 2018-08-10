@@ -19,7 +19,7 @@ type DictionaryField struct {
 	Sexed        string         `db:"Sexed"`
 	Instances    int            `db:"Instances"`
 	Array        int            `db:"Array"`
-	Coding       sql.NullString `db:"Coding"`
+	Coding       sql.NullString `db:"coding_file_id"`
 	Notes        sql.NullString `db:"Notes"`
 	Link         string         `db:"Link"`
 }
