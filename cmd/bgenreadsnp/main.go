@@ -46,10 +46,10 @@ func main() {
 	fmt.Println(rsID)
 	fmt.Println(variant.Alleles)
 
-	ac := make(map[bgen.Allele]float64)
+	ac := make(map[int]float64)
 	for _, v := range variant.SampleProbabilities {
 		for allele, prob := range v.Probabilities {
-			ac[variant.Alleles[allele]] += prob
+			ac[allele] += prob
 		}
 	}
 
