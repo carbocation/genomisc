@@ -8,7 +8,7 @@ import (
 
 // Decorates a Google Storage object handle with ReadAt
 type GSReaderAtCloser struct {
-	storage.ObjectHandle
+	*storage.ObjectHandle
 	Context context.Context
 	close   *func() error
 }
