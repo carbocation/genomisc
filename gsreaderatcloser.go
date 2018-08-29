@@ -10,7 +10,7 @@ import (
 type GSReaderAtCloser struct {
 	*storage.ObjectHandle
 	Context context.Context
-	close   *func() error
+	Closer  *func() error
 }
 
 // ReadAt satisfies io.ReaderAt. Note that this is dependent upon making p a
@@ -26,8 +26,8 @@ func (o GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
 
 // Satisfies io.Closer. If o.close is not set, this is a nop.
 func (o GSReaderAtCloser) Close() error {
-	if o.close != nil {
-		return (*o.close)()
+	if o.Closer != nil {
+		return (*o.Closer)()
 	}
 
 	return nil
