@@ -20,6 +20,7 @@ func (o GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
+	defer rdr.Close()
 
 	return rdr.Read(p)
 }
