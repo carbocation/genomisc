@@ -10,13 +10,17 @@ import (
 )
 
 func main() {
-	bgenPath, rsID := "", ""
+	bgenPath, rsID, bgiPath := "", "", ""
 	flag.StringVar(&bgenPath, "bgen", "", "Path to the BGEN file")
+	flag.StringVar(&bgiPath, "bgi", "", "Path to the BGEN index. If blank, will assume it's the BGEN path suffixed with .bgi")
 	flag.StringVar(&rsID, "snp", "", "SNP ID")
 	flag.Parse()
 
-	bgiPath := bgenPath + ".bgi"
-	if bgiPath == ".bgi" {
+	if bgiPath == "" {
+		bgiPath = bgenPath + ".bgi"
+	}
+
+	if bgenPath == "" {
 		flag.PrintDefaults()
 		log.Fatalln()
 	}
@@ -33,7 +37,7 @@ func main() {
 	}
 	defer bgi.Close()
 	bgi.Metadata.FirstThousandBytes = nil
-	fmt.Printf("%+v\n", *bgi.Metadata)
+	log.Printf("%+v\n", *bgi.Metadata)
 
 	idx, err := FindOneVariant(bgi, rsID)
 	if err != nil {
@@ -43,18 +47,27 @@ func main() {
 	rdr := bg.NewVariantReader()
 	variant := rdr.ReadAt(int64(idx.FileStartPosition))
 
-	fmt.Println(rsID)
-	fmt.Println(variant.Alleles)
+	// fmt.Println(rsID)
+	// fmt.Println(variant.Alleles)
 
-	ac := make(map[int]float64)
-	for _, v := range variant.SampleProbabilities {
+	// ac := make(map[int]float64)
+	fmt.Printf("chr\tpos\tsample_row_id\tminor_allele_dosage\n")
+	for sampleFileRow, v := range variant.SampleProbabilities {
+		mac := 0.0
 		for allele, prob := range v.Probabilities {
-			ac[allele] += prob
+			// 0 for AA
+			// 1 * prob for AB
+			// 2 * prob for BB
+			mac += float64(allele) * prob
+
+			// ac[allele] += prob
+
 		}
+		fmt.Printf("%s\t%d\t%d\t%f\n", variant.Chromosome, variant.Position, sampleFileRow, mac)
 	}
 
-	fmt.Println("Summed allelic dosage")
-	fmt.Println(ac)
+	// fmt.Println("Summed allelic dosage")
+	// fmt.Println(ac)
 }
 
 func FindOneVariant(bgi *bgen.BGIIndex, rsID string) (bgen.VariantIndex, error) {
