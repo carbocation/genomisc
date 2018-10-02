@@ -37,6 +37,7 @@ func processManifest(manifest io.ReadCloser) ([][]string, error) {
 			for i, col := range record {
 				if col == "date" {
 					dateField = i
+					break
 				}
 			}
 
@@ -56,7 +57,7 @@ func processManifest(manifest io.ReadCloser) ([][]string, error) {
 
 		for j, col := range record {
 			if j == dateField+1 {
-				output[i][j-1] += strings.TrimSpace(col)
+				output[i][j-1] += ", " + strings.TrimSpace(col)
 			} else if j > dateField+1 {
 				output[i][j-1] = strings.TrimSpace(col)
 			} else {
@@ -72,7 +73,6 @@ func processManifest(manifest io.ReadCloser) ([][]string, error) {
 
 // Iterating over the directory will be delegated to the caller.
 // Here we will process one zip file.
-
 func ProcessCardiacMRIZip(path string, db *sqlx.DB) error {
 	metadata, err := zipPathToMetadata(path)
 	if err != nil {

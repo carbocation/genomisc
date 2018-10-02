@@ -2,15 +2,32 @@ package main
 
 import (
 	"broad/ghgwas/ukbb/cardiacmri"
+	"flag"
+	"io/ioutil"
+	"log"
+	"strings"
 )
 
 func main() {
 	// List folder contents
 	// Create or open named SQLite file
-	// Read each zip, whose name is significant
-	files := []string{"/Users/jamesp/go/src/broad/ghgwas/ukbb/cardiacmri/testdata/2780231_20208_2_0.zip"}
+	path := ""
+
+	flag.StringVar(&path, "path", "/Users/jamesp/go/src/broad/ghgwas/ukbb/cardiacmri/testdata/", "Path to the directory where the zipfiles sit.")
+
+	flag.Parse()
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	for _, file := range files {
-		cardiacmri.ProcessCardiacMRIZip(file, nil)
+		if !strings.HasSuffix(file.Name(), ".zip") {
+			continue
+		}
+		// Read each zip, whose name is significant
+		// cardiacmri.ProcessCardiacMRIZip(file, nil)
+		cardiacmri.SurveyZipManifests(path+file.Name(), nil)
 	}
 }
