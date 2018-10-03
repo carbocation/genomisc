@@ -3,12 +3,12 @@ package cardiacmri
 type FieldID string
 
 const (
-	AorticDistensibility = "20210"
-	BloodFlow            = "20213"
-	CineTagging          = "20211"
-	SHMOLLI              = "20214"
-	LVOT                 = "20212"
-	LAX                  = "20208"
-	Scout                = "20207"
-	SAX                  = "20209"
+	AorticDistensibility FieldID = "20210"
+	BloodFlow            FieldID = "20213"
+	CineTagging          FieldID = "20211"
+	SHMOLLI              FieldID = "20214"
+	LVOT                 FieldID = "20212"
+	LAX                  FieldID = "20208"
+	Scout                FieldID = "20207"
+	SAX                  FieldID = "20209"
 )

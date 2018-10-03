@@ -134,6 +134,9 @@ func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
 			}
 			dicoms[loc].SampleID = metadata.SampleID
 			dicoms[loc].ZipFile = zipName
+			dicoms[loc].FieldID = metadata.FieldID
+			dicoms[loc].Instance = metadata.Instance
+			dicoms[loc].Index = metadata.Index
 		}
 
 		for _, dcm := range dicoms {

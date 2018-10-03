@@ -7,6 +7,9 @@ import (
 type DicomOutput struct {
 	SampleID string
 	ZipFile  string
+	FieldID  string
+	Instance string
+	Index    string
 	Dicom    DicomRow
 }
 
