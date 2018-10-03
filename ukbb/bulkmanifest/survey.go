@@ -1,4 +1,4 @@
-package cardiacmri
+package bulkmanifest
 
 import (
 	"archive/zip"

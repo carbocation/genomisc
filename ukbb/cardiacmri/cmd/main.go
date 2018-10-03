@@ -1,7 +1,7 @@
 package main
 
 import (
-	"broad/ghgwas/ukbb/cardiacmri"
+	"broad/ghgwas/ukbb/bulkmanifest"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -27,7 +27,7 @@ func main() {
 			continue
 		}
 		// Read each zip, whose name is significant
-		cardiacmri.ProcessCardiacMRIZip(path+file.Name(), nil)
-		// cardiacmri.SurveyZipManifests(path+file.Name(), nil)
+		bulkmanifest.ProcessCardiacMRIZip(path+file.Name(), nil)
+		// bulkmanifest.SurveyZipManifests(path+file.Name(), nil)
 	}
 }
