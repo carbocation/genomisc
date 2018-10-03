@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -80,13 +81,15 @@ func processManifest(manifest io.Reader) ([][]string, error) {
 
 // Iterating over the directory will be delegated to the caller.
 // Here we will process one zip file.
-func ProcessCardiacMRIZip(path string, db *sqlx.DB) error {
-	metadata, err := zipPathToMetadata(path)
+func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
+	metadata, err := zipPathToMetadata(zipPath)
 	if err != nil {
 		return err
 	}
 
-	rc, err := zip.OpenReader(path)
+	zipName := path.Base(zipPath)
+
+	rc, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return err
 	}
@@ -123,10 +126,24 @@ func ProcessCardiacMRIZip(path string, db *sqlx.DB) error {
 			}
 		}
 
-		for _, fld := range fields {
-			fmt.Println(fld)
+		dicoms := make([]DicomOutput, len(fields), len(fields))
+		for loc := range fields {
+			dicoms[loc], err = stringSliceToDicomStruct(fields[loc])
+			if err != nil {
+				return err
+			}
+			dicoms[loc].SampleID = metadata.SampleID
+			dicoms[loc].ZipFile = zipName
 		}
-		fmt.Printf("%s, %+v\n", v.Name, metadata)
+
+		for _, dcm := range dicoms {
+			fmt.Printf("%+v\n", dcm)
+		}
+
+		// fmt.Printf("%s | %s, %+v\n", zipName, v.Name, metadata)
+		// for _, fld := range fields {
+		// 	fmt.Println(fld)
+		// }
 
 		zippedFile.Close()
 	}
