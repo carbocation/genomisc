@@ -81,17 +81,17 @@ func processManifest(manifest io.Reader) ([][]string, error) {
 
 // Iterating over the directory will be delegated to the caller.
 // Here we will process one zip file.
-func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
+func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) (dicoms []DicomOutput, err error) {
 	metadata, err := zipPathToMetadata(zipPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	zipName := path.Base(zipPath)
 
 	rc, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, v := range rc.File {
@@ -101,14 +101,14 @@ func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
 
 		zippedFile, err := v.Open()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Consume the full manifest into a buffer so we can re-read it if it is
 		// invalid
 		manifestBuffer := &bytes.Buffer{}
 		if _, err := io.Copy(manifestBuffer, zippedFile); err != nil {
-			return err
+			return nil, err
 		}
 
 		manifestReader := bytes.NewReader(manifestBuffer.Bytes())
@@ -122,15 +122,20 @@ func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
 
 			fields, err = processInvalidManifest(manifestReader)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
-		dicoms := make([]DicomOutput, len(fields), len(fields))
+		dicoms = make([]DicomOutput, len(fields), len(fields))
 		for loc := range fields {
+			if loc == 0 {
+				// Discard the header
+				continue
+			}
+
 			dicoms[loc], err = stringSliceToDicomStruct(fields[loc])
 			if err != nil {
-				return err
+				return nil, err
 			}
 			dicoms[loc].SampleID = metadata.SampleID
 			dicoms[loc].ZipFile = zipName
@@ -139,19 +144,21 @@ func ProcessCardiacMRIZip(zipPath string, db *sqlx.DB) error {
 			dicoms[loc].Index = metadata.Index
 		}
 
-		for _, dcm := range dicoms {
-			fmt.Printf("%+v\n", dcm)
-		}
-
-		// fmt.Printf("%s | %s, %+v\n", zipName, v.Name, metadata)
-		// for _, fld := range fields {
-		// 	fmt.Println(fld)
-		// }
-
 		zippedFile.Close()
 	}
 
-	return nil
+	deleteEmpty := []int{}
+	for i := range dicoms {
+		if dicoms[i].SampleID == "" {
+			deleteEmpty = append(deleteEmpty, i)
+		}
+	}
+
+	for loc, i := range deleteEmpty {
+		dicoms = append(dicoms[:i-loc], dicoms[i+1-loc:]...)
+	}
+
+	return dicoms, nil
 }
 
 //   Take the manifest and modify its contents to specify the sample,
