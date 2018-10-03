@@ -27,7 +27,7 @@ func main() {
 			continue
 		}
 		// Read each zip, whose name is significant
-		// cardiacmri.ProcessCardiacMRIZip(file, nil)
+		// cardiacmri.ProcessCardiacMRIZip(path+file.Name(), nil)
 		cardiacmri.SurveyZipManifests(path+file.Name(), nil)
 	}
 }

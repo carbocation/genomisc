@@ -3,6 +3,7 @@ package cardiacmri
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -14,6 +15,9 @@ import (
 
 // The zipfiles look completely unstandardized
 func SurveyZipManifests(path string, db *sqlx.DB) error {
+
+	fmt.Println(path)
+
 	metadata, err := zipPathToMetadata(path)
 	if err != nil {
 		return err
@@ -34,9 +38,26 @@ func SurveyZipManifests(path string, db *sqlx.DB) error {
 			return err
 		}
 
-		fields, err := processManifest(zippedFile)
-		if err != nil {
+		// Consume the full manifest into a buffer so we can re-read it if it is
+		// invalid
+		manifestBuffer := &bytes.Buffer{}
+		if _, err := io.Copy(manifestBuffer, zippedFile); err != nil {
 			return err
+		}
+
+		manifestReader := bytes.NewReader(manifestBuffer.Bytes())
+
+		// Try to process it as a CSV
+		fields, err := processManifest(manifestReader)
+		if err != nil {
+
+			// If that fails, try again with our manual algorithm
+			manifestReader.Seek(0, 0)
+
+			fields, err = processInvalidManifest(manifestReader)
+			if err != nil {
+				return err
+			}
 		}
 
 		dateField := -1
@@ -65,7 +86,7 @@ func SurveyZipManifests(path string, db *sqlx.DB) error {
 }
 
 //
-func surveyManifest(manifest io.ReadCloser) ([][]string, error) {
+func surveyManifest(manifest io.Reader) ([][]string, error) {
 	output := [][]string{}
 
 	header := []string{}

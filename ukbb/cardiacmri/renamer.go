@@ -3,6 +3,8 @@ package cardiacmri
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"strings"
@@ -10,10 +12,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// The manifest.csv files are invalid. They use commas as delimiters and do not
-// use quotes, and yet they have fields (like date) that use commas... So this
-// requires some processing.
-func processManifest(manifest io.ReadCloser) ([][]string, error) {
+// Many of the manifest.csv files are invalid. They use commas as delimiters and
+// do not use quotes, and yet they have fields (like date) that use commas... So
+// this requires some processing.
+func processInvalidManifest(manifest io.Reader) ([][]string, error) {
 	output := [][]string{}
 
 	header := []string{}
@@ -71,6 +73,11 @@ func processManifest(manifest io.ReadCloser) ([][]string, error) {
 	return output, nil
 }
 
+func processManifest(manifest io.Reader) ([][]string, error) {
+	r := csv.NewReader(manifest)
+	return r.ReadAll()
+}
+
 // Iterating over the directory will be delegated to the caller.
 // Here we will process one zip file.
 func ProcessCardiacMRIZip(path string, db *sqlx.DB) error {
@@ -94,15 +101,34 @@ func ProcessCardiacMRIZip(path string, db *sqlx.DB) error {
 			return err
 		}
 
-		fields, err := processManifest(zippedFile)
-		if err != nil {
+		// Consume the full manifest into a buffer so we can re-read it if it is
+		// invalid
+		manifestBuffer := &bytes.Buffer{}
+		if _, err := io.Copy(manifestBuffer, zippedFile); err != nil {
 			return err
+		}
+
+		manifestReader := bytes.NewReader(manifestBuffer.Bytes())
+
+		// Try to process it as a CSV
+		fields, err := processManifest(manifestReader)
+		if err != nil {
+
+			// If that fails, try again with our manual algorithm
+			manifestReader.Seek(0, 0)
+
+			fields, err = processInvalidManifest(manifestReader)
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, fld := range fields {
 			fmt.Println(fld)
 		}
 		fmt.Printf("%s, %+v\n", v.Name, metadata)
+
+		zippedFile.Close()
 	}
 
 	return nil
