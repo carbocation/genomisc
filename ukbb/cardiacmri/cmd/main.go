@@ -3,6 +3,7 @@ package main
 import (
 	"broad/ghgwas/ukbb/bulkmanifest"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -27,7 +28,13 @@ func main() {
 			continue
 		}
 		// Read each zip, whose name is significant
-		bulkmanifest.ProcessCardiacMRIZip(path+file.Name(), nil)
-		// bulkmanifest.SurveyZipManifests(path+file.Name(), nil)
+		dicoms, err := bulkmanifest.ProcessCardiacMRIZip(path+file.Name(), nil)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		for _, dcm := range dicoms {
+			fmt.Printf("%+v\n", dcm)
+		}
 	}
 }
