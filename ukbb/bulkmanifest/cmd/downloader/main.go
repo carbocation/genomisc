@@ -36,6 +36,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	concurrency := 16
+	sem := make(chan bool, concurrency)
+
 	for i, row := range entries {
 		zipFile := fmt.Sprintf("%s_%s.zip", row[0], row[1])
 
@@ -47,8 +50,18 @@ func main() {
 
 		log.Println(i, len(entries), "Downloading", zipFile)
 
-		if out, err := exec.Command(ukbFetch, fmt.Sprintf("-a%s", ukbKey), fmt.Sprintf("-e%s", row[0]), fmt.Sprintf("-d%s", row[1])).CombinedOutput(); err != nil {
-			log.Fatalln(fmt.Errorf("Output: %s | Error: %s", string(out), err.Error()))
-		}
+		sem <- true
+		go func(row []string) {
+			defer func() { <-sem }()
+
+			if out, err := exec.Command(ukbFetch, fmt.Sprintf("-a%s", ukbKey), fmt.Sprintf("-e%s", row[0]), fmt.Sprintf("-d%s", row[1])).CombinedOutput(); err != nil {
+				log.Fatalln(fmt.Errorf("Output: %s | Error: %s", string(out), err.Error()))
+			}
+		}(append([]string{}, row...))
+
+	}
+
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
 	}
 }
