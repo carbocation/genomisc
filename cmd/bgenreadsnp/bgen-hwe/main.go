@@ -42,7 +42,7 @@ func main() {
 	log.Printf("%+v\n", *bgi.Metadata)
 
 	rdr := bg.NewVariantReader()
-	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tHWEChiSq\n")
+	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tHWEChiSq\tMAF\n")
 
 	if rsID != "" {
 		idx, err := FindOneVariant(bgi, rsID)
@@ -52,8 +52,8 @@ func main() {
 
 		variant := rdr.ReadAt(int64(idx.FileStartPosition))
 
-		hwe := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
-		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3f\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe)
+		hwe, _, minaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
+		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3f\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf)
 
 		return
 	}
@@ -66,14 +66,14 @@ func main() {
 			break
 		}
 
-		hwe := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
-		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3f\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe)
+		hwe, _, minaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
+		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3f\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf)
 	}
 }
 
 // ComputeHWEChiSq calculates the Hardy-Weinberg equilibrium chi square value at
 // a given site, based on the observed and expected alleles.
-func ComputeHWEChiSq(samples []*bgen.SampleProbability) (chisquare float64) {
+func ComputeHWEChiSq(samples []*bgen.SampleProbability) (chisquare, majaf, minaf float64) {
 	N := float64(len(samples))
 
 	// Genotype count observations
@@ -93,10 +93,19 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability) (chisquare float64) {
 	eAa := 2.0 * A * a * N
 	eaa := a * a * N
 
+	// Assign AF to major or minor correctly
+	majaf = A
+	minaf = a
+	if majaf < minaf {
+		minaf, majaf = majaf, minaf
+	}
+
 	// ChiSquare
 	return math.Pow(eAA-AA, 2)/eAA +
-		math.Pow(eAa-Aa, 2)/eAa +
-		math.Pow(eaa-aa, 2)/eaa
+			math.Pow(eAa-Aa, 2)/eAa +
+			math.Pow(eaa-aa, 2)/eaa,
+		majaf,
+		minaf
 }
 
 func FindOneVariant(bgi *bgen.BGIIndex, rsID string) (bgen.VariantIndex, error) {
