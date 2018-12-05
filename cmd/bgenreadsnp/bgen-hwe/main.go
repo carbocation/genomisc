@@ -52,8 +52,7 @@ func main() {
 
 		variant := rdr.ReadAt(int64(idx.FileStartPosition))
 
-		hwe, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
-		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf, AAf, Aaf, aaf)
+		handleVariant(variant)
 
 		return
 	}
@@ -66,9 +65,13 @@ func main() {
 			break
 		}
 
-		hwe, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
-		fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf, AAf, Aaf, aaf)
+		handleVariant(variant)
 	}
+}
+
+func handleVariant(variant *bgen.Variant) {
+	hwe, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities)
+	fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf, AAf, Aaf, aaf)
 }
 
 // ComputeHWEChiSq calculates the Hardy-Weinberg equilibrium chi square value at
