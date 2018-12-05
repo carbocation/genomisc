@@ -19,9 +19,9 @@ func main() {
 	flag.StringVar(&bgenPath, "bgen", "", "Path to the BGEN file")
 	flag.StringVar(&bgiPath, "bgi", "", "Path to the BGEN index. If blank, will assume it's the BGEN path suffixed with .bgi")
 	flag.StringVar(&rsID, "snp", "", "SNP ID. If blank, this will run on all SNPs found in the BGEN.")
-	flag.StringVar(&rsID, "snp", "", "SNP ID. If blank, this will run on all SNPs found in the BGEN.")
 	flag.StringVar(&sampleFile, "sample", "", "File that maps samples to the blank rows in the BGEN. Must be in .sample file format.")
 	flag.StringVar(&sampleIDFile, "sample_ids", "", "File that has one sample ID per row. (A subset of the IDs in the sample file.)")
+	flag.Parse()
 
 	if bgiPath == "" {
 		bgiPath = bgenPath + ".bgi"
@@ -57,7 +57,7 @@ func main() {
 	log.Printf("%+v\n", *bgi.Metadata)
 
 	rdr := bg.NewVariantReader()
-	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tHWEChiSq\tMAF\tAA\tAa\taa\n")
+	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tAC\tMAF\tAA\tAa\taa\tHWEChiSq\n")
 
 	if rsID != "" {
 		idx, err := FindOneVariant(bgi, rsID)
@@ -139,18 +139,13 @@ func SampleLookup(sampleFile, sampleIDFile string) ([]bool, bool, error) {
 }
 
 func handleVariant(variant *bgen.Variant, subset bool, shouldCount []bool) {
-	hwe, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities, subset, shouldCount)
-	fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], hwe, minaf, AAf, Aaf, aaf)
+	hwe, ac, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities, subset, shouldCount)
+	fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.6e\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], ac, minaf, AAf, Aaf, aaf, hwe)
 }
 
 // ComputeHWEChiSq calculates the Hardy-Weinberg equilibrium chi square value at
 // a given site, based on the observed and expected alleles.
-func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount []bool) (chisquare, majaf, minaf, AAf, Aaf, aaf float64) {
-	Nint := len(samples)
-	if subset {
-		Nint = 0
-	}
-
+func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount []bool) (chisquare, ac, majaf, minaf, AAf, Aaf, aaf float64) {
 	// Genotype count observations
 	AA, Aa, aa := 0.0, 0.0, 0.0
 	for i, v := range samples {
@@ -158,8 +153,6 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount
 			if !shouldCount[i] {
 				continue
 			}
-
-			Nint++
 		}
 
 		AA += v.Probabilities[0]
@@ -167,11 +160,14 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount
 		aa += v.Probabilities[2]
 	}
 
-	N := float64(Nint)
+	// Observed N (sample count) may be smaller than the number of samples
+	N := AA + Aa + aa
 
-	// Allele frequencies
-	A := (2.0*AA + Aa) / (2 * N)
-	a := (Aa + 2.0*aa) / (2 * N)
+	AlleleCount := 2.0 * N
+
+	// Allele frequencies depends on the allele count, not the sample count
+	A := (2.0*AA + Aa) / (AlleleCount)
+	a := (Aa + 2.0*aa) / (AlleleCount)
 
 	// Genotype count expectations
 	eAA := A * A * N
@@ -189,6 +185,7 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount
 	return math.Pow(eAA-AA, 2)/eAA +
 			math.Pow(eAa-Aa, 2)/eAa +
 			math.Pow(eaa-aa, 2)/eaa,
+		AlleleCount,
 		majaf,
 		minaf,
 		AA / N,
