@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/carbocation/bgen"
-	"github.com/carbocation/genomisc"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -98,8 +97,7 @@ func SampleLookup(sampleFile, sampleIDFile string) ([]bool, bool, error) {
 	}
 
 	sampleKeyCSV := csv.NewReader(sampleKeyF)
-	delim := genomisc.DetermineDelimiter(sampleKeyF)
-	sampleKeyCSV.Comma = delim
+	sampleKeyCSV.Comma = ' '
 
 	recs, err := sampleKeyCSV.ReadAll()
 	if err != nil {
@@ -125,8 +123,6 @@ func SampleLookup(sampleFile, sampleIDFile string) ([]bool, bool, error) {
 		return nil, subset, err
 	}
 	subsetKeyCSV := csv.NewReader(subsetKeyF)
-	delim = genomisc.DetermineDelimiter(subsetKeyF)
-	subsetKeyCSV.Comma = delim
 	subsetRecs, err := subsetKeyCSV.ReadAll()
 	if err != nil {
 		return nil, subset, err
