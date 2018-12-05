@@ -1,5 +1,8 @@
 # Computes HWE for everything
-/bin/ls ~/shortcuts/ukbb/imputed_v3/ukb_imp_chr[0-9]*_v3.bgen | xargs -P 22 -I {} bash -c 'bgen-hwe.exe -bgen {} > hwe.`basename {}`.tsv'
+#/bin/ls ~/shortcuts/ukbb/imputed_v3/ukb_imp_chr[0-9]*_v3.bgen | xargs -P 22 -I {} bash -c 'bgen-hwe.exe -bgen {} > hwe.`basename {}`.tsv'
+
+# Computes the HWE for the lv20k v12 ~16.5k sample subset
+/bin/ls /broad/ukbb/imputed_v3/ukb_imp_chr[0-9]*_v3.bgen | xargs -P 22 -I {} bash -c 'bgen-hwe.exe -bgen {} -sample /medpop/esp2/pradeep/UKBiobank/v3data/ukb7089_imp_chr15_v3_s487395.sample -sample_ids /medpop/esp/jamesp/projects/lv20k/data/kept.samples > hwe.`basename {}`.tsv'
 
 # Combine the first N values into one file for processing in R
 head -n 1 hwe.ukb_imp_chr13_v3.bgen.tsv > subset.hwe.tsv
