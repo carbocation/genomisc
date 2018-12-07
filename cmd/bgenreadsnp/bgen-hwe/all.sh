@@ -9,4 +9,4 @@ bgen-hwe.exe -snp "17:70053954_AAGAGAGAGAGAGAGAG_A" -bgen /broad/ukbb/imputed_v3
 
 # Combine the first N values into one file for processing in R
 head -n 1 hwe.ukb_imp_chr13_v3.bgen.tsv > subset.hwe.tsv
-/bin/ls hwe*.tsv | xargs -I {} bash -c 'tail -n +2 {} | head -n 450 ' | sort -k 2 -g >> subset.hwe.tsv
+/bin/ls hwe*.tsv | xargs -I {} bash -c 'tail -n +2 {} | head -n 40000' | sort -k 2 -g >> subset.hwe.tsv
