@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 func main() {
@@ -35,6 +36,9 @@ func main() {
 	}
 
 	concurrency := 16
+	if nCPU := runtime.NumCPU(); nCPU > concurrency {
+		concurrency = nCPU
+	}
 	sem := make(chan bool, concurrency)
 
 	for i, row := range entries {
