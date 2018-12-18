@@ -15,3 +15,9 @@ Download data
       * `head -n 50 ukb21481.bulk > heart.50`
       * `ukbfetch -bheart.50` *(Note: no space between `-b` and `heart.50`)*
     * There is also the `downloader.exe` tool that I created but it may be worse.
+    * Try splitting and iterating. (This should be done in its own folder since the split files have no prefix nor suffix). *NOTE*: This is slower than the `downloader.exe` approach.
+      * `split -l 1000 ukb21481.bulk`
+      * `/bin/ls ./ | xargs -I {} ukbfetch -b{}`
+    * When downloading, don't duplicate prior work:
+      * `comm -23 newfile.bulk oldfile.bulk > new-samples-only.bulk`
+      * This shows lines only present in the left file but not the right file. Useful if you have the bulk file from previous downloads.
