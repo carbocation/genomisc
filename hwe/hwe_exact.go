@@ -8,6 +8,7 @@ import (
 )
 
 var memoizedExactFor = memoize.Memoize(exactFor)
+var memoizedFactorial = memoize.Memoize(factorial)
 
 // Exact computes an exact Hardy-Weinberg equilibrium P-value, based on the
 // Abecasis paper, itself based on RA Fisher's method. Exact is safe to call
@@ -28,22 +29,59 @@ func Exact(AA, Aa, aa int64) (p float64) {
 	// *or more extreme*. See
 	// http://courses.washington.edu/b516/lectures_2009/HWE_Lecture.pdf slides
 	// 21-22.
-	sumP := 0.0
+	sumP := baseP
 
 	// Start with the most extreme heterozygote situation
-	Aa += 2 * aa
-	AA, aa = AA-aa, 0
+	// Aa += 2 * aa
+	// AA, aa = AA-aa, 0
+	origAA, origAa, origaa := AA, Aa, aa
 
-	for i := 0; ; i, Aa, AA, aa = i+1, Aa-2, AA+1, aa+1 {
-		if Aa < 0 {
+	// Left tail: Start with the exact number of hets and increase until we're
+	// at an extreme.
+	for i := 0; ; i, Aa, AA, aa = i+1, Aa+2, AA-1, aa-1 {
+		if aa < 0 {
 			break
+		}
+
+		if i == 0 {
+			continue
 		}
 
 		// newest := exactFor(AA, Aa, aa)
 		newest := memoizedExactFor.(func(int64, int64, int64) float64)(AA, Aa, aa)
 
-		if newest > baseP || newest <= math.SmallestNonzeroFloat64 {
+		if newest > baseP {
 			continue
+		}
+
+		if newest <= math.SmallestNonzeroFloat64 {
+			break
+		}
+
+		sumP += newest
+	}
+
+	// Right tail: Start with the exact number of hets and decrease until we're
+	// at an extreme.
+	AA, Aa, aa = origAA, origAa, origaa
+	for i := 0; ; i, Aa, AA, aa = i+1, Aa-2, AA+1, aa+1 {
+		if Aa < 0 {
+			break
+		}
+
+		if i == 0 {
+			continue
+		}
+
+		// newest := exactFor(AA, Aa, aa)
+		newest := memoizedExactFor.(func(int64, int64, int64) float64)(AA, Aa, aa)
+
+		if newest > baseP {
+			continue
+		}
+
+		if newest <= math.SmallestNonzeroFloat64 {
+			break
 		}
 
 		sumP += newest
@@ -67,14 +105,14 @@ func exactFor(AA, Aa, aa int64) (p float64) {
 
 	// Numerator
 	nexp.Exp(big.NewInt(2), nAa, nil)
-	nexp.Mul(&nexp, big.NewInt(1).MulRange(1, A))
-	nexp.Mul(&nexp, big.NewInt(1).MulRange(1, a))
+	nexp.Mul(&nexp, memoizedFactorial.(func(int64, int64) *big.Int)(1, A))
+	nexp.Mul(&nexp, memoizedFactorial.(func(int64, int64) *big.Int)(1, a))
 
 	// Denominator
-	denom.MulRange(N+1, 2*N)
-	denom.Mul(&denom, big.NewInt(1).MulRange(1, AA))
-	denom.Mul(&denom, big.NewInt(1).MulRange(1, Aa))
-	denom.Mul(&denom, big.NewInt(1).MulRange(1, aa))
+	denom.Add(&denom, memoizedFactorial.(func(int64, int64) *big.Int)(N+1, 2*N))
+	denom.Mul(&denom, memoizedFactorial.(func(int64, int64) *big.Int)(1, AA))
+	denom.Mul(&denom, memoizedFactorial.(func(int64, int64) *big.Int)(1, Aa))
+	denom.Mul(&denom, memoizedFactorial.(func(int64, int64) *big.Int)(1, aa))
 
 	// Results
 	var ratNum, ratDenom big.Rat
@@ -83,4 +121,8 @@ func exactFor(AA, Aa, aa int64) (p float64) {
 	final, _ := new(big.Rat).Quo(&ratNum, &ratDenom).Float64()
 
 	return final
+}
+
+func factorial(a, b int64) *big.Int {
+	return big.NewInt(1).MulRange(a, b)
 }
