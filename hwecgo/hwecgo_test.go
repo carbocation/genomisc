@@ -14,13 +14,15 @@ type expectations struct {
 }
 
 var examples = []expectations{
+	{1000000, 2000000, 950000, 3.2720875856e-143},
+	{500000, 3000000, 500000, 0},
 	{50000, 300000, 50000, 0},
 	{50000, 300, 50000, 0},
 	{50001, 301, 50001, 0},
 	{50002, 302, 50002, 0},
 	{50000, 0, 1, 0.000009999900001},
 	{500, 0, 500, 1.319669097657e-301},
-	{83, 13, 4, 0.010293},
+	{83, 13, 4, 0.01029343354887},
 	{50, 57, 14, 0.8422797565708},
 	{2, 1, 3, 0.15151515151515},
 	{500, 2, 0, 1},
@@ -33,7 +35,7 @@ var examples = []expectations{
 
 func TestHWECgo(t *testing.T) {
 	for _, v := range examples {
-		if p, expected := Exact(v.AA, v.Aa, v.aa), v.P; math.Abs(p-expected) > 1e-6 {
+		if p, expected := Exact(v.AA, v.Aa, v.aa), v.P; math.Abs(p-expected) > 1e-14 {
 			t.Fatalf("\nExact: error with input: %+v\nP: %.12f\nExpected: %.12f\nDiff: %.12f\n", v, p, expected, p-expected)
 		}
 	}
