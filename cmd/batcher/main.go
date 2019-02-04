@@ -2,13 +2,12 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -178,19 +177,15 @@ func main() {
 
 			if makeJpeg {
 				outputFileName += ".jpg"
-				jpegs, err := DicomToJpeg(dicomReader)
+
+				images, err := DicomToImages(dicomReader)
 				if err != nil {
 					log.Fatalln(err)
 				}
 
-				if len(jpegs) != 1 {
-					log.Fatalf("Expected 1 jpeg per dicom, found %d in %s => %s\n", len(jpegs), zf, v.Name)
+				if len(images) != 1 {
+					log.Fatalf("Expected 1 jpeg per dicom, found %d in %s => %s\n", len(images), zf, v.Name)
 				}
-
-				// Replace dicomreader so that it now contains our jpeg
-				dicomReader.Close()
-				dicomReaderPartial := bytes.NewReader(jpegs[0])
-				dicomReader = ioutil.NopCloser(dicomReaderPartial)
 
 				// Moved this inside the check. Unclear to me why I had this
 				// outside the makeJpg check.
@@ -200,8 +195,11 @@ func main() {
 					log.Fatalln(err)
 				}
 
-				_, err = io.Copy(extractedFile, dicomReader)
-				dicomReader.Close()
+				if err := jpeg.Encode(extractedFile, images[0], &jpeg.Options{Quality: 100}); err != nil {
+					log.Fatalln(err)
+				}
+
+				fmt.Println(extractedPath)
 			}
 
 			if makeImageFromOverlay {
@@ -215,11 +213,6 @@ func main() {
 					log.Fatalf("Expected 1 overlay per dicom, found %d in %s => %s\n", len(pngs), zf, v.Name)
 				}
 
-				// Replace dicomreader so that it now contains our jpeg
-				// dicomReader.Close()
-				// dicomReaderPartial := bytes.NewReader(pngs[0])
-				// dicomReader = ioutil.NopCloser(dicomReaderPartial)
-
 				extractedPath := filepath.Join(tempSubfolder, outputFileName)
 				extractedFile, err := os.OpenFile(extractedPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, v.Mode())
 				if err != nil {
@@ -231,12 +224,12 @@ func main() {
 					log.Fatalln(err)
 				}
 
-				dicomReader.Close()
-
 				// By emitting the output folder, we facilitate making this into
 				// a pipe-able tool.
 				fmt.Println(extractedPath)
 			}
+
+			dicomReader.Close()
 
 			toFind--
 		}
