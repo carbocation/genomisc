@@ -199,7 +199,7 @@ func main() {
 					log.Fatalln(err)
 				}
 
-				fmt.Println(extractedPath)
+				// fmt.Println(extractedPath)
 			}
 
 			if makeImageFromOverlay {
