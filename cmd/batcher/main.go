@@ -210,7 +210,8 @@ func main() {
 
 					images, err := DicomToImages(dicomReader)
 					if err != nil {
-						log.Fatalln(err)
+						log.Println("Skipping image production due to error for", zf, v.Name, err)
+						return
 					}
 
 					if len(images) != 1 {
