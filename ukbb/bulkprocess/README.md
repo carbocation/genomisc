@@ -5,7 +5,8 @@ Prepare permissions
 1. Make sure that you have created a `.ukbkey` file containing the application ID on line 1 and the private key on line 2 (directly downloadable as an attachment from the email that you received from the UKBB). This file should not be readable by anyone without proper UKBB permissions, so consider setting this to be user-readable only.
 
 Download data
-1. Download the encrypted file (`ukb21481.enc`) and decrypt it to the encoded file (`ukb21481.enc_ukb`) by running 
+1. Download the encrypted file (`ukb21481.enc`) and decrypt it to the encoded file (`ukb21481.enc_ukb`) by running `ukbunpack ukb21481.enc`
+1. Extract any non-bulk data to TSV, e.g.: `ukbconv ukb21481.enc_ukb txt`
 1. Extract the list of all samples with the field of interest. 
   * Attempt #1: 20208 is Heart MRI Long Axis `ukbconv ukb21481.enc_ukb bulk -s20208`
   * Atttempt #2: Try to get all MRI fields at once. `ukbconv ukb21481.enc_ukb bulk -ifields.list`
