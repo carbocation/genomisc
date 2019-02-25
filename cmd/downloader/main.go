@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 )
 
 func main() {
@@ -57,7 +58,9 @@ func main() {
 			defer func() { <-sem }()
 
 			if out, err := exec.Command(ukbFetch, fmt.Sprintf("-a%s", ukbKey), fmt.Sprintf("-e%s", row[0]), fmt.Sprintf("-d%s", row[1])).CombinedOutput(); err != nil {
-				log.Fatalln(fmt.Errorf("Output: %s | Error: %s", string(out), err.Error()))
+				log.Println(fmt.Errorf("Output: %s | Error: %s", string(out), err.Error()))
+				log.Println("Sleeping 30 seconds and retrying")
+				time.Sleep(30 * time.Second)
 			}
 		}(append([]string{}, row...))
 
