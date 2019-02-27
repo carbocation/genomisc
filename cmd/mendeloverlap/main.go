@@ -10,8 +10,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
+	"strings"
+
+	"github.com/carbocation/pfx"
 
 	"github.com/glycerine/golang-fisher-exact"
 	"github.com/gobuffalo/packr"
@@ -39,10 +43,16 @@ type Gene struct {
 }
 
 type Results struct {
-	Permutations []Permutation
+	Permutations   []Permutation
+	MendelianGenes map[string]Gene
+	Radius         float64
 }
 
-func (e Results) FisherExactTest(nAllGenes, nAllMendelianGenes int) float64 {
+func (e Results) Summarize() {
+	log.Println(e.FisherExactTest(18000))
+}
+
+func (e Results) FisherExactTest(nAllGenes int) float64 {
 	// FisherExactTest computes Fisher's Exact Test for
 	//  contigency tables. Nomenclature:
 	//
@@ -59,6 +69,8 @@ func (e Results) FisherExactTest(nAllGenes, nAllMendelianGenes int) float64 {
 	//  twop = the two-sided p-value for the h0: odds-ratio is different from 1
 	//
 
+	nAllMendelianGenes := len(e.MendelianGenes)
+
 	// Mendelian genes that we did not find in this permutation
 	notfoundMendelianGenes := nAllMendelianGenes - e.MendelianGeneCount()
 
@@ -72,7 +84,7 @@ func (e Results) FisherExactTest(nAllGenes, nAllMendelianGenes int) float64 {
 func (e Results) NonMendelianGeneCount() int {
 	n := 0
 	for _, v := range e.Permutations {
-		n += v.NonMendelianGenesNearLoci
+		n += v.NonMendelianGenesNearLoci(e.MendelianGenes, e.Radius)
 	}
 
 	return n
@@ -81,15 +93,53 @@ func (e Results) NonMendelianGeneCount() int {
 func (e Results) MendelianGeneCount() int {
 	n := 0
 	for _, v := range e.Permutations {
-		n += v.MendelianGenesNearLoci
+		n += v.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
 	}
 
 	return n
 }
 
 type Permutation struct {
-	NonMendelianGenesNearLoci int
-	MendelianGenesNearLoci    int
+	Loci []Locus
+}
+
+func (p Permutation) NonMendelianGenesNearLoci(mendelian map[string]Gene, radius float64) int {
+	n := 0
+
+	return n
+}
+
+func (p Permutation) MendelianGenesNearLoci(mendelian map[string]Gene, radius float64) int {
+	n := 0
+
+	for _, locus := range p.Loci {
+		for _, gene := range mendelian {
+			if locus.IsGeneWithinRadius(gene, radius) {
+				n++
+			}
+		}
+	}
+
+	return n
+}
+
+type Locus struct {
+	Index      int
+	Chromosome string
+	Position   int
+}
+
+func (l Locus) IsGeneWithinRadius(gene Gene, radius float64) bool {
+	if gene.Chromosome != l.Chromosome {
+		return false
+	}
+
+	if math.Abs(float64(gene.EarliestTranscriptStart)-float64(l.Position)) < radius ||
+		math.Abs(float64(gene.LatestTranscriptEnd)-float64(l.Position)) < radius {
+		return true
+	}
+
+	return false
 }
 
 func main() {
@@ -128,7 +178,75 @@ func main() {
 	}
 	fmt.Println()
 
-	_ = mendelianTranscripts
+	permutations, err := ReadSNPsnap(SNPsnapFile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	permutations.MendelianGenes = mendelianTranscripts
+	permutations.Radius = radius
+
+	permutations.Summarize()
+}
+
+func ReadSNPsnap(fileName string) (Results, error) {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return Results{}, err
+	}
+	defer f.Close()
+
+	cr := csv.NewReader(f)
+	cr.Comment = '#'
+	cr.Comma = '\t'
+	lines, err := cr.ReadAll()
+	if err != nil {
+		return Results{}, err
+	}
+
+	if len(lines) < 1 {
+		return Results{}, fmt.Errorf("0 lines in SNPsnap file")
+	}
+	if len(lines[0]) < 1 {
+		return Results{}, fmt.Errorf("First line of SNPsnap file has no entries")
+	}
+
+	// Make one permutation per column
+	permutations := make([]Permutation, len(lines[0]))
+	for k := range permutations {
+		// Initialize
+		permutations[k].Loci = make([]Locus, len(lines)-1)
+	}
+
+	// Each row is a SNP
+Outer:
+	for i, row := range lines {
+		if len(row) < 1 {
+			continue
+		}
+
+		if i == 0 {
+			continue
+		}
+
+		// Each column is a different permutation
+		for j, col := range row {
+			parts := strings.Split(col, ":")
+			if len(parts) < 2 {
+				log.Printf("%s had %d parts, expected 2. Skipping\n", col, len(parts))
+				continue Outer
+			}
+			intpos, err := strconv.Atoi(parts[1])
+			if err != nil {
+				log.Println("Len of bad col:", len(col))
+				return Results{}, pfx.Err(err)
+			}
+			locus := Locus{Index: j, Chromosome: parts[0], Position: intpos}
+			permutations[j].Loci[i-1] = locus
+		}
+	}
+
+	return Results{Permutations: permutations}, nil
 }
 
 func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
@@ -233,4 +351,12 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 	}
 
 	return keepers, nil
+}
+
+func AbsInt(a1, a2 int) int {
+	if a1 > a2 {
+		return a1 - a2
+	}
+
+	return a2 - a1
 }
