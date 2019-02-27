@@ -47,8 +47,29 @@ func (e Results) Summarize() {
 	})
 
 	fmt.Println(len(e.MendelianGenes), "Mendelian genes being tested")
+	fmt.Println("Genes in your panel:")
+	i := 0
+	for v := range e.MendelianGenes {
+		if i > 0 && i%15 == 0 {
+			fmt.Println()
+		}
+		fmt.Print(v, " ")
+		i++
+	}
+	fmt.Println()
+	fmt.Println()
+
+	fmt.Println("Genes overlapping with your original SNP list:")
+	for _, v := range e.MendelianGenes {
+		for _, locus := range e.Permutations[0].Loci {
+			if locus.IsGeneWithinRadius(v, e.Radius) {
+				fmt.Println(v.Symbol)
+			}
+		}
+	}
+	fmt.Println()
 	fmt.Println("Examined", len(e.Permutations), "permutations")
-	fmt.Printf("N_Overlapping_Loci\tPermutations\tContains_Original_Dataset\n")
+	fmt.Printf("N_Overlapping_Loci\tN_Permutations\tContains_Original_Dataset\n")
 	for _, v := range histslice {
 		fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
 	}

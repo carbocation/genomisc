@@ -5,7 +5,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"strings"
 )
@@ -42,11 +41,6 @@ func main() {
 	if err != nil && !(strings.Contains(err.Error(), "ERR1:") && overrideMissing) {
 		log.Fatalln(err)
 	}
-
-	for _, v := range mendelianTranscripts {
-		fmt.Print(v, " ")
-	}
-	fmt.Println()
 
 	permutations, err := ReadSNPsnap(SNPsnapFile)
 	if err != nil {
