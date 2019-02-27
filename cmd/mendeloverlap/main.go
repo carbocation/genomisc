@@ -12,6 +12,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -48,8 +49,45 @@ type Results struct {
 	Radius         float64
 }
 
+type Hist struct {
+	Value    int
+	Count    int
+	Original bool
+}
+
 func (e Results) Summarize() {
-	log.Println(e.FisherExactTest(18000))
+	fmt.Println(e.FisherExactTest(18000))
+	fmt.Println(len(e.Permutations), "Permutations")
+
+	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+
+	mendelianCounts := make(map[int]Hist)
+	for _, permutation := range e.Permutations {
+		val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+		hist := mendelianCounts[val]
+		hist.Value = val
+		hist.Count++
+		mendelianCounts[val] = hist
+	}
+
+	histslice := make([]Hist, 0, len(mendelianCounts))
+	for _, v := range mendelianCounts {
+		if v.Value == origValue {
+			v.Original = true
+		}
+		histslice = append(histslice, v)
+	}
+	sort.Slice(histslice, func(i, j int) bool {
+		if histslice[i].Count < histslice[j].Count {
+			return true
+		}
+
+		return false
+	})
+
+	for _, v := range histslice {
+		fmt.Println(v.Value, v.Count, v.Original)
+	}
 }
 
 func (e Results) FisherExactTest(nAllGenes int) float64 {
@@ -134,8 +172,8 @@ func (l Locus) IsGeneWithinRadius(gene Gene, radius float64) bool {
 		return false
 	}
 
-	if math.Abs(float64(gene.EarliestTranscriptStart)-float64(l.Position)) < radius ||
-		math.Abs(float64(gene.LatestTranscriptEnd)-float64(l.Position)) < radius {
+	if math.Abs(float64(gene.EarliestTranscriptStart)-float64(l.Position)) < radius*1000 ||
+		math.Abs(float64(gene.LatestTranscriptEnd)-float64(l.Position)) < radius*1000 {
 		return true
 	}
 
