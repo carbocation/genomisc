@@ -55,7 +55,6 @@ type Hist struct {
 }
 
 func (e Results) Summarize() {
-	fmt.Println(e.FisherExactTest(18000))
 	fmt.Println("Examining", len(e.Permutations), "Permutations")
 
 	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
@@ -84,8 +83,9 @@ func (e Results) Summarize() {
 		return false
 	})
 
+	fmt.Printf("N_Overlapping_Loci\tPermutations\tOriginal_Dataset\n")
 	for _, v := range histslice {
-		fmt.Println(v.Value, v.Count, v.Original)
+		fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
 	}
 }
 
