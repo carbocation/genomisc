@@ -37,12 +37,17 @@ func main() {
 		return
 	}
 
-	if err := Lookup(geneName); err != nil {
+	if err := LookupTranscripts(geneName); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func Lookup(geneName string) error {
+func SymbolMaxWindow(geneName string) error {
+	return nil
+}
+
+// Fetches all transcripts for a named symbol
+func LookupTranscripts(geneName string) error {
 	lookups := packr.NewBox("./lookups")
 
 	file := lookups.Bytes("ensembl.grch37.p13.genes")
