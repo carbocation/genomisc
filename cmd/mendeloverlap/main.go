@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/carbocation/pfx"
-
 	"github.com/glycerine/golang-fisher-exact"
 	"github.com/gobuffalo/packr"
 )
@@ -57,7 +56,7 @@ type Hist struct {
 
 func (e Results) Summarize() {
 	fmt.Println(e.FisherExactTest(18000))
-	fmt.Println(len(e.Permutations), "Permutations")
+	fmt.Println("Examining", len(e.Permutations), "Permutations")
 
 	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
 
@@ -78,7 +77,7 @@ func (e Results) Summarize() {
 		histslice = append(histslice, v)
 	}
 	sort.Slice(histslice, func(i, j int) bool {
-		if histslice[i].Count < histslice[j].Count {
+		if histslice[i].Value < histslice[j].Value {
 			return true
 		}
 
@@ -185,11 +184,13 @@ func main() {
 		mendelianGeneFile string
 		SNPsnapFile       string
 		radius            float64
+		overrideMissing   bool
 	)
 
 	flag.StringVar(&mendelianGeneFile, "mendel", "", "Filename containing one gene symbol per line representing your Mendelian disease genes.")
 	flag.StringVar(&SNPsnapFile, "snpsnap", "", "Filename containing SNPsnap output.")
-	flag.Float64Var(&radius, "radius", 100, "Radius, in kilobases, to define whether part of a transcript is 'within' a given locus.")
+	flag.Float64Var(&radius, "radius", 250, "Radius, in kilobases, to define whether part of a transcript is 'within' a given locus.")
+	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
 	flag.Parse()
 
 	if mendelianGeneFile == "" || SNPsnapFile == "" || radius < 0 {
@@ -207,7 +208,7 @@ func main() {
 	}
 
 	mendelianTranscripts, err := SimplifyTranscripts(mendelianGeneList)
-	if err != nil {
+	if err != nil && !(strings.Contains(err.Error(), "ERR1:") && overrideMissing) {
 		log.Fatalln(err)
 	}
 
@@ -385,7 +386,7 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 				missing = append(missing, key)
 			}
 		}
-		return keepers, fmt.Errorf("Your Mendelian set contained %d genes, but we could only map %d of them. Missing: %v", len(geneNames), len(keepers), missing)
+		return keepers, fmt.Errorf("ERR1: Your Mendelian set contained %d genes, but we could only map %d of them. Missing: %v", len(geneNames), len(keepers), missing)
 	}
 
 	return keepers, nil
