@@ -48,13 +48,16 @@ func (e Results) Summarize() {
 
 	fmt.Println(len(e.MendelianGenes), "Mendelian genes being tested")
 	fmt.Println("Genes in your panel:")
-	i := 0
-	for v := range e.MendelianGenes {
+	mgenes := make([]Gene, 0, len(e.MendelianGenes))
+	for _, v := range e.MendelianGenes {
+		mgenes = append(mgenes, v)
+	}
+	sort.Slice(mgenes, func(i, j int) bool { return mgenes[i].Symbol < mgenes[j].Symbol })
+	for i, v := range mgenes {
 		if i > 0 && i%15 == 0 {
 			fmt.Println()
 		}
-		fmt.Print(v, " ")
-		i++
+		fmt.Print(v.Symbol, " ")
 	}
 	fmt.Println()
 	fmt.Println()
