@@ -46,8 +46,8 @@ func (e Results) Summarize() {
 		return false
 	})
 
-	fmt.Println(len(e.MendelianGenes), "Mendelian genes being tested")
-	fmt.Println("Genes in your panel:")
+	// All Mendelian genes
+	fmt.Println(len(e.MendelianGenes), "Mendelian genes were tested in the gene panel:")
 	mgenes := make([]Gene, 0, len(e.MendelianGenes))
 	for _, v := range e.MendelianGenes {
 		mgenes = append(mgenes, v)
@@ -62,14 +62,21 @@ func (e Results) Summarize() {
 	fmt.Println()
 	fmt.Println()
 
-	fmt.Println("Genes overlapping with your original SNP list:")
+	// Mendelian genes that overlap with your loci
+	mgenes = make([]Gene, 0, len(e.MendelianGenes))
 	for _, v := range e.MendelianGenes {
 		for _, locus := range e.Permutations[0].Loci {
 			if locus.IsGeneWithinRadius(v, e.Radius) {
-				fmt.Println(v.Symbol)
+				mgenes = append(mgenes, v)
 			}
 		}
 	}
+	fmt.Printf("%d Mendelian genes overlapped with your original SNP list:\n", len(mgenes))
+	sort.Slice(mgenes, func(i, j int) bool { return mgenes[i].Symbol < mgenes[j].Symbol })
+	for i, v := range mgenes {
+		fmt.Printf("%d) %s\n", i+1, v.Symbol)
+	}
+
 	fmt.Println()
 	fmt.Println("Examined", len(e.Permutations), "permutations")
 	fmt.Printf("N_Overlapping_Loci\tN_Permutations\tContains_Original_Dataset\n")
