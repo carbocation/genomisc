@@ -89,12 +89,12 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 			continue
 		}
 
-		start, err := strconv.Atoi(rec[TranscriptStartOneBased])
+		start, err := strconv.Atoi(rec[GeneStartOneBased])
 		if err != nil {
 			return nil, err
 		}
 
-		end, err := strconv.Atoi(rec[TranscriptEndOneBased])
+		end, err := strconv.Atoi(rec[GeneEndOneBased])
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +116,7 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 			keepers[transcript.Symbol] = temp
 		}
 
-		if transcript.LatestTranscriptEnd < keeper.LatestTranscriptEnd {
+		if transcript.LatestTranscriptEnd > keeper.LatestTranscriptEnd {
 			temp := keepers[transcript.Symbol]
 			temp.LatestTranscriptEnd = transcript.LatestTranscriptEnd
 			keepers[transcript.Symbol] = temp
