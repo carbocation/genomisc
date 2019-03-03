@@ -37,6 +37,17 @@ var Layouts = map[string]Layout{
 		ColScore:        6,
 		Parser:          &ldpredParseRow,
 	},
+	"BOLTBGEN": {
+		Delimiter:       '\t',
+		Comment:         '#',
+		ColEffectAllele: 4,
+		ColAllele1:      5,
+		ColAllele2:      4,
+		ColChromosome:   1,
+		ColPosition:     2,
+		ColScore:        10,
+		Parser:          &defaultParseRow,
+	},
 }
 
 func LayoutNames() string {
