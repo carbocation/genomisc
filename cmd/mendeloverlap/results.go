@@ -85,9 +85,15 @@ func (e Results) Summarize() {
 	fmt.Println()
 	fmt.Println("Examined", len(e.Permutations), "permutations")
 	fmt.Printf("N_Overlapping_Loci\tN_Permutations\tContains_Original_Dataset\n")
+	equallyOrMoreExtreme := 0
 	for _, v := range histslice {
 		fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
+		if v.Original {
+			equallyOrMoreExtreme += v.Count
+		}
 	}
+	fmt.Println()
+	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", float64(equallyOrMoreExtreme)/float64(len(e.Permutations)))
 }
 
 func (e Results) FisherExactTest(nAllGenes int) float64 {
