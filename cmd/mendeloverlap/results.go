@@ -63,11 +63,16 @@ func (e Results) Summarize() {
 	fmt.Println()
 
 	// Mendelian genes that overlap with your loci
+	seengenemap := make(map[string]struct{})
 	mgenes = make([]Gene, 0, len(e.MendelianGenes))
 	for _, v := range e.MendelianGenes {
 		for _, locus := range e.Permutations[0].Loci {
 			if locus.IsGeneWithinRadius(v, e.Radius) {
+				if _, exists := seengenemap[v.Symbol]; exists {
+					continue
+				}
 				mgenes = append(mgenes, v)
+				seengenemap[v.Symbol] = struct{}{}
 			}
 		}
 	}
