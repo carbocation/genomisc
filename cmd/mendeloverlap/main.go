@@ -39,7 +39,8 @@ func main() {
 
 	mendelianTranscripts, err := SimplifyTranscripts(mendelianGeneList)
 	if err != nil && !(strings.Contains(err.Error(), "ERR1:") && overrideMissing) {
-		log.Fatalln(err)
+		log.Println(err)
+		log.Fatalln("You may re-run with --overridemissing if you are confident that missing these genes is acceptable")
 	}
 
 	permutations, err := ReadSNPsnap(SNPsnapFile)

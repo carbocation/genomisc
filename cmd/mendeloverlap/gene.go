@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gobuffalo/packr"
 )
@@ -51,7 +52,7 @@ func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
 		if len(cols) < 1 {
 			continue
 		}
-		genes[cols[0]] = struct{}{}
+		genes[strings.TrimSpace(cols[0])] = struct{}{}
 	}
 
 	return genes, nil

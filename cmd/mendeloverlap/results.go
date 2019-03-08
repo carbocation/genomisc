@@ -90,6 +90,10 @@ func (e Results) Summarize() {
 		fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
 		if v.Original {
 			equallyOrMoreExtreme += v.Count
+		} else if equallyOrMoreExtreme > 0 {
+			// Once we have hit our original value, we add the count from every
+			// subsequent entry with that much overlap or higher.
+			equallyOrMoreExtreme += v.Count
 		}
 	}
 	fmt.Println()
