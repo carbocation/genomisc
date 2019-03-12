@@ -61,10 +61,10 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			// Patient orientation
 			{Group: 0x0020, Element: 0x0020},
 
-			// Image Position
+			// Image Position Patient
 			{Group: 0x0020, Element: 0x0032},
 
-			// Image Orientation
+			// Image Orientation Patient
 			{Group: 0x0020, Element: 0x0037},
 
 			// Slice location
