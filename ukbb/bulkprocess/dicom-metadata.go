@@ -21,6 +21,8 @@ type DicomMeta struct {
 	PatientX        float64
 	PatientY        float64
 	PatientZ        float64
+	PixelHeightMM   float64
+	PixelWidthMM    float64
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -73,6 +75,12 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 
 			// Patient position
 			{Group: 0x0018, Element: 0x5100},
+
+			// Pixel Spacing: Via
+			// https://dicom.innolitics.com/ciods/ct-image/image-plane/00280030
+			// First value is the vertical mm between pixels (rows), second is
+			// horizontal mm between pixels (cols)
+			{Group: 0x0028, Element: 0x0030},
 		},
 	})
 	if parsedData == nil || err != nil {
@@ -130,6 +138,22 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			output.PatientZ, err = strconv.ParseFloat(elem.Value[2].(string), 32)
 			if err != nil {
 				continue
+			}
+		}
+
+		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0028, Element: 0x0030}) == 0 {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.PixelHeightMM, err = strconv.ParseFloat(v.(string), 32)
+					if err != nil {
+						continue
+					}
+				} else if k == 1 {
+					output.PixelWidthMM, err = strconv.ParseFloat(v.(string), 32)
+					if err != nil {
+						continue
+					}
+				}
 			}
 		}
 
