@@ -86,6 +86,12 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 			continue
 		}
 
+		if len(rec[Chromosome]) > 2 {
+			// Longer chromosome names probably represent patches, which we are
+			// not equipped to handle.
+			continue
+		}
+
 		if _, exists := geneNames[rec[GeneName]]; !exists {
 			continue
 		}
