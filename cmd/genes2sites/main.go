@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const BioMartFilename = "ensembl.grch38.p12.genes"
+const BioMartFilename = "ensembl.grch37.p13.genes"
 
 func main() {
 	var (
@@ -19,7 +19,7 @@ func main() {
 		overrideMissing   bool
 	)
 
-	log.Println("This program uses GRCh38")
+	log.Println("This program uses GRCh37")
 	flag.StringVar(&mendelianGeneFile, "genes", "", "Filename containing one gene symbol per line representing your genes.")
 	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
 	flag.Parse()
