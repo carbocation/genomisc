@@ -11,23 +11,33 @@ import (
 	"strings"
 )
 
-const BioMartFilename = "ensembl.grch37.p13.genes"
+var BioMartFilename string
+
+var assemblies = map[string]string{
+	"37": "ensembl.grch37.p13.genes",
+	"38": "ensembl.grch38.p12.genes",
+}
 
 func main() {
 	var (
 		mendelianGeneFile string
+		assembly          string
 		overrideMissing   bool
 	)
 
-	log.Println("This program uses GRCh37")
 	flag.StringVar(&mendelianGeneFile, "genes", "", "Filename containing one gene symbol per line representing your genes.")
+	flag.StringVar(&assembly, "assembly", "37", fmt.Sprint("Version of genome assembly. Options:", assemblies))
 	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
 	flag.Parse()
+
+	BioMartFilename = assemblies[assembly]
 
 	if mendelianGeneFile == "" {
 		flag.PrintDefaults()
 		return
 	}
+
+	log.Println("Using", BioMartFilename)
 
 	mendelianGeneList, err := ReadMendelianGeneFile(mendelianGeneFile)
 	if err != nil {
