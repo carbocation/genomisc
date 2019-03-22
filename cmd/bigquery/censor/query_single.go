@@ -14,7 +14,6 @@ func BigQuerySingleFieldFirst(wbq *WrappedBigQuery, fieldID int64) (map[int64]st
 FROM %s.phenotype
 WHERE 1=1
 AND FieldID=@FieldID
-AND coding_file_id IS NULL
 ORDER BY instance ASC, array_idx ASC
 
 -- Uncomment for testing

@@ -34,12 +34,18 @@ type CensorResult struct {
 }
 
 func (s CensorResult) Born() time.Time {
+	// If we know year + month, then neutral assumption is that birthday is on
+	// the middle day of the month. If we just know year, then assumption is
+	// being born midway through the year (July 2).
 	month := s.bornMonth
+	day := "15"
+
 	if month == "" {
 		month = "7"
+		day = "02"
 	}
 
-	dt, err := time.Parse("2006-01-02", fmt.Sprintf("%04s-%02s-01", s.bornYear, month))
+	dt, err := time.Parse("2006-01-02", fmt.Sprintf("%04s-%02s-%02s", s.bornYear, month, day))
 	if err != nil {
 		return time.Time{}
 	}
