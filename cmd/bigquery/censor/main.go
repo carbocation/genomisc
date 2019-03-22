@@ -1,0 +1,64 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+
+	"cloud.google.com/go/bigquery"
+)
+
+const NullMarker = "NA"
+
+type SamplePheno struct {
+	SampleID     int64              `bigquery:"sample_id"`
+	Value        string             `bigquery:"value"`
+	FieldID      int64              `bigquery:"FieldID"`
+	Instance     int64              `bigquery:"instance"`
+	ArrayIDX     int64              `bigquery:"array_idx"`
+	CodingFileID bigquery.NullInt64 `bigquery:"coding_file_id"`
+}
+
+type WrappedBigQuery struct {
+	Context  context.Context
+	Client   *bigquery.Client
+	Project  string
+	Database string
+}
+
+func main() {
+	var (
+		phenoCensorDateString string
+		deathCensorDateString string
+		tool                  string
+		BQ                    = &WrappedBigQuery{}
+	)
+
+	flag.StringVar(&phenoCensorDateString, "pheno_censor", "", "With format YYYY-MM-DD, please provide the Hospital Data censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
+	flag.StringVar(&deathCensorDateString, "death_censor", "", "With format YYYY-MM-DD, please provide the Death censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
+	flag.StringVar(&tool, "tool", "censor", "Tool. Either 'censor' or 'icd'")
+	flag.StringVar(&BQ.Project, "project", "broad-ml4cvd", "Name of the Google Cloud project that hosts your BigQuery database instance")
+	flag.StringVar(&BQ.Database, "bigquery", "ukbb7089_r10data", "BigQuery source database name")
+	flag.Parse()
+
+	if phenoCensorDateString == "" || deathCensorDateString == "" || BQ.Project == "" || BQ.Database == "" {
+		flag.PrintDefaults()
+		log.Fatalln()
+	}
+
+	log.Println("Using bigquery database", BQ.Database)
+	log.Println("Output uses", NullMarker, "in place of null values. Please specify this when loading data into bigquery.")
+
+	if tool == "censor" {
+		log.Println("Producing censorship table")
+		if err := Censor(BQ, deathCensorDateString, phenoCensorDateString); err != nil {
+			log.Fatalln(err)
+		}
+	} else if tool == "icd" {
+		log.Println("Producing ICD earliest dates table")
+
+	} else {
+		flag.PrintDefaults()
+		log.Fatalln("Tool", tool, "not recognized")
+	}
+}
