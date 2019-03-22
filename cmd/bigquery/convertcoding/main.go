@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -62,7 +61,7 @@ func main() {
 }
 
 func ConvertCoding(wbq *WrappedBigQuery) error {
-	out := make([]int, 0)
+	out := make([]int64, 0)
 
 	query := wbq.Client.Query(fmt.Sprintf(`SELECT DISTINCT coding_file_id 
 	FROM %s.dictionary
@@ -74,7 +73,7 @@ func ConvertCoding(wbq *WrappedBigQuery) error {
 	}
 	for {
 		var values struct {
-			CodingFileID bigquery.NullString `bigquery:"coding_file_id"`
+			CodingFileID bigquery.NullInt64 `bigquery:"coding_file_id"`
 		}
 		err := itr.Next(&values)
 		if err == iterator.Done {
@@ -88,13 +87,7 @@ func ConvertCoding(wbq *WrappedBigQuery) error {
 			continue
 		}
 
-		intID, err := strconv.Atoi(values.CodingFileID.StringVal)
-		if err != nil {
-			log.Println("Skipping", intID, err)
-			continue
-		}
-
-		out = append(out, intID)
+		out = append(out, values.CodingFileID.Int64)
 	}
 
 	log.Println("Populating", len(out), "coding file entries required by the dictionary table")
@@ -106,12 +99,12 @@ func ConvertCoding(wbq *WrappedBigQuery) error {
 CodingIDLoop:
 	for _, id := range out {
 		for retries := 0; ; retries++ {
-			resp, err = http.Get(CodingFileRootURL + "?id=" + strconv.Itoa(id))
+			resp, err = http.Get(fmt.Sprintf("%s?id=%d", CodingFileRootURL, id))
 			if err != nil && retries < 5 {
 				time.Sleep(5 * time.Second)
 				continue
 			} else if err != nil && retries >= 5 {
-				log.Println("Error downloading coding file ID", strconv.Itoa(id))
+				log.Printf("Error downloading coding file ID %d\n", id)
 				return err
 			}
 			break
@@ -132,12 +125,12 @@ CodingIDLoop:
 				buf := bytes.NewBuffer(nil)
 				io.Copy(buf, resp.Body)
 				if strings.Contains(buf.String(), "internal error") {
-					log.Println("Coding file", strconv.Itoa(id), "is not permitted to be downloaded from the UKBB")
+					log.Println("Coding file", id, "is not permitted to be downloaded from the UKBB")
 					continue CodingIDLoop
 				}
 			}
 			if j < 1 {
-				log.Printf("Converting data from coding file ID#%s\n", strconv.Itoa(id))
+				log.Printf("Converting data from coding file ID#%d\n", id)
 				log.Printf("Header (%d elements): %+v\n", len(row), row)
 			}
 
@@ -162,7 +155,7 @@ CodingIDLoop:
 				}
 
 				log.Printf("%+v\n", row)
-				log.Println("Bad format for coding ID ", strconv.Itoa(id), "since it seems to contain", len(row), "columns. Attempting to delete consecutive delimiters.")
+				log.Printf("Bad format for coding ID %d since it seems to contain %d columns. Attempting to delete consecutive delimiters.\n", id, len(row))
 
 				if len(keep) == 2 {
 					fmt.Printf("%d\t%s\t%s\t\t\t\n", id, keep[0], keep[1])
