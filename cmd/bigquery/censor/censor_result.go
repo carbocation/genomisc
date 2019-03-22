@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"gopkg.in/guregu/null.v3"
@@ -9,6 +10,11 @@ import (
 
 type CensorResult struct {
 	SampleID int64
+
+	// In the database, populate with a list of fields that we would like to
+	// have (e.g., month of birth, lost to followup) but which were not present,
+	// so we know if the table was constructed from incomplete data
+	Missing []string
 
 	// Guaranteed
 	enrolled time.Time
@@ -22,6 +28,7 @@ type CensorResult struct {
 	phenoCensored time.Time
 	deathCensored time.Time
 
+	// convenience / not exported
 	bornYear  string
 	bornMonth string
 }
@@ -70,4 +77,8 @@ func (s CensorResult) PhenoCensored() time.Time {
 	}
 
 	return s.phenoCensored
+}
+
+func (s CensorResult) MissingToString() string {
+	return strings.Join(s.Missing, "|")
 }

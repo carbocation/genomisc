@@ -54,6 +54,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		entry.phenoCensored = phenoCensorDate
 		entry.enrolled, err = time.Parse("2006-01-02", v)
 		if err != nil {
+			entry.Missing = append(entry.Missing, "enroll_date[53]")
 			log.Println("Enrollment date parsing issue for", entry)
 		}
 		out[k] = entry
@@ -71,6 +72,11 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	N, err = BQ.AddBirthMonth(out)
 	log.Println("Found", N, "birth month results")
 	if N == 0 {
+		for k := range out {
+			entry := out[k]
+			entry.Missing = append(entry.Missing, "birth_month[52]")
+			out[k] = entry
+		}
 		log.Println("Warning: 0 birth months found. Are you missing FieldID 52?")
 	}
 	if err != nil {
@@ -80,6 +86,11 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	N, err = BQ.AddLostDate(out)
 	log.Println("Found", N, "lost results")
 	if N == 0 {
+		for k := range out {
+			entry := out[k]
+			entry.Missing = append(entry.Missing, "lost_to_followup[191]")
+			out[k] = entry
+		}
 		log.Println("Warning: 0 dates for loss to followup found. Are you missing FieldID 191?")
 	}
 	if err != nil {
@@ -96,7 +107,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	}
 
 	// Print
-	fmt.Printf("sample_id\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tcomputed_date\n")
+	fmt.Printf("sample_id\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tcomputed_date\tmissing_fields\n")
 	for _, v := range out {
 
 		// Some samples have been removed
@@ -104,7 +115,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			continue
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			v.SampleID,
 			TimeToUKBDate(v.Born()),
 			TimeToUKBDate(v.enrolled),
@@ -116,6 +127,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			TimeToUKBDate(v.PhenoCensored()),
 			TimesToFractionalYears(v.Born(), v.PhenoCensored()),
 			TimeToUKBDate(v.computed),
+			v.MissingToString(),
 		)
 	}
 
