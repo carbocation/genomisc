@@ -19,7 +19,7 @@ func TimesToFractionalYears(earlier, later time.Time) string {
 	}
 	y, m, d, h, min, sec := time_diff(earlier, later)
 
-	return fmt.Sprintf("%.6f", float64(y)+float64(m)/12+float64(d)/30+float64(h)/(24*365)+float64(min)/(60*24*365)+float64(sec)/(60*60*24*365))
+	return fmt.Sprintf("%.6f", float64(y)+float64(m)/12+float64(d)/(12*30)+float64(h)/(24*365)+float64(min)/(60*24*365)+float64(sec)/(60*60*24*365))
 }
 
 // Taken directly from https://stackoverflow.com/a/36531443/199475
