@@ -68,6 +68,10 @@ func main() {
 		log.Fatalln()
 	}
 
+	if strings.HasSuffix(phenoPath, ".gz") {
+		log.Printf("\n**\n**\nWARNING This tool does not currently operate on gzipped files. Based on your filename, this will likely crash. Please gunzip %s\n**\n**\n", phenoPath)
+	}
+
 	if !acknowledge {
 		fmt.Fprintln(os.Stderr, "!! -- !!")
 		fmt.Fprintln(os.Stderr, "NOTE")
@@ -119,7 +123,7 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 	// Map the headers
 	headRow, err := fileCSV.Read()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Header parsing error:", err)
 	}
 	if err := parseHeaders(BQ, headRow, headers); err != nil {
 		log.Fatalln(err)
