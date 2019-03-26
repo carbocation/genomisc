@@ -28,11 +28,17 @@ func main() {
 		log.Fatalln()
 	}
 
-	log.Printf("Importing from %s\n", dictPath)
-
-	resp, err := http.Get(dictPath)
-	if err != nil {
+	if err := ImportDictionary(dictPath); err != nil {
 		log.Fatalln(err)
+	}
+}
+
+func ImportDictionary(url string) error {
+	log.Printf("Importing from %s\n", url)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
 	}
 	reader := csv.NewReader(resp.Body)
 	reader.Comma = ','
@@ -66,7 +72,7 @@ func main() {
 			}
 
 			if nCols := len(header); nCols != ExpectedRows {
-				log.Fatalf("Expected a CSV with %d columns; got one with %d\n", ExpectedRows, nCols)
+				return fmt.Errorf("Expected a CSV with %d columns; got one with %d", ExpectedRows, nCols)
 			}
 
 			fmt.Println(strings.Join(header, "\t"))
@@ -81,4 +87,6 @@ func main() {
 	}
 
 	log.Println("Created dictionary file with", j, "entries")
+
+	return nil
 }
