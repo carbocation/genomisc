@@ -52,24 +52,31 @@ func main() {
 	defer STDOUT.Flush()
 
 	var (
+		phenoPaths  flagSlice
 		acknowledge bool
-		phenoPath   string
-		headers     = make(map[int]Column)
 		BQ          = &WrappedBigQuery{}
 	)
 	flag.StringVar(&BQ.Project, "project", "broad-ml4cvd", "Name of the Google Cloud project that hosts your BigQuery database instance")
 	flag.StringVar(&BQ.Database, "bigquery", "ukbb7089_201903", "BigQuery phenotype database name")
-	flag.StringVar(&phenoPath, "pheno", "", "phenotype file for the UKBB")
+	flag.Var(&phenoPaths, "pheno", "phenotype file for the UKBB. Pass this flag once per file if you want to process multiple files at once. Every FieldID that is seen in an earlier file will be ignored in later files.")
 	flag.BoolVar(&acknowledge, "ack", false, "Acknowledge the limitations of the tool")
 	flag.Parse()
 
-	if phenoPath == "" {
+	if phenoPaths.String() == "" {
 		flag.PrintDefaults()
-		log.Fatalln()
+		os.Exit(1)
 	}
 
-	if strings.HasSuffix(phenoPath, ".gz") {
-		log.Printf("\n**\n**\nWARNING This tool does not currently operate on gzipped files. Based on your filename, this will likely crash. Please gunzip %s\n**\n**\n", phenoPath)
+	for _, phenoPath := range phenoPaths {
+		if strings.HasSuffix(phenoPath, ".gz") {
+			log.Printf("\n**\n**\nWARNING This tool does not currently operate on gzipped files. Based on your filename, this will likely crash. Please gunzip %s\n**\n**\n", phenoPath)
+		}
+
+		if _, err := os.Stat(phenoPath); os.IsNotExist(err) {
+			log.Fatalf("Fatal error: %v does not exist\n", phenoPath)
+		} else if err != nil {
+			log.Fatalf("Fatal error: %v (possibly disk or permissions issues?): %v\n", phenoPath, err)
+		}
 	}
 
 	if !acknowledge {
@@ -79,10 +86,42 @@ func main() {
 		fmt.Fprintf(os.Stderr, `This tool checks the %s:%s.phenotype table to avoid duplicating data. 
 However, it only looks at data that is already present in the BigQuery table. 
 Any data that has been emitted to disk but not yet loaded into BigQuery cannot be seen by this tool.
+If you pass multiple files to this tool, it will behave as expected.
+If you run this tool multiple times (once per file) without first loading the output from the last round into BigQuery, you may get duplicated data.
 !! -- !!
 Please re-run this tool with the --ack flag to demonstrate that you understand this limitation.%s`, BQ.Project, BQ.Database, "\n")
 		os.Exit(1)
 	}
+
+	log.Println("Processing", len(phenoPaths), "files:", phenoPaths)
+
+	// Map out known FieldIDs so we don't add duplicate phenotype records
+	// connect to BigQuery
+	var err error
+	BQ.Context = context.Background()
+	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)
+	if err != nil {
+		log.Fatalln("Connecting to BigQuery:", err)
+	}
+	defer BQ.Client.Close()
+	knownFieldIDs, err := FindExistingFields(BQ)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println("Found", len(knownFieldIDs), "FieldIDs already in the database, will ignore those FieldIDs in the new data, if present.")
+
+	fmt.Printf("sample_id\tFieldID\tinstance\tarray_idx\tvalue\tcoding_file_id\n")
+
+	// Process each file. KnownFieldIDs is modified within.
+	for _, phenoPath := range phenoPaths {
+		if err := ProcessOnePath(BQ, knownFieldIDs, phenoPath); err != nil {
+			log.Fatalln(err)
+		}
+	}
+}
+
+func ProcessOnePath(BQ *WrappedBigQuery, knownFieldIDs map[string]struct{}, phenoPath string) error {
+	headers := make(map[int]Column)
 
 	phenoPath = genomisc.ExpandHome(phenoPath)
 	log.Printf("Converting %s\n", phenoPath)
@@ -106,20 +145,6 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 
 	log.Printf("Determined phenotype delimiter to be \"%s\"\n", string(delim))
 
-	// Map out known FieldIDs so we don't add duplicate phenotype records
-	// connect to BigQuery
-	BQ.Context = context.Background()
-	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)
-	if err != nil {
-		log.Fatalln("Connecting to BigQuery:", err)
-	}
-	defer BQ.Client.Close()
-	knownFieldIDs, err := FindExistingFields(BQ)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Println("Found", len(knownFieldIDs), "FieldIDs already in the database, will ignore those FieldIDs in the new data, if present.")
-
 	// Map the headers
 	headRow, err := fileCSV.Read()
 	if err != nil {
@@ -142,27 +167,12 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 		}
 	}
 
-	knownSlice := make([]int, 0, len(knownFieldIDs))
-	for v := range knownFieldIDs {
-		if intVal, err := strconv.Atoi(v); err == nil {
-			knownSlice = append(knownSlice, intVal)
-		}
+	summarizeImport(knownFieldIDs, newFieldIDs)
+
+	if len(newFieldIDs) < 1 {
+		log.Println("No new fields were found in file", phenoPath, " -- skipping")
+		return nil
 	}
-	sort.IntSlice(knownSlice).Sort()
-
-	newSlice := make([]int, 0, len(newFieldIDs))
-	for v := range newFieldIDs {
-		if intVal, err := strconv.Atoi(v); err == nil {
-			newSlice = append(newSlice, intVal)
-		}
-	}
-	sort.IntSlice(newSlice).Sort()
-
-	fmt.Fprintf(os.Stderr, "Already known fields that will *not* be added: %v\n", knownSlice)
-	fmt.Fprintf(os.Stderr, "New fields that *will* be added: %v\n", newSlice)
-	fmt.Fprintf(os.Stderr, "Based on an analysis of the header, %d fields are already present and will be ignored, while %d fields will be added.\n", len(knownFieldIDs), len(newFieldIDs))
-
-	fmt.Printf("sample_id\tFieldID\tinstance\tarray_idx\tvalue\tcoding_file_id\n")
 
 	var addedPhenoCount int
 	sample := 1
@@ -216,6 +226,40 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 	}
 
 	log.Println("Populated the table with", addedPhenoCount, "new records from", len(newFieldIDs), "previously unseen FieldIDs the phenotype file")
+
+	// Make the tool aware of new fields so it won't import them from the next
+	// file.
+	for key := range newFieldIDs {
+		knownFieldIDs[key] = struct{}{}
+	}
+
+	return nil
+}
+
+func summarizeImport(knownFieldIDs, newFieldIDs map[string]struct{}) {
+	knownSlice := make([]int, 0, len(knownFieldIDs))
+	for v := range knownFieldIDs {
+		if _, exists := newFieldIDs[v]; !exists {
+			// If we aren't trying to add this field, ignore
+			continue
+		}
+
+		if intVal, err := strconv.Atoi(v); err == nil {
+			knownSlice = append(knownSlice, intVal)
+		}
+	}
+	sort.IntSlice(knownSlice).Sort()
+
+	newSlice := make([]int, 0, len(newFieldIDs))
+	for v := range newFieldIDs {
+		if intVal, err := strconv.Atoi(v); err == nil {
+			newSlice = append(newSlice, intVal)
+		}
+	}
+	sort.IntSlice(newSlice).Sort()
+
+	fmt.Fprintf(os.Stderr, "Total known fields: %v. %v fields in the file are duplicate and will *not* be added: %v\n", len(knownFieldIDs), len(knownSlice), splitToString(knownSlice, ","))
+	fmt.Fprintf(os.Stderr, "%d fields are new and *will* be added: %v\n", len(newFieldIDs), splitToString(newSlice, ","))
 }
 
 // Yields a map that notes which columns are associated with which field
@@ -331,4 +375,17 @@ func FindExistingFields(wbq *WrappedBigQuery) (map[string]struct{}, error) {
 	}
 
 	return knownFieldIDs, nil
+}
+
+// Via https://stackoverflow.com/a/42159097/199475
+func splitToString(a []int, sep string) string {
+	if len(a) == 0 {
+		return ""
+	}
+
+	b := make([]string, len(a))
+	for i, v := range a {
+		b[i] = strconv.Itoa(v)
+	}
+	return strings.Join(b, sep)
 }
