@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"time"
 )
 
@@ -16,10 +15,12 @@ func main() {
 	// Download all data with ukbfetch
 
 	var bulkPath, ukbKey, ukbFetch string
+	var concurrency int
 
 	flag.StringVar(&bulkPath, "bulk", "", "Path to *.bulk file, as specified by UKBB.")
 	flag.StringVar(&ukbFetch, "ukbfetch", "ukbfetch", "Path to the ukbfetch utility (if not already in your PATH as ukbfetch).")
 	flag.StringVar(&ukbKey, "ukbkey", ".ukbkey", "Path to the .ukbkey file with the app ID and special key.")
+	flag.IntVar(&concurrency, "concurrency", 10, "Number of simultaneous connections to UK Biobank servers.")
 
 	flag.Parse()
 
@@ -36,18 +37,30 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	concurrency := 16
-	if nCPU := runtime.NumCPU(); nCPU > concurrency {
-		concurrency = nCPU
-	}
+	// Note: The UK Biobank updated their rules to permit only 10 simultaneous
+	// downloads per application in 3/2019.
+	log.Println("Using up to", concurrency, "simultaneous downloads")
+
+	// Make it 1-based
+	concurrency = concurrency - 1
+
 	sem := make(chan bool, concurrency)
 
 	for i, row := range entries {
-		zipFile := fmt.Sprintf("%s_%s.zip", row[0], row[1])
+		exists := false
+		zipFile := ""
+		for _, suffix := range []string{"zip", "cram"} {
+			zipFile = fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
 
-		// If we already downloaded this file, skip it
-		if _, err := os.Stat(zipFile); !os.IsNotExist(err) {
-			log.Println(i, len(entries), "Already downloaded", zipFile)
+			// If we already downloaded this file, skip it
+			if _, err := os.Stat(zipFile); !os.IsNotExist(err) {
+				log.Println(i, len(entries), "Already downloaded", zipFile)
+				exists = true
+				break
+			}
+		}
+
+		if exists {
 			continue
 		}
 
