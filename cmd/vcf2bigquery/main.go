@@ -25,12 +25,35 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var vcfFile, assembly, chromosome string
+	var vcfFile, assembly string
+	var chunk, chunksize int
 	flag.StringVar(&vcfFile, "vcf", "", "Path to VCF containing diploid genotype data to be linearized.")
-	flag.StringVar(&assembly, "assembly", "", "Name of assembly. This will modify the name of the 'pos' column for your future reference.")
-	flag.StringVar(&chromosome, "chrom", "", "Use only this chromosome. Requires that you have processed the vcz.gz with tabix.")
+	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
+	flag.IntVar(&chunksize, "chunksize", 0, "Use this chunksize (in kilobases).")
+	flag.IntVar(&chunk, "chunk", 0, "1-based, to iterate over chunks.")
 
 	flag.Parse()
+
+	var err error
+	var chunks []vcf.TabixLocus
+
+	if chunksize > 0 {
+		log.Println("Note that with --chunksize enabled, this tool *only processes autosomal SNPs*")
+
+		// Kilobases (kibibases, I guess)
+		chunks, err = SplitChrPos(chunksize*1000, assembly)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		log.Printf("Split genome into %d chunks of ~%d kilobases each\n", len(chunks), chunksize)
+
+		if chunk == 0 {
+			log.Printf("--chunk was not specified. Specify --chunk between 1 and %d (inclusive)\n", len(chunks))
+			flag.PrintDefaults()
+			os.Exit(1)
+		}
+	}
 
 	if vcfFile == "" || assembly == "" {
 		flag.PrintDefaults()
@@ -85,7 +108,7 @@ func main() {
 
 	fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\n", assembly)
 
-	if chromosome == "" {
+	if chunksize == 0 {
 
 		// Read the full VCF
 
@@ -96,7 +119,7 @@ func main() {
 
 		// Read only a subset via tabix
 
-		locus := vcf.MakeTabixLocus(chromosome, 0, 1000000000)
+		locus := chunks[chunk-1]
 		ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork)
 
 	}
