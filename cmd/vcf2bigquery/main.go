@@ -180,7 +180,7 @@ func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, conc
 			}
 
 			if i%1000 == 0 {
-				log.Printf("Processed %d variants\n", i)
+				log.Printf("Processed %d variants. Last %s:%d\n", i, snp.Chrom(), snp.Pos)
 			}
 
 			ProcessVariant(snp, concurrencyLimit, pool, completedWork)
@@ -212,7 +212,7 @@ func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.Wa
 		}
 
 		if i%1000 == 0 {
-			log.Printf("Processed %d variants\n", i)
+			log.Printf("Processed %d variants. Last %s:%d\n", i, variant.Chrom(), variant.Pos)
 		}
 
 		ProcessVariant(variant, concurrencyLimit, pool, completedWork)
