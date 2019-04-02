@@ -52,6 +52,8 @@ func main() {
 			log.Printf("--chunk was not specified. Specify --chunk between 1 and %d (inclusive)\n", len(chunks))
 			flag.PrintDefaults()
 			os.Exit(1)
+		} else {
+			log.Printf("This job will process chunk #%d\n", chunk)
 		}
 	}
 
