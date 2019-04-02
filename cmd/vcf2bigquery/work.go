@@ -19,7 +19,7 @@ type Work struct {
 	Genotype null.Int
 }
 
-func worker(variant *vcfgo.Variant, alleleID, variantOrder int, work chan<- Work, concurrencyLimit <-chan struct{}, pool *sync.WaitGroup) {
+func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyLimit <-chan struct{}, pool *sync.WaitGroup) {
 	if err := variant.Header.ParseSamples(variant); err != nil {
 		// if err := variant.Header.ParseSamples(variant); err != nil {
 		log.Println("Sample parsing error:", err)

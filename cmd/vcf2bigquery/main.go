@@ -1,6 +1,7 @@
 package main
 
 import (
+	"broad/ghgwas/lib/vcf"
 	"bufio"
 	"compress/gzip"
 	"flag"
@@ -11,6 +12,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/brentp/bix"
+	"github.com/brentp/irelate/interfaces"
 	"github.com/brentp/vcfgo"
 )
 
@@ -22,9 +25,11 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var vcfFile, assembly string
+	var vcfFile, assembly, chromosome string
 	flag.StringVar(&vcfFile, "vcf", "", "Path to VCF containing diploid genotype data to be linearized.")
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. This will modify the name of the 'pos' column for your future reference.")
+	flag.StringVar(&chromosome, "chrom", "", "Use only this chromosome. Requires that you have processed the vcz.gz with tabix.")
+
 	flag.Parse()
 
 	if vcfFile == "" || assembly == "" {
@@ -76,14 +81,98 @@ func main() {
 	log.Println("Limiting concurrent goroutines to", runtime.NumCPU()*2)
 	concurrencyLimit := make(chan struct{}, runtime.NumCPU()*2)
 
-	variantOrder := 0
 	log.Println("Linearizing", vcfFile)
 
 	fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\n", assembly)
-	for i := 0; ; i++ {
-		if rdr == nil {
-			panic("Nil reader")
+
+	if chromosome == "" {
+
+		// Read the full VCF
+
+		if err := ReadAllVCF(rdr, concurrencyLimit, &pool, completedWork); err != nil {
+			log.Println(err)
 		}
+	} else {
+
+		// Read only a subset via tabix
+
+		locus := vcf.MakeTabixLocus(chromosome, 0, 1000000000)
+		ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork)
+
+	}
+
+	// Make sure that the last variants have finished printing before the
+	// program is allowed to exit.
+	pool.Wait()
+}
+
+func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) error {
+
+	tbx, err := bix.New(vcfFile)
+	if err != nil {
+		return err
+	}
+	defer tbx.Close()
+
+	summarized := false
+
+	for _, locus := range loci {
+		vals, err := tbx.Query(locus)
+		if err != nil {
+			return err
+		}
+		defer vals.Close()
+
+		for i := 0; ; i++ {
+			v, err := vals.Next()
+			if err != nil && err != io.EOF {
+				// True error
+				return err
+			} else if err == io.EOF {
+				// Finished all data.
+				break
+			}
+
+			// Unwrap multiple layers to get to vcfgo.Variant{}
+
+			v2, ok := v.(interfaces.VarWrap)
+			if !ok {
+				return fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid VarWrap")
+			}
+
+			snp, ok := v2.IVariant.(*vcfgo.Variant)
+			if !ok {
+				return fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid IVariant")
+			}
+
+			if i == 0 && !summarized {
+				// Prime the integer sample lookup (since previously, a lot of time
+				// was spent in runtime.mapaccess1_faststr, indicating that map
+				// lookups were taking a meaningful amount of time)
+				snp.Header.ParseSamples(snp)
+
+				log.Println(len(snp.Samples), "samples found in the VCF")
+
+				summarized = true
+			}
+
+			if i%1000 == 0 {
+				log.Printf("Processed %d variants\n", i)
+			}
+
+			ProcessVariant(snp, concurrencyLimit, pool, completedWork)
+		}
+	}
+
+	return nil
+}
+
+func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) error {
+	if rdr == nil {
+		panic("Nil reader")
+	}
+
+	for i := 0; ; i++ {
 		variant := rdr.Read()
 		if variant == nil {
 			log.Println("Finished")
@@ -99,22 +188,24 @@ func main() {
 			log.Println(len(variant.Samples), "samples found in the VCF")
 		}
 
-		// Iterating over the variant.Alt() allows for multiallelics.
-		for alleleID := range variant.Alt() {
-			concurrencyLimit <- struct{}{}
-			pool.Add(1)
-			go worker(variant, alleleID, variantOrder, completedWork, concurrencyLimit, &pool)
-			variantOrder++
+		if i%1000 == 0 {
+			log.Printf("Processed %d variants\n", i)
 		}
+
+		ProcessVariant(variant, concurrencyLimit, pool, completedWork)
 	}
 	if err := rdr.Error(); err != nil {
-		log.Println("Final errors:")
-		log.Println(err)
+		return err
 	}
 
-	// Make sure that the last variants have finished printing before the
-	// program is allowed to exit.
-	pool.Wait()
+	return nil
+}
 
-	// fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%v\n", pheno.SampleID, pheno.FieldID, pheno.Instance, pheno.ArrayIDX, pheno.Value, pheno.CodingFileID)
+func ProcessVariant(variant *vcfgo.Variant, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) {
+	// Iterating over the variant.Alt() allows for multiallelics.
+	for alleleID := range variant.Alt() {
+		concurrencyLimit <- struct{}{}
+		pool.Add(1)
+		go worker(variant, alleleID, completedWork, concurrencyLimit, pool)
+	}
 }
