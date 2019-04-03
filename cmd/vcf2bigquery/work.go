@@ -64,25 +64,38 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 			}
 		}
 
-		switch missing {
-		case true:
+		if missing {
+			// We will record missing variants, unless we have specified which
+			// variant types to keep, and that specification didn't include
+			// missing variants
 			if keepAlt && !keepMissing {
 				// Missing, and we aren't keeping everything, and we aren't
 				// keeping missing: Ignore. Otherwise, we'll keep it.
 				pool.Done()
 				continue
 			}
-		}
+		} else {
+			// The variant isn't missing. We will keep the variant unless (1)
+			// the variant is reference and we specified that we will keep only
+			// a subset of variants, or (2) the variant is not ref, and we
+			// specified that we will *only* want missing variants.
 
-		switch {
-		case altAlleles < 1:
-			if (keepAlt || keepMissing) && !missing {
-				// No alt alleles found, it's not missing: it's reference. If we
-				// ask for alts or missing (or both) but find a reference, we
-				// don't print it. If we want everything including reference,
-				// don't pass the alt / missing flags.
-				pool.Done()
-				continue
+			if altAlleles < 1 {
+				// 1: Variant is reference
+				if keepAlt || keepMissing {
+					// No alt alleles found, it's not missing: it's reference. If we
+					// ask for alts or missing (or both) but find a reference, we
+					// don't print it. If we want everything including reference,
+					// don't pass the alt / missing flags.
+					pool.Done()
+					continue
+				}
+			} else {
+				// 2: Variant is non-reference
+				if keepMissing && !keepAlt {
+					pool.Done()
+					continue
+				}
 			}
 		}
 

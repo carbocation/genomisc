@@ -148,6 +148,7 @@ func main() {
 	// Make sure that the last variants have finished printing before the
 	// program is allowed to exit.
 	pool.Wait()
+	log.Println("Completed")
 }
 
 func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) error {
