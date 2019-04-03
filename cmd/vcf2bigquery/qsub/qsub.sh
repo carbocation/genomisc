@@ -1,4 +1,4 @@
-mkdir -p ~/hptmp/exome/linearize/
+mkdir -p ~/hptmp/exome/linearize/missingonly/errors/
 
 # Chunksize 500 => 5760 chunks
 
@@ -10,6 +10,6 @@ qsub \
   -binding linear:2 -pe smp 2 \
   -l h_rt="02:00:00" \
   -v CHUNK_SIZE=500 \
-  -o ~/hptmp/exome/linearize/linear.\$TASK_ID.tsv.gz \
-  -e ~/hptmp/exome/linearize/error.\$TASK_ID \
+  -o ~/hptmp/exome/linearize/missingonly/linear.\$TASK_ID.tsv.gz \
+  -e ~/hptmp/exome/linearize/missingonly/errors/error.\$TASK_ID \
   vcf2bigquery.sh
