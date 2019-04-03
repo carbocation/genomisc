@@ -22,6 +22,13 @@ var (
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 )
 
+var (
+	// Because globals are the signature of really great, not-lazy-at-all
+	// programming
+	keepMissing bool
+	keepAlt     bool
+)
+
 func main() {
 	defer STDOUT.Flush()
 
@@ -31,6 +38,8 @@ func main() {
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
 	flag.IntVar(&chunksize, "chunksize", 0, "Use this chunksize (in kilobases).")
 	flag.IntVar(&chunk, "chunk", 0, "1-based, to iterate over chunks.")
+	flag.BoolVar(&keepMissing, "missing", false, "Print missing genotypes? (Will disable printing of ref alleles)")
+	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
 
 	flag.Parse()
 
@@ -55,6 +64,16 @@ func main() {
 		} else {
 			log.Printf("This job will process chunk #%d\n", chunk)
 		}
+	}
+
+	if keepAlt || keepMissing {
+		log.Println("Reference alleles will *not* be printed.")
+	}
+	if keepAlt {
+		log.Println("Alt alleles will be printed.")
+	}
+	if keepMissing {
+		log.Println("Missing alleles will be printed.")
 	}
 
 	if vcfFile == "" || assembly == "" {

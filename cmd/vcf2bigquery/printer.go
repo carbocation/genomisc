@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 
 	"gopkg.in/guregu/null.v3"
@@ -23,5 +24,6 @@ func NullIntFormatter(n null.Int) string {
 	if !n.Valid {
 		return ""
 	}
-	return fmt.Sprintf("%d", n.Int64)
+
+	return strconv.FormatInt(n.Int64, 10)
 }

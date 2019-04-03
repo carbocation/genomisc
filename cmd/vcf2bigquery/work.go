@@ -64,6 +64,28 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 			}
 		}
 
+		switch missing {
+		case true:
+			if keepAlt && !keepMissing {
+				// Missing, and we aren't keeping everything, and we aren't
+				// keeping missing: Ignore. Otherwise, we'll keep it.
+				pool.Done()
+				continue
+			}
+		}
+
+		switch {
+		case altAlleles < 1:
+			if (keepAlt || keepMissing) && !missing {
+				// No alt alleles found, it's not missing: it's reference. If we
+				// ask for alts or missing (or both) but find a reference, we
+				// don't print it. If we want everything including reference,
+				// don't pass the alt / missing flags.
+				pool.Done()
+				continue
+			}
+		}
+
 		w := Work{
 			Chrom:    variant.Chrom(),
 			Pos:      variant.Pos,
