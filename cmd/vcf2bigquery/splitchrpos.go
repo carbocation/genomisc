@@ -10,7 +10,7 @@ import (
 	"github.com/gobuffalo/packr/v2"
 )
 
-func chrPosSlice(assembly string) ([]vcf.TabixLocus, error) {
+func chrPosSlice(assembly string, chromosome string) ([]vcf.TabixLocus, error) {
 	lookups := packr.New("lookups", "./lookups")
 
 	file, err := lookups.Find(assembly)
@@ -36,10 +36,16 @@ func chrPosSlice(assembly string) ([]vcf.TabixLocus, error) {
 			continue
 		}
 
-		// Only process autosomes
+		// Only process autosomes, chrX, and chrY
 		_, err := strconv.Atoi(v[header["name"]])
-		if err != nil {
+		if err != nil && v[header["name"]] != "X" && v[header["name"]] != "Y" {
 			log.Println("Skipping chromosome", v[header["name"]])
+			continue
+		}
+
+		// If a specific chromosome is requested, only process that chromosome
+		if chromosome != "" && chromosome != v[header["name"]] {
+			log.Println("Ignoring chromosome", v[header["name"]])
 			continue
 		}
 
@@ -53,8 +59,8 @@ func chrPosSlice(assembly string) ([]vcf.TabixLocus, error) {
 	return loci, nil
 }
 
-func SplitChrPos(chunksize int, assembly string) ([]vcf.TabixLocus, error) {
-	loci, err := chrPosSlice(assembly)
+func SplitChrPos(chunksize int, assembly string, chromosome string) ([]vcf.TabixLocus, error) {
+	loci, err := chrPosSlice(assembly, chromosome)
 
 	output := make([]vcf.TabixLocus, 0)
 

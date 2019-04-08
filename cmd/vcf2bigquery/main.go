@@ -32,12 +32,13 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var vcfFile, assembly string
+	var vcfFile, assembly, chromosome string
 	var chunk, chunksize int
+	flag.StringVar(&chromosome, "chromosome", "", "If set, only extracts from one specific chromosome.")
 	flag.StringVar(&vcfFile, "vcf", "", "Path to VCF containing diploid genotype data to be linearized.")
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
 	flag.IntVar(&chunksize, "chunksize", 0, "Use this chunksize (in kilobases).")
-	flag.IntVar(&chunk, "chunk", 0, "1-based, to iterate over chunks.")
+	flag.IntVar(&chunk, "chunk", 0, "1-based: which chunk to iterate over (if --chunksize is set).")
 	flag.BoolVar(&keepMissing, "missing", false, "Print missing genotypes? (Will disable printing of ref alleles)")
 	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
 
@@ -47,10 +48,8 @@ func main() {
 	var chunks []vcf.TabixLocus
 
 	if chunksize > 0 {
-		log.Println("Note that with --chunksize enabled, this tool *only processes autosomal SNPs*")
-
 		// Kilobases (kibibases, I guess)
-		chunks, err = SplitChrPos(chunksize*1000, assembly)
+		chunks, err = SplitChrPos(chunksize*1000, assembly, chromosome)
 		if err != nil {
 			log.Fatalln(err)
 		}
