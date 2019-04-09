@@ -49,7 +49,7 @@ func main() {
 	for i, row := range entries {
 		exists := false
 		zipFile := ""
-		for _, suffix := range []string{"zip", "cram"} {
+		for _, suffix := range []string{"zip", "cram", "cram.crai"} {
 			zipFile = fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
 
 			// If we already downloaded this file, skip it
