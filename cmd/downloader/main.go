@@ -24,6 +24,8 @@ func main() {
 
 	flag.Parse()
 
+	log.Println("Note: This tool only checks for pre-existing files in the order specified by the bulk file.")
+
 	f, err := os.Open(bulkPath)
 	if err != nil {
 		log.Fatalln(err)
@@ -46,23 +48,32 @@ func main() {
 
 	sem := make(chan bool, concurrency)
 
+	finishedCheckingExisting := false
 	for i, row := range entries {
 		exists := false
 		zipFile := ""
-		for _, suffix := range []string{"zip", "cram", "cram.crai"} {
-			zipFile = fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
 
-			// If we already downloaded this file, skip it
-			if _, err := os.Stat(zipFile); !os.IsNotExist(err) {
-				log.Println(i, len(entries), "Already downloaded", zipFile)
-				exists = true
-				break
+		if !finishedCheckingExisting {
+			// Since statting on a GCSFuse filesystem is slow, we assume sorted
+			// order. If that is true, then once we stop finding files we have
+			// already downloaded, we can stop checking.
+			for _, suffix := range []string{"zip", "cram", "cram.crai"} {
+				zipFile = fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
+
+				// If we already downloaded this file, skip it
+				if _, err := os.Stat(zipFile); !os.IsNotExist(err) {
+					log.Println(i, len(entries), "Already downloaded", zipFile)
+					exists = true
+					break
+				}
 			}
 		}
 
 		if exists {
 			continue
 		}
+
+		finishedCheckingExisting = true
 
 		log.Println(i, len(entries), "Downloading", zipFile)
 
