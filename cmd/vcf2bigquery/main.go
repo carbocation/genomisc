@@ -138,9 +138,10 @@ func main() {
 	} else {
 
 		// Read only a subset via tabix
-
 		locus := chunks[chunk-1]
-		ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork)
+		if err := ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork); err != nil {
+			log.Println(err)
+		}
 
 	}
 
