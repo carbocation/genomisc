@@ -10,16 +10,17 @@ import (
 )
 
 type Work struct {
-	Chrom    string
-	Pos      uint64
-	Ref      string
-	Alt      string
-	SNP      string
-	SampleID string
-	Genotype null.Int
+	Chrom        string
+	Pos          uint64
+	Ref          string
+	Alt          string
+	SNP          string
+	SampleID     string
+	Genotype     null.Int
+	SampleFields []null.String
 }
 
-func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyLimit <-chan struct{}, pool *sync.WaitGroup) {
+func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyLimit <-chan struct{}, pool *sync.WaitGroup, sampleFields []string) {
 	if err := variant.Header.ParseSamples(variant); err != nil {
 		// if err := variant.Header.ParseSamples(variant); err != nil {
 		log.Println("Sample parsing error:", err)
@@ -112,6 +113,23 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 
 		if !missing {
 			w.Genotype = null.IntFrom(int64(altAlleles))
+		}
+
+		// Add the sample fields in order, if requested
+		for _, requestedField := range sampleFields {
+			if requestedField == "FILTER" {
+				// Field is FILTER?
+				w.SampleFields = append(w.SampleFields, null.NewString(variant.Filter, true))
+			} else if field, ok := sample.Fields[requestedField]; ok {
+				// Field is a sample-level field?
+				w.SampleFields = append(w.SampleFields, null.NewString(field, true))
+			} else if _, err := variant.Info().Get(requestedField); err == nil {
+				// Field is at the variant-level (within the INFO field)?
+				// w.SampleFields = append(w.SampleFields, null.NewString(fmt.Sprint(field), true))
+				w.SampleFields = append(w.SampleFields, null.NewString(string(vcfgo.NewInfoByte(variant.Info().Bytes(), nil).SGet(requestedField)), true))
+			} else {
+				w.SampleFields = append(w.SampleFields, null.NewString("", false))
+			}
 		}
 
 		work <- w

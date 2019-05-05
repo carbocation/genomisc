@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/brentp/bix"
@@ -32,6 +34,7 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
+	var sampleFields flagSlice
 	var vcfFile, assembly, chromosome string
 	var chunk, chunksize int
 	flag.StringVar(&chromosome, "chromosome", "", "If set, only extracts from one specific chromosome.")
@@ -41,6 +44,7 @@ func main() {
 	flag.IntVar(&chunk, "chunk", 0, "1-based: which chunk to iterate over (if --chunksize is set).")
 	flag.BoolVar(&keepMissing, "missing", false, "Print missing genotypes? (Will disable printing of ref alleles)")
 	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
+	flag.Var(&sampleFields, "field", "Fields to keep (other than GT, which is automatically included). Pass once per additional field, e.g., --field DP --field TLOD")
 
 	flag.Parse()
 
@@ -73,6 +77,11 @@ func main() {
 	}
 	if keepMissing {
 		log.Println("Missing alleles will be printed.")
+	}
+
+	if len(sampleFields) > 0 {
+		sort.StringSlice(sampleFields).Sort()
+		log.Printf("In addition to genotype, will also fetch these sample fields: %s\n", strings.Join(sampleFields, ","))
 	}
 
 	if vcfFile == "" || assembly == "" {
@@ -119,27 +128,31 @@ func main() {
 	completedWork := make(chan Work, runtime.NumCPU()*100)
 	pool := sync.WaitGroup{}
 
-	go printer(completedWork, &pool)
+	go printer(completedWork, &pool, sampleFields)
 
 	log.Println("Limiting concurrent goroutines to", runtime.NumCPU()*2)
 	concurrencyLimit := make(chan struct{}, runtime.NumCPU()*2)
 
 	log.Println("Linearizing", vcfFile)
 
-	fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\n", assembly)
+	if len(sampleFields) > 0 {
+		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\t%s\n", assembly, strings.Join(sampleFields, "\t"))
+	} else {
+		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\n", assembly)
+	}
 
 	if chunksize == 0 {
 
 		// Read the full VCF
 
-		if err := ReadAllVCF(rdr, concurrencyLimit, &pool, completedWork); err != nil {
+		if err := ReadAllVCF(rdr, concurrencyLimit, &pool, completedWork, sampleFields); err != nil {
 			log.Println(err)
 		}
 	} else {
 
 		// Read only a subset via tabix
 		locus := chunks[chunk-1]
-		if err := ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork); err != nil {
+		if err := ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork, sampleFields); err != nil {
 			log.Println(err)
 		}
 
@@ -151,7 +164,7 @@ func main() {
 	log.Println("Completed")
 }
 
-func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) error {
+func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) error {
 
 	tbx, err := bix.New(vcfFile)
 	if err != nil {
@@ -161,6 +174,7 @@ func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, conc
 
 	summarized := false
 
+	j := 0
 	for _, locus := range loci {
 		vals, err := tbx.Query(locus)
 		if err != nil {
@@ -169,6 +183,7 @@ func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, conc
 		defer vals.Close()
 
 		for i := 0; ; i++ {
+			j++
 			v, err := vals.Next()
 			if err != nil && err != io.EOF {
 				// True error
@@ -205,19 +220,21 @@ func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, conc
 				log.Printf("Processed %d variants. Last %s:%d\n", i, snp.Chrom(), snp.Pos)
 			}
 
-			ProcessVariant(snp, concurrencyLimit, pool, completedWork)
+			ProcessVariant(snp, concurrencyLimit, pool, completedWork, sampleFields)
 		}
 	}
+	log.Printf("Processed %d variants.\n", j)
 
 	return nil
 }
 
-func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) error {
+func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) error {
 	if rdr == nil {
 		panic("Nil reader")
 	}
 
-	for i := 0; ; i++ {
+	i := 0
+	for ; ; i++ {
 		variant := rdr.Read()
 		if variant == nil {
 			log.Println("Finished")
@@ -237,8 +254,9 @@ func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.Wa
 			log.Printf("Processed %d variants. Last %s:%d\n", i, variant.Chrom(), variant.Pos)
 		}
 
-		ProcessVariant(variant, concurrencyLimit, pool, completedWork)
+		ProcessVariant(variant, concurrencyLimit, pool, completedWork, sampleFields)
 	}
+	log.Printf("Processed %d variants.\n", i)
 	if err := rdr.Error(); err != nil {
 		return err
 	}
@@ -246,11 +264,11 @@ func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.Wa
 	return nil
 }
 
-func ProcessVariant(variant *vcfgo.Variant, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work) {
+func ProcessVariant(variant *vcfgo.Variant, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) {
 	// Iterating over the variant.Alt() allows for multiallelics.
 	for alleleID := range variant.Alt() {
 		concurrencyLimit <- struct{}{}
 		pool.Add(1)
-		go worker(variant, alleleID, completedWork, concurrencyLimit, pool)
+		go worker(variant, alleleID, completedWork, concurrencyLimit, pool, sampleFields)
 	}
 }
