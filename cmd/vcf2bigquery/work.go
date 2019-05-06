@@ -126,6 +126,7 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 			} else if _, err := variant.Info().Get(requestedField); err == nil {
 				// Field is at the variant-level (within the INFO field)?
 				// w.SampleFields = append(w.SampleFields, null.NewString(fmt.Sprint(field), true))
+				// TODO: This does not correctly handle multiallelics (which yield an array, from which you should pick the alleleID'th allele)
 				w.SampleFields = append(w.SampleFields, null.NewString(string(vcfgo.NewInfoByte(variant.Info().Bytes(), nil).SGet(requestedField)), true))
 			} else {
 				w.SampleFields = append(w.SampleFields, null.NewString("", false))
