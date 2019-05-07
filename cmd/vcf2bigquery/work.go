@@ -29,10 +29,8 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 
 	// VCF, for an alt like A,C, stores genotypes like 0/1, 0/2. The first
 	// person is het for A, the second is het for C. In other words, for the Nth
-	// alt allele, the genotype representing that is 1+N. Note that because we
-	// are separating multiallelics, we want to keep the convention that each
-	// alt allele value is just 1.
-	currentAltAlleleValue := 1 // + alleleID
+	// alt allele, the genotype representing that is 1+N.
+	currentAltAlleleValue := 1 + alleleID
 
 	var altAlleles int
 	var missing bool
