@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+{{block "head" .}}<head>
+  <title>{{block "title" .}}{{.Title}}{{end}} | {{.Site}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+  <link href="{{.Assets}}/css/bootstrap.3.3.1.min.css" rel="stylesheet">
+  <!-- <link href="{{.Assets}}/css/nofont-flatly.bootstrap.3.3.0.min.css" rel="stylesheet"> -->
+  <link href="{{.Assets}}/css/darkly.bootstrap.3.4.0.min.css" rel="stylesheet">
+  <link href="{{.Assets}}/css/overrides.css" rel="stylesheet">
+  <script src="{{.Assets}}/js/jquery.2.1.1.min.js"></script>
+  <script src="{{.Assets}}/js/bootstrap.3.3.1.min.js"></script>
+  {{block "headinsert" .}}{{end}}
+</head>{{end}}
+{{block "body" .}}<body>
+<header>
+<div class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-responsive-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">{{.Site}}</a>
+    </div>
+    <div class="navbar-collapse collapse navbar-responsive-collapse">
+      <ul class="nav navbar-nav navbar-right">
+        <li {{if eq "List Project" $.Title}}class="active"{{end}}>
+          <a href="/listproject">List Project</a>
+        </li>
+        <li {{if eq "About" $.Title}}class="active"{{end}}>
+          <a href="/about">About</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+</header>
+
+<div class="container">
+
+{{block "page" .}}{{end}}
+
+</div>
+
+{{block "footer" .}}<div class="container">
+  <footer>
+  <div class="row">
+  &nbsp;
+  </div>
+  <div class="row">
+    <div class="col-xs-12">
+
+      <ul class="list-inline">
+        <li class="pull-right"><a href="#">Back to top</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/TOS">Terms of Service</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/privacy">Privacy</a></li>
+        <li><a href="/DMCA">DMCA</a></li>
+        
+        <li></li>
+        <li></li>
+        <li>{{.Title}} &copy; 2019 <a target="_blank" href="https://carbocation.com">{{.Company}}</a></li>
+      </ul>
+
+    </div>
+  </div>
+  </footer>
+</div>{{end}}
+
+<script>
+{{/* Initialize any tooltips */}}
+document.addEventListener("DOMContentLoaded", function(){
+  $('[data-toggle="tooltip"]').tooltip();
+})
+</script>
+
+</body>{{end}}
+</html>

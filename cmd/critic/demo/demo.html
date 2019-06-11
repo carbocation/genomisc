@@ -1,0 +1,42 @@
+<html>
+    <head>
+        <Title>Trace Overlay</Title>
+        <style>
+            .traceCanvas {
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: cover;
+                /* background-color: #ffffff; */
+                border:1px solid #000000;
+                margin:0;
+                padding:0;
+                position:relative;
+                left:50px;
+                height:90%;
+            }
+        </style>
+    </head>
+    <body>
+        <button onclick="javascript:setBrushSize(1);">Brush:1</button>
+        <button onclick="javascript:setBrushSize(10);">Brush:10</button>
+        <button onclick="javascript:setBrush('fill');">Fill</button>
+        <!-- <button onclick="javascript:fullyShade();">Shade</button> -->
+        <button onclick="javascript:;" id="undo">Undo</button>
+        <br />
+        <br />
+        <button onclick="javascript:saveCanvas();">Save</button>
+        <br />
+        <br />
+
+        <canvas 
+        style="background-image: url('128px-Utah_teapot_simple_2.png')"
+        class="traceCanvas" 
+        id="imgCanvas" 
+        width="128" 
+        height="85"></canvas>
+    </body>
+
+    <script src="traceoverlay.js"></script>
+    <script src="bmp.js"></script>
+    <script src="fill.js"></script>
+</html>

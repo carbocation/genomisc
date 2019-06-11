@@ -1,0 +1,10 @@
+{{define "page"}}
+
+<div class="jumbotron home" style="background-image:url('{{.Assets}}/img/unsplash_pubrank.jpg'); background-repeat:no-repreat;background-size:cover;">
+
+  <h1>Error {{.Data.StatusCode}}</h1>
+  <h2>{{.Data.StatusCodeText}}</h2>
+  <p>{{.Data.Error}}</p>
+</div>
+
+{{end}}

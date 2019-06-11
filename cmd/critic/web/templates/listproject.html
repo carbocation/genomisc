@@ -1,0 +1,28 @@
+{{define "page"}}
+<h1>{{$.Title}}</h1>
+<h2>Project: {{$.Data.Project}}</h2>
+{{if $.Data.Manifest}}
+<table class="table table-striped table-hover">
+	<tr>
+		<th>ID</th>
+		<th>Zip File</th>
+		<th>Dicom</th>
+		<th>Series</th>
+		<th>Instance #</th>
+		<th>Tracing Exists?</th>
+	</tr>
+	{{range $k, $v := $.Data.Manifest}}
+		<tr>
+			<td>{{$k}}</td>
+			<td>{{$v.Zip}}</td>
+			<td><a href="/traceoverlay/{{$k}}">{{$v.Dicom}}</a></td>
+			<td><a href="/traceoverlay/{{$k}}">{{$v.Series}}</a></td>
+			<td><a href="/traceoverlay/{{$k}}">{{$v.InstanceNumber}}</a></td>
+			<td>{{if $v.HasOverlayFromProject}}✔️{{else}}{{end}}</td>
+		</tr>
+	{{end}}
+</table>
+{{else}}
+<h2>No manifest file submitted, or data could not be interpreted</h2>
+{{end}}
+{{end}}

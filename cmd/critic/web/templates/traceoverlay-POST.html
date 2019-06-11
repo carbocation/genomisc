@@ -1,0 +1,32 @@
+{{define "title"}}{{$.Data.Project}}{{end}}
+{{define "headinsert"}}
+<style>
+    .traceCanvas {
+        min-height: 600px;
+        background-color: #ffffff;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+        /* background-color: #ffffff; */
+        border:1px solid #000000;
+        margin:0;
+        padding:0;
+        position:relative;
+        left:50px;
+        width:90%;
+    }
+</style>
+{{end}}
+{{define "page"}}
+<h1>Saved Overlay</h1>
+<span>Project: <a href="/listproject">{{$.Data.Project}}</a>. Zip: {{$.Data.ManifestEntry.Zip}}. Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
+<br />
+<br />
+
+<canvas 
+style="background-image: url('data:image/png;base64,{{$.Data.EncodedImage}}')"
+class="traceCanvas" 
+id="imgCanvas" 
+width="{{$.Data.Width}}" 
+height="{{$.Data.Height}}"></canvas>
+{{end}}

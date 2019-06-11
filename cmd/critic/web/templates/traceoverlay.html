@@ -1,0 +1,55 @@
+{{define "title"}}{{$.Data.Project}}{{end}}
+{{define "headinsert"}}
+<style>
+    .traceCanvas {
+        min-height: 600px;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+        /* background-color: #ffffff; */
+        border:1px solid #000000;
+        margin:0;
+        padding:0;
+        position:relative;
+        left:50px;
+        width:90%;
+    }
+</style>
+{{end}}
+{{define "page"}}
+<span>Project: <a href="/listproject">{{$.Data.Project}}</a>. Zip: {{$.Data.ManifestEntry.Zip}}. Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
+<br />
+<button class="btn btn-primary" onclick="javascript:setBrushSize(1);">●Brush:1px</button>
+<button class="btn btn-primary" onclick="javascript:setBrushSize(10);">◉ Brush:10px</button>
+<button class="btn btn-default" onclick="javascript:setBrush('fill');">▧ Fill</button>
+<!-- <button onclick="javascript:fullyShade();">Shade</button> -->
+<button class="btn btn-danger" onclick="javascript:;" id="undo">↺Undo</button>
+<br />
+<br />
+<form method="POST" id="saveImage" action="/traceoverlay/{{$.Data.ManifestIndex}}">
+    <input type="hidden" value="" name="imgBase64" id="imgBase64" />
+</form>
+
+<button class="btn btn-info" onclick="javascript:saveCanvas();">Save Overlay to Server</button>
+<button class="btn btn-default btn-sm" onclick="javascript:downloadCanvas();">Download</button>
+<br />
+<br />
+
+<canvas 
+style="background-image: url('data:image/png;base64,{{$.Data.EncodedImage}}')"
+class="traceCanvas" 
+id="imgCanvas" 
+width="{{$.Data.Width}}" 
+height="{{$.Data.Height}}"></canvas>
+
+<!-- <canvas 
+style="background-image: url('{{.Assets}}/img/128px-Utah_teapot_simple_2.png')"
+class="traceCanvas" 
+id="imgCanvas" 
+width="128" 
+height="85"></canvas> -->
+
+<script src="{{.Assets}}/js/traceoverlay.js"></script>
+<script src="{{.Assets}}/js/bmp.js"></script>
+<script src="{{.Assets}}/js/fill.js"></script>
+{{end}}
