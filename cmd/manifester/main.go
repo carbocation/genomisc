@@ -34,7 +34,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Read each zip (names are significant)
 	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\n",
 		"sample_id",
 		"field_id",
