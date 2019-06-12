@@ -34,7 +34,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		"sample_id",
 		"field_id",
 		"instance",
@@ -58,6 +58,7 @@ func main() {
 		"slice_thickness_mm",
 		"series_number",
 		"acquisition_number",
+		"device_serial_number",
 	)
 
 	concurrency := 4 * runtime.NumCPU()
@@ -134,13 +135,13 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		overlayText = "HasOverlay"
 	}
 
-	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s",
+	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s\t%s",
 		row.SampleID, row.FieldID, row.Instance, row.Index, row.ZipFile,
 		row.Filename, row.DicomMeta.SeriesDescription, studyDate.Format("2006-01-02"),
 		row.DicomMeta.InstanceNumber, overlayText, row.DicomMeta.OverlayFraction, row.DicomMeta.OverlayRows, row.DicomMeta.OverlayCols,
 		row.DicomMeta.Rows, row.DicomMeta.Cols,
 		row.DicomMeta.PatientX, row.DicomMeta.PatientY, row.DicomMeta.PatientZ, row.DicomMeta.PixelHeightMM, row.DicomMeta.PixelWidthMM,
 		row.DicomMeta.SliceThicknessMM,
-		row.DicomMeta.SeriesNumber, row.DicomMeta.AcquisitionNumber)
+		row.DicomMeta.SeriesNumber, row.DicomMeta.AcquisitionNumber, row.DicomMeta.DeviceSerialNumber)
 	return nil
 }
