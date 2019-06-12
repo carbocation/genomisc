@@ -16,7 +16,7 @@ import (
 
 // ExtractDicom constructs a native go Image type from the dicom image with the
 // given name in the given zip file.
-func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
+func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, error) {
 	var err error
 
 	rc, err := zip.OpenReader(zipPath)
@@ -57,8 +57,14 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 			return nil, fmt.Errorf("Error reading %s: %v", zipPath, err)
 		}
 
-		var bitsAllocated, bitsStored, highBit, windowCenter, windowWidth, windowCenterBE, windowWidthBE uint16
-		_, _, _, _, _, _, _ = bitsAllocated, bitsStored, highBit, windowCenter, windowWidth, windowCenterBE, windowWidthBE
+		var bitsAllocated, bitsStored, highBit uint16
+		_, _, _ = bitsAllocated, bitsStored, highBit
+
+		var windowCenter, windowWidth uint16
+		var nOverlayRows, nOverlayCols int
+
+		var img *image.Gray16
+		var overlayPixels []int
 
 		for _, elem := range parsedData.Elements {
 
@@ -89,6 +95,10 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 					return nil, err
 				}
 				windowWidth = uint16(windowWidth64)
+			} else if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x0010}) == 0 {
+				nOverlayRows = int(elem.Value[0].(uint16))
+			} else if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x0011}) == 0 {
+				nOverlayCols = int(elem.Value[0].(uint16))
 			}
 
 			if false {
@@ -118,6 +128,7 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 				}
 			}
 
+			// Main image
 			if elem.Tag == dicomtag.PixelData {
 
 				data := elem.Value[0].(element.PixelDataInfo)
@@ -127,18 +138,65 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 						return nil, fmt.Errorf("Frame is encapsulated, which we did not expect")
 					}
 
-					i := image.NewGray16(image.Rect(0, 0, frame.NativeData.Cols, frame.NativeData.Rows))
+					img = image.NewGray16(image.Rect(0, 0, frame.NativeData.Cols, frame.NativeData.Rows))
 					for j := 0; j < len(frame.NativeData.Data); j++ {
 						leVal := uint16(frame.NativeData.Data[j][0])
 
-						i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
+						img.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
 					}
-
-					return i, nil
 				}
 
+				log.Println("Image bounds:", img.Bounds().Dx(), img.Bounds().Dy())
+			}
+
+			// Overlay
+			if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
+				log.Println("Found the Overlay")
+
+				log.Println("Overlay bounds:", nOverlayCols, nOverlayRows)
+
+				// We're in the overlay data
+				for _, enclosed := range elem.Value {
+					// There should be one enclosure, and it should contain a slice of
+					// bytes, one byte per pixel.
+
+					cellVals, ok := enclosed.([]byte)
+					if !ok {
+						continue
+					}
+
+					n_bits := 8
+
+					// Fill an array with zeroes, sized the nRows * nCols ( == n_bits *
+					// len(cellVals) )
+					overlayPixels = make([]int, n_bits*len(cellVals), n_bits*len(cellVals))
+
+					log.Println("Created a", len(overlayPixels), "array to hold the output")
+
+					for i := range cellVals {
+						byte_as_int := cellVals[i]
+						for j := 0; j < n_bits; j++ {
+							overlayPixels[i*n_bits+j] = int((byte_as_int >> uint(j)) & 1)
+						}
+					}
+				}
 			}
 		}
+
+		if includeOverlay && img != nil && overlayPixels != nil {
+			// Iterate over the bytes. There will be 1 value for each cell.
+			// So in a 1024x1024 overlay, you will expect 1,048,576 cells.
+			for i, overlayValue := range overlayPixels {
+				row := i / nOverlayRows
+				col := i % nOverlayCols
+
+				if overlayValue != 0 {
+					img.SetGray16(col, row, color.White)
+				}
+			}
+		}
+
+		return img, nil
 
 	}
 

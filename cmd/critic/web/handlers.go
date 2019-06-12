@@ -68,7 +68,7 @@ func (h *handler) TraceOverlay(w http.ResponseWriter, r *http.Request) {
 	manifestEntry := h.Global.Manifest()[manifestIndex]
 
 	pathPart := path.Dir(h.Global.ManifestPath)
-	im, err := ExtractDicom(fmt.Sprintf("%s/%s", pathPart, manifestEntry.Zip), manifestEntry.Dicom)
+	im, err := ExtractDicom(fmt.Sprintf("%s/%s", pathPart, manifestEntry.Zip), manifestEntry.Dicom, true)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return
