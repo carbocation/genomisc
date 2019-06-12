@@ -29,6 +29,7 @@ type DicomMeta struct {
 	SliceThicknessMM  float64
 	SeriesDescription string
 	SeriesNumber      string
+	AcquisitionNumber string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -159,9 +160,10 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			output.Cols = int(elem.Value[0].(uint16))
 		}
 
-		// log.Printf("%+v\n", *elem)
+		if elem.Tag == dicomtag.AcquisitionNumber {
+			output.AcquisitionNumber = elem.Value[0].(string)
+		}
 	}
-	// panic("OK")
 
 	return output, nil
 }
