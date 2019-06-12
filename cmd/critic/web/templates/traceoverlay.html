@@ -19,12 +19,12 @@
 {{define "page"}}
 <span>Project: <a href="/listproject">{{$.Data.Project}}</a> | Zip: {{$.Data.ManifestEntry.Zip}} | Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
 <br />
-<form method="POST" id="saveImage" action="/traceoverlay/{{$.Data.ManifestIndex}}">
+<form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
     
-</form>
+<button name="is_bad" value="1" class="btn btn-lg btn-danger" type="submit">Bad</button>
+<button name="is_bad" value="0" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button>
 
-<button class="btn btn-lg btn-danger" onclick="javascript:saveCanvas();">Bad</button>
-<button class="btn btn-lg btn-info" style="float: right;" onclick="javascript:downloadCanvas();">Good</button>
+</form>
 <br />
 <br />
 
