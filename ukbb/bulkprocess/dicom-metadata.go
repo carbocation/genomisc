@@ -13,17 +13,18 @@ import (
 // DicomMeta holds a small subset of the available metadata which we consider to
 // be useful from dicom images.
 type DicomMeta struct {
-	HasOverlay       bool
-	OverlayFraction  float64
-	OverlayRows      int
-	OverlayCols      int
-	InstanceNumber   string
-	PatientX         float64
-	PatientY         float64
-	PatientZ         float64
-	PixelHeightMM    float64
-	PixelWidthMM     float64
-	SliceThicknessMM float64
+	HasOverlay        bool
+	OverlayFraction   float64
+	OverlayRows       int
+	OverlayCols       int
+	InstanceNumber    string
+	PatientX          float64
+	PatientY          float64
+	PatientZ          float64
+	PixelHeightMM     float64
+	PixelWidthMM      float64
+	SliceThicknessMM  float64
+	SeriesDescription string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -84,6 +85,8 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			{Group: 0x0028, Element: 0x0030},
 
 			dicomtag.SliceThickness,
+
+			dicomtag.SeriesDescription,
 		},
 	})
 	if parsedData == nil || err != nil {
@@ -167,6 +170,14 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 					if err != nil {
 						continue
 					}
+				}
+			}
+		}
+
+		if elem.Tag == dicomtag.SeriesDescription {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.SeriesDescription = v.(string)
 				}
 			}
 		}
