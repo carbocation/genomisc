@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Read each zip (names are significant)
-	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\n",
+	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\t%v\n",
 		"sample_id",
 		"field_id",
 		"instance",
@@ -126,7 +126,7 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 
 	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f",
 		row.SampleID, row.FieldID, row.Instance, row.Index, row.ZipFile,
-		row.Dicom.Filename, row.Dicom.SeriesDescription, studyDate.Format("2006-01-02"),
+		row.Dicom.Filename, row.DicomMeta.SeriesDescription, studyDate.Format("2006-01-02"),
 		row.DicomMeta.InstanceNumber, overlayText, row.DicomMeta.OverlayFraction, row.DicomMeta.OverlayRows, row.DicomMeta.OverlayCols,
 		row.DicomMeta.PatientX, row.DicomMeta.PatientY, row.DicomMeta.PatientZ, row.DicomMeta.PixelHeightMM, row.DicomMeta.PixelWidthMM,
 		row.DicomMeta.SliceThicknessMM)
