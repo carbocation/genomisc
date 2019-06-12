@@ -13,6 +13,7 @@ import (
 // DicomMeta holds a small subset of the available metadata which we consider to
 // be useful from dicom images.
 type DicomMeta struct {
+	Date              string
 	HasOverlay        bool
 	OverlayFraction   float64
 	OverlayRows       int
@@ -41,53 +42,6 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 
 	parsedData, err := p.Parse(dicom.ParseOptions{
 		DropPixelData: true,
-		ReturnTags: []dicomtag.Tag{
-			// The overlay data
-			{Group: 0x6000, Element: 0x3000},
-
-			// Number of overlay rows
-			{Group: 0x6000, Element: 0x0010},
-
-			// Number of overlay columns
-			{Group: 0x6000, Element: 0x0011},
-
-			// Number of overlay frames
-			{Group: 0x6000, Element: 0x0015},
-			{Group: 0x6000, Element: 0x0014},
-
-			// Bits allocated in the overlay
-			{Group: 0x6000, Element: 0x0100},
-
-			// Other metadata
-
-			// Patient orientation
-			{Group: 0x0020, Element: 0x0020},
-
-			// Image Position Patient
-			{Group: 0x0020, Element: 0x0032},
-
-			// Image Orientation Patient
-			{Group: 0x0020, Element: 0x0037},
-
-			// Slice location
-			{Group: 0x0020, Element: 0x0041},
-
-			// Instance number
-			{Group: 0x0020, Element: 0x0013},
-
-			// Patient position
-			{Group: 0x0018, Element: 0x5100},
-
-			// Pixel Spacing: Via
-			// https://dicom.innolitics.com/ciods/ct-image/image-plane/00280030
-			// First value is the vertical mm between pixels (rows), second is
-			// horizontal mm between pixels (cols)
-			{Group: 0x0028, Element: 0x0030},
-
-			dicomtag.SliceThickness,
-
-			dicomtag.SeriesDescription,
-		},
 	})
 	if parsedData == nil || err != nil {
 		return nil, fmt.Errorf("Error reading dicom: %v", err)
@@ -182,11 +136,15 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			}
 		}
 
-		// fmt.Printf("%s: VR %s: %v\n", elem.Tag, elem.VR, elem.String())
-	}
+		if elem.Tag == dicomtag.Date || elem.Tag == dicomtag.DateTime || elem.Tag == dicomtag.AcquisitionDate {
+			for k, v := range elem.Value {
+				if k == 0 && len(v.(string)) > 0 {
+					output.Date = v.(string)
+				}
+			}
+		}
 
-	// log.Printf("This is image %s. Overlay? %t. Overlay width %d x height %d.", instanceNumber, hasOverlay, width, height)
-	// log.Printf("Patient orientation:%.2f %.2f %.2f\n", patientX, patientY, patientZ)
+	}
 
 	return output, nil
 }
