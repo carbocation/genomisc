@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/csv"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 )
+
+type DicomFilename string
 
 type Manifest struct {
 	SampleID              string
@@ -16,6 +19,13 @@ type Manifest struct {
 	Series                string
 	InstanceNumber        int
 	HasOverlayFromProject bool
+	Annotation            Annotation
+}
+
+type Annotation struct {
+	Dicom    string
+	SampleID string
+	IsBad    bool
 }
 
 func UpdateManifest() error {
@@ -51,27 +61,19 @@ func UpdateManifest() error {
 	return nil
 }
 
-// ReadManifest takes the path to a manifest file and extracts each line. It
+// ReadManifestAndCreateOutput takes the path to a manifest file and extracts each line. It
 // checks to see if the output file has already been created. If so, it reads
 // the output and matches it with the manifest, returning pre-populated values.
-func ReadManifest(manifestPath, annotationPath string) ([]Manifest, error) {
-	// First, look in the annotation file to see if there is any annotation.
-	suffix := ".png"
-	files, err := ioutil.ReadDir(filepath.Join(".", annotationPath))
-	if os.IsNotExist(err) {
-		// Not a problem
-	} else if err != nil {
+func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifest, error) {
+
+	// Fetch any annotations that already exist, or create a file to hold them
+	// if none yet do.
+	annotations, err := OpenOrCreateAnnotationFile(annotationPath)
+	if err != nil {
 		return nil, err
 	}
-	overlaysExist := make(map[string]struct{})
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		overlaysExist[f.Name()] = struct{}{}
-	}
 
-	// Now open the full manifest
+	// Now open the full manifest of files we want to critique.
 	f, err := os.Open(manifestPath)
 	if err != nil {
 		return nil, err
@@ -118,7 +120,7 @@ func ReadManifest(manifestPath, annotationPath string) ([]Manifest, error) {
 			intInstance = 0
 		}
 
-		_, hasOverlay := overlaysExist[cols[header.Zip]+"_"+cols[header.Dicom]+suffix]
+		anno, hasAnno := annotations[DicomFilename(cols[header.Dicom])]
 
 		output = append(output, Manifest{
 			SampleID:              cols[header.SampleID],
@@ -126,13 +128,62 @@ func ReadManifest(manifestPath, annotationPath string) ([]Manifest, error) {
 			Dicom:                 cols[header.Dicom],
 			Series:                cols[header.Series],
 			InstanceNumber:        intInstance,
-			HasOverlayFromProject: hasOverlay,
+			HasOverlayFromProject: hasAnno,
+			Annotation:            anno,
 		})
 	}
 
 	sort.Slice(output, generateManifestSorter(output))
 
 	return output, nil
+}
+
+func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annotation, error) {
+	// Create the annotation file, if it does not yet exist
+	log.Printf("Creating directory %s if it does not yet exist\n", annotationPath)
+	if err := CreateFileAndPath(annotationPath); err != nil {
+		return nil, err
+	}
+	log.Println("Output will be stored at", annotationPath)
+
+	// First, look in the annotation file to see if there is any annotation.
+	annoFile, err := os.Open(annotationPath)
+	if err != nil {
+		return nil, err
+	}
+	defer annoFile.Close()
+
+	// File format: tab-delimited, 3 columns: dicom_filename, sample_id, is_bad
+	cread := csv.NewReader(annoFile)
+	cread.Comma = '\t'
+	priorAnnotationCSV, err := cread.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	extantAnnotations := make(map[DicomFilename]Annotation)
+	for i, row := range priorAnnotationCSV {
+		if i == 0 {
+			continue
+		}
+		if len(row) != 3 {
+			continue
+		}
+
+		isBad := false
+		if row[2] == "1" {
+			isBad = true
+		}
+
+		// DICOM filenames are UUIDs and so are unique.
+		extantAnnotations[DicomFilename(row[0])] = Annotation{
+			Dicom:    row[0],
+			SampleID: row[1],
+			IsBad:    isBad,
+		}
+	}
+
+	return extantAnnotations, nil
 }
 
 // generateManifestSorter is a convenience function to help sort a list of

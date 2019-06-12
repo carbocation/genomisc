@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -67,7 +66,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 
 	manifestEntry := h.Global.Manifest()[manifestIndex]
 
-	pathPart := path.Dir(h.Global.ManifestPath)
+	pathPart := h.Global.DicomRoot
 	im, err := ExtractDicom(fmt.Sprintf("%s/%s", pathPart, manifestEntry.Zip), manifestEntry.Dicom, true)
 	if err != nil {
 		HTTPError(h, w, r, err)

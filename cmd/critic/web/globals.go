@@ -17,6 +17,7 @@ type Global struct {
 
 	Project      string
 	ManifestPath string
+	DicomRoot    string
 
 	m        sync.RWMutex
 	manifest []Manifest

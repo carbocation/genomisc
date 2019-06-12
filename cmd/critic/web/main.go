@@ -33,23 +33,22 @@ func main() {
 	)
 
 	manifest := flag.String("manifest", "", "Tab-delimited manifest file which contains a zip_file and a dicom_file column (at least).")
-	project := flag.String("project", "", "Project name. Defines a folder into which all output will be written.")
+	dicomRoot := flag.String("dicom-path", "", "Root path under which all DICOM zip files sit. If empty, folder where manifest file ")
+	outputPath := flag.String("output", "", "Path to a file where all output will be written. Will be created if it does not yet exist.")
 	port := flag.Int("port", 9019, "Port for HTTP server")
 	//dbName := flag.String("db_name", "pubrank", "Name of the database schema to connect to")
 	flag.Parse()
 
-	if *manifest == "" || *project == "" {
+	if *manifest == "" || *outputPath == "" {
 		flag.PrintDefaults()
 		return
 	}
 
-	log.Printf("Creating directory ./%s/ if it does not yet exist\n", *project)
-	newpath := filepath.Join(".", *project)
-	if err := os.MkdirAll(newpath, os.ModePerm); err != nil {
-		log.Fatalln(err)
+	if *dicomRoot == "" {
+		*dicomRoot = filepath.Dir(*manifest)
 	}
 
-	manifestLines, err := ReadManifest(*manifest, *project)
+	sortedAnnotatedManifest, err := ReadManifestAndCreateOutput(*manifest, *outputPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -62,9 +61,10 @@ func main() {
 		log:       log.New(os.Stderr, log.Prefix(), log.Ldate|log.Ltime),
 		db:        nil,
 
-		Project:      *project,
+		Project:      *outputPath,
 		ManifestPath: *manifest,
-		manifest:     manifestLines,
+		DicomRoot:    *dicomRoot,
+		manifest:     sortedAnnotatedManifest,
 	}
 
 	global.log.Println("Launching", global.Site)

@@ -4,8 +4,24 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 )
+
+func CreateFileAndPath(filePath string) error {
+	outputDir := filepath.Dir(filePath)
+	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	return nil
+}
 
 // RandHeteroglyphs produces a string of n symbols which do
 // not look like one another. (Derived to be the opposite of
