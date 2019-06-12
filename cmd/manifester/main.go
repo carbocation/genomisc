@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Read each zip (names are significant)
-	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\t%v\n",
+	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\n",
 		"sample_id",
 		"field_id",
 		"instance",
