@@ -12,8 +12,6 @@ import (
 	"runtime"
 	"syscall"
 	"time"
-
-	_ "github.com/lib/pq"
 )
 
 var global *Global
@@ -37,9 +35,6 @@ func main() {
 	manifest := flag.String("manifest", "", "Tab-delimited manifest file which contains a zip_file and a dicom_file column (at least).")
 	project := flag.String("project", "", "Project name. Defines a folder into which all overlays will be written.")
 	port := flag.Int("port", 9019, "Port for HTTP server")
-	maxOpen := flag.Int("max_open", 30, "Max open connections to DB")
-	maxIdle := flag.Int("max_idle", 3, "Max idle connections to DB")
-	_, _ = maxOpen, maxIdle
 	//dbName := flag.String("db_name", "pubrank", "Name of the database schema to connect to")
 	flag.Parse()
 
