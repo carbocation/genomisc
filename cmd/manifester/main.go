@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,9 +13,15 @@ import (
 	"broad/ghgwas/ukbb/bulkprocess"
 )
 
+var (
+	BufferSize = 4096
+	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
+)
+
+// Makes one big combined manifest
+// Emits to stdout
 func main() {
-	// Makes one big combined manifest
-	// Emits to stdout
+	defer STDOUT.Flush()
 
 	var path string
 
@@ -28,7 +35,7 @@ func main() {
 	}
 
 	// Read each zip (names are significant)
-	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\n",
+	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%v\t%v\t%v\n",
 		"sample_id",
 		"field_id",
 		"instance",
@@ -65,7 +72,7 @@ func main() {
 					return
 				}
 
-				fmt.Println(res)
+				fmt.Fprintln(STDOUT, res)
 			}
 		}
 
