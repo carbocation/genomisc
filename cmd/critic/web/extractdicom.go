@@ -58,14 +58,6 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 
 		parsedData, err := p.Parse(dicom.ParseOptions{
 			DropPixelData: false,
-			// ReturnTags:    []dicomtag.Tag{
-			// 	// Need to understand the range of data in the pixels, a la
-			// 	// https://stackoverflow.com/a/35055589/199475
-			// 	// dicomtag.BitsAllocated,
-			// 	// dicomtag.BitsStored,
-			// 	// dicomtag.HighBit,
-			// 	// dicomtag.NumberOfFrames,
-			// },
 		})
 
 		if parsedData == nil || err != nil {
@@ -98,8 +90,8 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 				windowCenter = uint16(windowCenter64)
 
 				// Get the big-endian representation
-				binary.LittleEndian.PutUint16(pxBuf, windowCenter)
-				windowCenterBE = binary.BigEndian.Uint16(pxBuf)
+				// binary.LittleEndian.PutUint16(pxBuf, windowCenter)
+				// windowCenterBE = binary.BigEndian.Uint16(pxBuf)
 
 			} else if elem.Tag == dicomtag.WindowWidth {
 				log.Printf("WindowWidth: %+v %T\n", elem.Value, elem.Value[0])
@@ -110,8 +102,8 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 				windowWidth = uint16(windowWidth64)
 
 				// Get the big-endian representation
-				binary.LittleEndian.PutUint16(pxBuf, windowWidth)
-				windowWidthBE = binary.BigEndian.Uint16(pxBuf)
+				// binary.LittleEndian.PutUint16(pxBuf, windowWidth)
+				// windowWidthBE = binary.BigEndian.Uint16(pxBuf)
 			}
 
 			if elem.Tag == dicomtag.PixelRepresentation {
@@ -215,26 +207,26 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 						// 	leVal = highestVisibleValue
 						// }
 
-						binary.LittleEndian.PutUint16(pxBuf, leVal)
-						px := binary.BigEndian.Uint16(pxBuf)
-						_ = px
+						// binary.LittleEndian.PutUint16(pxBuf, leVal)
+						// px := binary.BigEndian.Uint16(pxBuf)
+						// _ = px
 
-						if px > highestVisibleValue {
-							px = 1<<16 - 1
-						}
+						// if px > highestVisibleValue {
+						// 	px = 1<<16 - 1
+						// }
 
-						if leVal > 220 && leVal < 270 {
-							px = 1<<16 - 1
-						}
+						// if leVal > 220 && leVal < 270 {
+						// 	px = 1<<16 - 1
+						// }
 
 						// ((byte[0] & 0x0f) << 8) | byte[1];
 						// px = (uint16(pxBuf[1]&0x0f) << 8) | uint16(pxBuf[0])
 
-						i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(px)})
+						i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
 
 						// i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(px << (bitsAllocated - bitsStored))})
 						// i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(px)})
-						// i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * math.Min(1.0, (float64(px)-float64(lowest))/(float64(highest)-float64(lowest))))})
+						// i.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * math.Min(1.0, (float64(leVal)-float64(lowestLE))/(float64(highestLE)-float64(lowestLE))))})
 					}
 
 					return i, nil
@@ -248,7 +240,22 @@ func ExtractDicom(zipPath, dicomName string) (image.Image, error) {
 	return nil, fmt.Errorf("Did not find the requested Dicom %s in the Zip %s", dicomName, zipPath)
 }
 
-// func ApplyWindowScaling(intensity uint16, center, width float64) {
-// 	x := float64(intensity)
-// 	if x < center - 0.5
-// }
+// if (x <= c - 0.5 - (w-1)/2), then y = y min
+// else if (x > c - 0.5 + (w-1)/2), then y = y max ,
+// else y = ((x - (c - 0.5)) / (w-1) + 0.5) * (y max - y min )+ y min
+func ApplyWindowScaling(intensity, windowCenter, windowWidth uint16) float64 {
+	// https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
+	x := float64(intensity)
+	center := float64(windowCenter)
+	width := float64(windowWidth)
+
+	if x < center-0.5-(width-1)/2 {
+		return 0.0
+	}
+
+	if x > center-0.5+(width-1)/2 {
+		return 1.0
+	}
+
+	return ((x-(center-0.5))/(width-1) + 0.5)
+}
