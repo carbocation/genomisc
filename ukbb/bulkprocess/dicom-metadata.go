@@ -6,23 +6,24 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/gradienthealth/dicom"
-	"github.com/gradienthealth/dicom/dicomtag"
+	"github.com/suyashkumar/dicom"
+	"github.com/suyashkumar/dicom/dicomtag"
 )
 
 // DicomMeta holds a small subset of the available metadata which we consider to
 // be useful from dicom images.
 type DicomMeta struct {
-	HasOverlay      bool
-	OverlayFraction float64
-	OverlayRows     int
-	OverlayCols     int
-	InstanceNumber  string
-	PatientX        float64
-	PatientY        float64
-	PatientZ        float64
-	PixelHeightMM   float64
-	PixelWidthMM    float64
+	HasOverlay       bool
+	OverlayFraction  float64
+	OverlayRows      int
+	OverlayCols      int
+	InstanceNumber   string
+	PatientX         float64
+	PatientY         float64
+	PatientZ         float64
+	PixelHeightMM    float64
+	PixelWidthMM     float64
+	SliceThicknessMM float64
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -81,6 +82,8 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			// First value is the vertical mm between pixels (rows), second is
 			// horizontal mm between pixels (cols)
 			{Group: 0x0028, Element: 0x0030},
+
+			dicomtag.SliceThickness,
 		},
 	})
 	if parsedData == nil || err != nil {
@@ -150,6 +153,17 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 					}
 				} else if k == 1 {
 					output.PixelWidthMM, err = strconv.ParseFloat(v.(string), 32)
+					if err != nil {
+						continue
+					}
+				}
+			}
+		}
+
+		if elem.Tag == dicomtag.SliceThickness {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.SliceThicknessMM, err = strconv.ParseFloat(v.(string), 32)
 					if err != nil {
 						continue
 					}
