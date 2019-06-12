@@ -10,6 +10,7 @@ import (
 )
 
 type Manifest struct {
+	SampleID              string
 	Zip                   string
 	Dicom                 string
 	Series                string
@@ -45,14 +46,18 @@ func UpdateManifest() error {
 		updatedManifest[i].HasOverlayFromProject = hasOverlay
 	}
 
+	// TODO: ???
+
 	return nil
 }
 
-// ReadManifest takes the path to a manifest file and extracts each line.
-func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
-	// First, look in the project directory to see if there is any annotation.
+// ReadManifest takes the path to a manifest file and extracts each line. It
+// checks to see if the output file has already been created. If so, it reads
+// the output and matches it with the manifest, returning pre-populated values.
+func ReadManifest(manifestPath, annotationPath string) ([]Manifest, error) {
+	// First, look in the annotation file to see if there is any annotation.
 	suffix := ".png"
-	files, err := ioutil.ReadDir(filepath.Join(".", projectPath))
+	files, err := ioutil.ReadDir(filepath.Join(".", annotationPath))
 	if os.IsNotExist(err) {
 		// Not a problem
 	} else if err != nil {
@@ -66,6 +71,7 @@ func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
 		overlaysExist[f.Name()] = struct{}{}
 	}
 
+	// Now open the full manifest
 	f, err := os.Open(manifestPath)
 	if err != nil {
 		return nil, err
@@ -81,6 +87,7 @@ func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
 	output := make([]Manifest, 0, len(recs))
 
 	header := struct {
+		SampleID       int
 		Zip            int
 		Dicom          int
 		Series         int
@@ -98,6 +105,8 @@ func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
 					header.Series = j
 				} else if col == "instance_number" {
 					header.InstanceNumber = j
+				} else if col == "sample_id" {
+					header.SampleID = j
 				}
 			}
 			continue
@@ -112,6 +121,7 @@ func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
 		_, hasOverlay := overlaysExist[cols[header.Zip]+"_"+cols[header.Dicom]+suffix]
 
 		output = append(output, Manifest{
+			SampleID:              cols[header.SampleID],
 			Zip:                   cols[header.Zip],
 			Dicom:                 cols[header.Dicom],
 			Series:                cols[header.Series],
@@ -129,7 +139,8 @@ func ReadManifest(manifestPath, projectPath string) ([]Manifest, error) {
 // manifest objects
 func generateManifestSorter(output []Manifest) func(i, j int) bool {
 	return func(i, j int) bool {
-		// Need both conditions so that ties will proceed to the next check
+		// Need both conditions so that it will proceed to the next check only
+		// if there is a tie at this one
 		if output[i].Zip < output[j].Zip {
 			return true
 		} else if output[i].Zip > output[j].Zip {

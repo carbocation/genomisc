@@ -17,21 +17,14 @@
 </style>
 {{end}}
 {{define "page"}}
-<span>Project: <a href="/listproject">{{$.Data.Project}}</a>. Zip: {{$.Data.ManifestEntry.Zip}}. Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
-<br />
-<button class="btn btn-primary" onclick="javascript:setBrushSize(1);">●Brush:1px</button>
-<button class="btn btn-primary" onclick="javascript:setBrushSize(10);">◉ Brush:10px</button>
-<button class="btn btn-default" onclick="javascript:setBrush('fill');">▧ Fill</button>
-<!-- <button onclick="javascript:fullyShade();">Shade</button> -->
-<button class="btn btn-danger" onclick="javascript:;" id="undo">↺Undo</button>
-<br />
+<span>Project: <a href="/listproject">{{$.Data.Project}}</a> | Zip: {{$.Data.ManifestEntry.Zip}} | Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
 <br />
 <form method="POST" id="saveImage" action="/traceoverlay/{{$.Data.ManifestIndex}}">
-    <input type="hidden" value="" name="imgBase64" id="imgBase64" />
+    
 </form>
 
-<button class="btn btn-info" onclick="javascript:saveCanvas();">Save Overlay to Server</button>
-<button class="btn btn-default btn-sm" onclick="javascript:downloadCanvas();">Download</button>
+<button class="btn btn-lg btn-danger" onclick="javascript:saveCanvas();">Bad</button>
+<button class="btn btn-lg btn-info" style="float: right;" onclick="javascript:downloadCanvas();">Good</button>
 <br />
 <br />
 
@@ -48,8 +41,5 @@ class="traceCanvas"
 id="imgCanvas" 
 width="128" 
 height="85"></canvas> -->
-
-<script src="{{.Assets}}/js/traceoverlay.js"></script>
-<script src="{{.Assets}}/js/bmp.js"></script>
-<script src="{{.Assets}}/js/fill.js"></script>
+<script src="{{.Assets}}/js/critic.js"></script>
 {{end}}

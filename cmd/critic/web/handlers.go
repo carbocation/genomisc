@@ -51,7 +51,7 @@ func (h *handler) ListProject(w http.ResponseWriter, r *http.Request) {
 	Render(h, w, r, "List Project", "listproject.html", output, nil)
 }
 
-func (h *handler) TraceOverlay(w http.ResponseWriter, r *http.Request) {
+func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch the desired image from the zip file as described in the manifest
 	manifestIdx := mux.Vars(r)["manifest_index"]
 	manifestIndex, err := strconv.Atoi(manifestIdx)

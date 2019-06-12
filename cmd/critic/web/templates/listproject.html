@@ -15,9 +15,9 @@
 		<tr>
 			<td>{{$k}}</td>
 			<td>{{$v.Zip}}</td>
-			<td><a href="/traceoverlay/{{$k}}">{{$v.Dicom}}</a></td>
-			<td><a href="/traceoverlay/{{$k}}">{{$v.Series}}</a></td>
-			<td><a href="/traceoverlay/{{$k}}">{{$v.InstanceNumber}}</a></td>
+			<td><a href="/critic/{{$k}}">{{$v.Dicom}}</a></td>
+			<td><a href="/critic/{{$k}}">{{$v.Series}}</a></td>
+			<td><a href="/critic/{{$k}}">{{$v.InstanceNumber}}</a></td>
 			<td>{{if $v.HasOverlayFromProject}}✔️{{else}}{{end}}</td>
 		</tr>
 	{{end}}

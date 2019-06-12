@@ -33,7 +33,7 @@ func main() {
 	)
 
 	manifest := flag.String("manifest", "", "Tab-delimited manifest file which contains a zip_file and a dicom_file column (at least).")
-	project := flag.String("project", "", "Project name. Defines a folder into which all overlays will be written.")
+	project := flag.String("project", "", "Project name. Defines a folder into which all output will be written.")
 	port := flag.Int("port", 9019, "Port for HTTP server")
 	//dbName := flag.String("db_name", "pubrank", "Name of the database schema to connect to")
 	flag.Parse()
@@ -55,7 +55,7 @@ func main() {
 	}
 
 	global = &Global{
-		Site:      "TraceOverlay",
+		Site:      "Critic",
 		Company:   "Broad Institute",
 		Email:     "jamesp@broadinstitute.org",
 		SnailMail: "415 Main Street, Cambridge MA",
@@ -67,10 +67,7 @@ func main() {
 		manifest:     manifestLines,
 	}
 
-	// global.db.SetMaxOpenConns(*maxOpen)
-	// global.db.SetMaxIdleConns(*maxIdle)
-
-	global.log.Println("Launching TraceOverlay")
+	global.log.Println("Launching", global.Site)
 
 	go func() {
 		global.log.Println("Starting HTTP server on port", *port)

@@ -19,14 +19,14 @@ func router(config *Global) http.Handler {
 	GET.HandleFunc("/", h.Index).Name("index")
 	GET.HandleFunc("/goroutines", h.Goroutines)
 	GET.HandleFunc("/{template:(?:about|privacy|TOS|DMCA)}", h.TemplateOnly)
-	GET.HandleFunc("/traceoverlay/{manifest_index}", h.TraceOverlay).Name("traceoverlay")
+	GET.HandleFunc("/critic/{manifest_index}", h.CriticHandler).Name("critic")
 	GET.HandleFunc("/listproject", h.ListProject).Name("listproject")
 
 	//
 	// POST
 	//
 	POST.Handle("/", http.NotFoundHandler())
-	POST.HandleFunc("/traceoverlay/{manifest_index}", h.TraceOverlayPost)
+	POST.HandleFunc("/critic/{manifest_index}", h.TraceOverlayPost)
 
 	// Static assets
 	GET.PathPrefix(h.Assets()).Handler(
