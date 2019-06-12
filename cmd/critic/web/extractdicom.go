@@ -142,7 +142,8 @@ func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, 
 					for j := 0; j < len(frame.NativeData.Data); j++ {
 						leVal := uint16(frame.NativeData.Data[j][0])
 
-						img.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Rows, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
+						// Should be %cols and /cols -- row count is not necessary here
+						img.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Cols, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
 					}
 				}
 
@@ -176,6 +177,7 @@ func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, 
 					for i := range cellVals {
 						byte_as_int := cellVals[i]
 						for j := 0; j < n_bits; j++ {
+							// Should be %cols and /cols -- row count is not necessary here
 							overlayPixels[i*n_bits+j] = int((byte_as_int >> uint(j)) & 1)
 						}
 					}
@@ -187,7 +189,7 @@ func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, 
 			// Iterate over the bytes. There will be 1 value for each cell.
 			// So in a 1024x1024 overlay, you will expect 1,048,576 cells.
 			for i, overlayValue := range overlayPixels {
-				row := i / nOverlayRows
+				row := i / nOverlayCols
 				col := i % nOverlayCols
 
 				if overlayValue != 0 {
