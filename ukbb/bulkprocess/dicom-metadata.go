@@ -18,6 +18,8 @@ type DicomMeta struct {
 	OverlayFraction   float64
 	OverlayRows       int
 	OverlayCols       int
+	Rows              int
+	Cols              int
 	InstanceNumber    string
 	PatientX          float64
 	PatientY          float64
@@ -26,6 +28,7 @@ type DicomMeta struct {
 	PixelWidthMM      float64
 	SliceThicknessMM  float64
 	SeriesDescription string
+	SeriesNumber      string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -86,6 +89,10 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			output.InstanceNumber = elem.Value[0].(string)
 		}
 
+		if elem.Tag == dicomtag.SeriesNumber {
+			output.SeriesNumber = elem.Value[0].(string)
+		}
+
 		if elem.Tag == dicomtag.ImagePositionPatient {
 			output.PatientX, err = strconv.ParseFloat(elem.Value[0].(string), 32)
 			if err != nil {
@@ -144,7 +151,17 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			}
 		}
 
+		if elem.Tag == dicomtag.Rows {
+			output.Rows = int(elem.Value[0].(uint16))
+		}
+
+		if elem.Tag == dicomtag.Columns {
+			output.Cols = int(elem.Value[0].(uint16))
+		}
+
+		// log.Printf("%+v\n", *elem)
 	}
+	// panic("OK")
 
 	return output, nil
 }
