@@ -82,11 +82,11 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			output.OverlayCols = int(elem.Value[0].(uint16))
 		}
 
-		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0020, Element: 0x0013}) == 0 {
+		if elem.Tag == dicomtag.InstanceNumber {
 			output.InstanceNumber = elem.Value[0].(string)
 		}
 
-		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0020, Element: 0x0032}) == 0 {
+		if elem.Tag == dicomtag.ImagePositionPatient {
 			output.PatientX, err = strconv.ParseFloat(elem.Value[0].(string), 32)
 			if err != nil {
 				continue
@@ -101,7 +101,7 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			}
 		}
 
-		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0028, Element: 0x0030}) == 0 {
+		if elem.Tag == dicomtag.PixelSpacing {
 			for k, v := range elem.Value {
 				if k == 0 {
 					output.PixelHeightMM, err = strconv.ParseFloat(v.(string), 32)
