@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 
 	"github.com/suyashkumar/dicom"
@@ -14,16 +16,44 @@ import (
 	"github.com/suyashkumar/dicom/element"
 )
 
-// ExtractDicom constructs a native go Image type from the dicom image with the
+// ExtractDicomFromLocalFile constructs a native go Image type from the dicom image with the
 // given name in the given zip file.
-func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, error) {
-	var err error
-
-	rc, err := zip.OpenReader(zipPath)
+func ExtractDicomFromLocalFile(zipPath, dicomName string, includeOverlay bool) (image.Image, error) {
+	f, err := os.Open(zipPath)
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
+	defer f.Close()
+
+	// the zip reader wants to know the # of bytes in advance
+	nBytes, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+	if err != nil {
+		return nil, fmt.Errorf("Err parsing zip %s: %s", zipPath, err.Error())
+	}
+
+	return img, nil
+}
+
+// ExtractDicomFromReaderAt operates directly on a ReaderAt object, which makes
+// it possible to use in conjunction with, e.g., a Google Storage object.
+func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName string, includeOverlay bool) (image.Image, error) {
+	var err error
+
+	rc, err := zip.NewReader(readerAt, zipNBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// rc, err := zip.OpenReader(zipPath)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer rc.Close()
 
 	for _, v := range rc.File {
 		// Iterate over all of the dicoms in the zip til we find the one with
@@ -54,7 +84,7 @@ func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, 
 		})
 
 		if parsedData == nil || err != nil {
-			return nil, fmt.Errorf("Error reading %s: %v", zipPath, err)
+			return nil, fmt.Errorf("Error reading zip: %v", err)
 		}
 
 		var bitsAllocated, bitsStored, highBit uint16
@@ -202,7 +232,7 @@ func ExtractDicom(zipPath, dicomName string, includeOverlay bool) (image.Image, 
 
 	}
 
-	return nil, fmt.Errorf("Did not find the requested Dicom %s in the Zip %s", dicomName, zipPath)
+	return nil, fmt.Errorf("Did not find the requested Dicom %s", dicomName)
 }
 
 // Algorithm from https://www.dabsoft.ch/dicom/3/C.11.2.1.2/

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"cloud.google.com/go/storage"
 )
 
 var global *Global
@@ -53,13 +56,19 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	sclient, err := storage.NewClient(context.Background())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	global = &Global{
-		Site:      "Critic",
-		Company:   "Broad Institute",
-		Email:     "jamesp@broadinstitute.org",
-		SnailMail: "415 Main Street, Cambridge MA",
-		log:       log.New(os.Stderr, log.Prefix(), log.Ldate|log.Ltime),
-		db:        nil,
+		Site:          "Critic",
+		Company:       "Broad Institute",
+		Email:         "jamesp@broadinstitute.org",
+		SnailMail:     "415 Main Street, Cambridge MA",
+		log:           log.New(os.Stderr, log.Prefix(), log.Ldate|log.Ltime),
+		db:            nil,
+		storageClient: sclient,
 
 		Project:      *outputPath,
 		ManifestPath: *manifest,

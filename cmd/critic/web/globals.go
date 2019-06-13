@@ -3,12 +3,14 @@ package main
 import (
 	"sync"
 
+	"cloud.google.com/go/storage"
 	"github.com/jmoiron/sqlx"
 )
 
 type Global struct {
-	log logger
-	db  *sqlx.DB
+	log           logger
+	db            *sqlx.DB
+	storageClient *storage.Client
 
 	Site      string
 	Company   string
