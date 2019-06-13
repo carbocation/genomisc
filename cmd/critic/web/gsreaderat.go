@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
-	"github.com/carbocation/pfx"
 )
 
 func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCloser, int64, error) {
@@ -28,11 +27,18 @@ func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCl
 		wrappedHandle := &GSReaderAtCloser{
 			ObjectHandle: handle,
 			Context:      context.Background(),
+
 			// Because Close() is called after every read, the final Close() is a
 			// nop for this type, and can be left nil
 		}
 
-		return wrappedHandle, wrappedHandle.storageReader.Attrs.Size, nil
+		// Make a hard call to get the filesize
+		attrs, err := wrappedHandle.ObjectHandle.Attrs(wrappedHandle.Context)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return wrappedHandle, attrs.Size, nil // wrappedHandle.storageReader.Attrs.Size, nil
 	}
 
 	f, err := os.Open(path)
@@ -47,7 +53,6 @@ func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCl
 }
 
 type ReaderAtCloser interface {
-	io.Reader
 	io.ReaderAt
 	io.Closer
 }
@@ -55,22 +60,8 @@ type ReaderAtCloser interface {
 // Decorates a Google Storage object handle with ReadAt
 type GSReaderAtCloser struct {
 	*storage.ObjectHandle
-	Context       context.Context
-	Closer        *func() error
-	storageReader *storage.Reader
-}
-
-// Read satisfies io.Reader.
-func (o *GSReaderAtCloser) Read(p []byte) (int, error) {
-	if o.storageReader == nil {
-		rdr, err := o.NewReader(o.Context)
-		if err != nil {
-			return 0, pfx.Err(err)
-		}
-		o.storageReader = rdr
-	}
-
-	return o.storageReader.Read(p)
+	Context context.Context
+	Closer  *func() error
 }
 
 // ReadAt satisfies io.ReaderAt. Note that this is dependent upon making p a
@@ -88,12 +79,6 @@ func (o *GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
 // Satisfies io.Closer. If o.close is not set, this is a nop.
 func (o *GSReaderAtCloser) Close() error {
 	var err error
-
-	if o.storageReader != nil {
-		err = o.storageReader.Close()
-		// TODO: Make sure we can actually use this error. Currently it will
-		// always be overwritten.
-	}
 
 	if o.Closer != nil {
 		err = (*o.Closer)()
