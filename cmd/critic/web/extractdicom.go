@@ -49,12 +49,6 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 		return nil, err
 	}
 
-	// rc, err := zip.OpenReader(zipPath)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer rc.Close()
-
 	for _, v := range rc.File {
 		// Iterate over all of the dicoms in the zip til we find the one with
 		// the desired name
