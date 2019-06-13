@@ -17,8 +17,12 @@
 </style>
 {{end}}
 {{define "page"}}
-<span>Project: <a href="/listproject">{{$.Data.Project}}</a> | Zip: {{$.Data.ManifestEntry.Zip}} | Dicom: {{$.Data.ManifestEntry.Dicom}}</span>
-<br />
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/listproject">{{$.Data.Project}}</a></li>
+    <li class="breadcrumb-item active">Zip: {{$.Data.ManifestEntry.Zip}}</li>
+    <li class="breadcrumb-item"><a href="?overlay={{if $.Data.ShowOverlay}}off{{else}}on{{end}}">Toggle Overlay</a></li>
+</ol>
+
 <form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
     
     <button name="value" value="mistrace" class="btn btn-lg btn-danger" type="submit">Mistraced</button>
@@ -45,6 +49,14 @@ height="{{$.Data.Height}}"></canvas>
     <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button>
 
 </form>
+
+<br />
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/listproject">{{$.Data.Project}}</a></li>
+    <li class="breadcrumb-item active">Zip: {{$.Data.ManifestEntry.Zip}}</li>
+    <li class="breadcrumb-item active">Dicom: {{$.Data.ManifestEntry.Dicom}}</li>
+    <li class="breadcrumb-item"><a href="?overlay={{if $.Data.ShowOverlay}}off{{else}}on{{end}}">Toggle Overlay</a></li>
+</ol>
 
 <!-- <canvas 
 style="background-image: url('{{.Assets}}/img/128px-Utah_teapot_simple_2.png')"

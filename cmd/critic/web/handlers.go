@@ -73,9 +73,15 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	showOverlay := true
+	r.ParseForm()
+	if overlay := r.Form.Get("overlay"); overlay == "off" {
+		showOverlay = false
+	}
+
 	// Now we have our compressed zip data in an io.ReaderAt, regardless of its
 	// origin. The zip library can now consume it.
-	im, err := ExtractDicomFromReaderAt(f, nbytes, manifestEntry.Dicom, true)
+	im, err := ExtractDicomFromReaderAt(f, nbytes, manifestEntry.Dicom, showOverlay)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return
@@ -93,6 +99,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		EncodedImage  string
 		Width         int
 		Height        int
+		ShowOverlay   bool
 	}{
 		h.Global.Project,
 		manifestEntry,
@@ -100,6 +107,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		strings.NewReplacer("\n", "", "\r", "").Replace(encodedString),
 		im.Bounds().Dx(),
 		im.Bounds().Dy(),
+		showOverlay,
 	}
 
 	Render(h, w, r, "Critic Handler", "traceoverlay.html", output, nil)
