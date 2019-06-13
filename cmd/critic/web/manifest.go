@@ -2,69 +2,43 @@ package main
 
 import (
 	"encoding/csv"
-	"io/ioutil"
-	"log"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 )
 
 type DicomFilename string
 
 type Manifest struct {
-	SampleID              string
-	Zip                   string
-	Dicom                 string
-	Series                string
-	InstanceNumber        int
-	HasOverlayFromProject bool
-	Annotation            Annotation
+	m       sync.RWMutex
+	Entries []ManifestEntry
 }
 
-type Annotation struct {
-	Dicom    string
-	SampleID string
-	Value    string
+func (m *Manifest) GetEntries() []ManifestEntry {
+	m.m.RLock()
+	defer m.m.RUnlock()
+
+	return m.Entries
 }
 
-func UpdateManifest() error {
-	global.m.Lock()
-	defer global.m.Unlock()
+func (m *Manifest) SaveAnnotations() {
 
-	// First, look in the project directory to get updates to annotations.
-	suffix := ".png"
-	files, err := ioutil.ReadDir(filepath.Join(".", global.Project))
-	if os.IsNotExist(err) {
-		// Not a problem
-	} else if err != nil {
-		return err
-	}
-	overlaysExist := make(map[string]struct{})
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		overlaysExist[f.Name()] = struct{}{}
-	}
+}
 
-	updatedManifest := global.manifest
-
-	// Toggle to the latest knowledge about the manifest
-	for i, v := range updatedManifest {
-		_, hasOverlay := overlaysExist[v.Zip+"_"+v.Dicom+suffix]
-		updatedManifest[i].HasOverlayFromProject = hasOverlay
-	}
-
-	// TODO: ???
-
-	return nil
+type ManifestEntry struct {
+	SampleID       string
+	Zip            string
+	Dicom          string
+	Series         string
+	InstanceNumber int
+	Annotation     Annotation
 }
 
 // ReadManifestAndCreateOutput takes the path to a manifest file and extracts each line. It
 // checks to see if the output file has already been created. If so, it reads
 // the output and matches it with the manifest, returning pre-populated values.
-func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifest, error) {
+func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*Manifest, error) {
 
 	// Fetch any annotations that already exist, or create a file to hold them
 	// if none yet do.
@@ -78,6 +52,7 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifes
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	cr := csv.NewReader(f)
 	cr.Comma = '\t'
@@ -86,7 +61,7 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifes
 		return nil, err
 	}
 
-	output := make([]Manifest, 0, len(recs))
+	output := make([]ManifestEntry, 0, len(recs))
 
 	header := struct {
 		SampleID       int
@@ -120,70 +95,26 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifes
 			intInstance = 0
 		}
 
-		anno, hasAnno := annotations[DicomFilename(cols[header.Dicom])]
+		anno, _ := annotations[DicomFilename(cols[header.Dicom])]
 
-		output = append(output, Manifest{
-			SampleID:              cols[header.SampleID],
-			Zip:                   cols[header.Zip],
-			Dicom:                 cols[header.Dicom],
-			Series:                cols[header.Series],
-			InstanceNumber:        intInstance,
-			HasOverlayFromProject: hasAnno,
-			Annotation:            anno,
+		output = append(output, ManifestEntry{
+			SampleID:       cols[header.SampleID],
+			Zip:            cols[header.Zip],
+			Dicom:          cols[header.Dicom],
+			Series:         cols[header.Series],
+			InstanceNumber: intInstance,
+			Annotation:     anno,
 		})
 	}
 
 	sort.Slice(output, generateManifestSorter(output))
 
-	return output, nil
-}
-
-func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annotation, error) {
-	// Create the annotation file, if it does not yet exist
-	log.Printf("Creating %s if it does not yet exist\n", annotationPath)
-	if err := CreateFileAndPath(annotationPath); err != nil {
-		return nil, err
-	}
-	log.Println("Output will be stored at", annotationPath)
-
-	// First, look in the annotation file to see if there is any annotation.
-	annoFile, err := os.Open(annotationPath)
-	if err != nil {
-		return nil, err
-	}
-	defer annoFile.Close()
-
-	// File format: tab-delimited, 3 columns: dicom_filename, sample_id, annotation
-	cread := csv.NewReader(annoFile)
-	cread.Comma = '\t'
-	priorAnnotationCSV, err := cread.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	extantAnnotations := make(map[DicomFilename]Annotation)
-	for i, row := range priorAnnotationCSV {
-		if i == 0 {
-			continue
-		}
-		if len(row) != 3 {
-			continue
-		}
-
-		// DICOM filenames are UUIDs and so are unique.
-		extantAnnotations[DicomFilename(row[0])] = Annotation{
-			Dicom:    row[0],
-			SampleID: row[1],
-			Value:    row[2],
-		}
-	}
-
-	return extantAnnotations, nil
+	return &Manifest{Entries: output}, nil
 }
 
 // generateManifestSorter is a convenience function to help sort a list of
 // manifest objects
-func generateManifestSorter(output []Manifest) func(i, j int) bool {
+func generateManifestSorter(output []ManifestEntry) func(i, j int) bool {
 	return func(i, j int) bool {
 		// Need both conditions so that it will proceed to the next check only
 		// if there is a tie at this one

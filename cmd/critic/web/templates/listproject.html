@@ -9,7 +9,7 @@
 		<th>Dicom</th>
 		<th>Series</th>
 		<th>Instance #</th>
-		<th>Tracing Exists?</th>
+		<th>Annotation</th>
 	</tr>
 	{{range $k, $v := $.Data.Manifest}}
 		<tr>
@@ -18,7 +18,7 @@
 			<td><a href="/critic/{{$k}}">{{$v.Dicom}}</a></td>
 			<td><a href="/critic/{{$k}}">{{$v.Series}}</a></td>
 			<td><a href="/critic/{{$k}}">{{$v.InstanceNumber}}</a></td>
-			<td>{{if $v.HasOverlayFromProject}}✔️{{else}}{{end}}</td>
+			<td>{{if ne "" $v.Annotation.Value}} {{$v.Annotation.Value}} {{else}}{{end}}</td>
 		</tr>
 	{{end}}
 </table>

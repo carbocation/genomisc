@@ -30,14 +30,17 @@ func (h *handler) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) ListProject(w http.ResponseWriter, r *http.Request) {
-	if err := UpdateManifest(); err != nil {
-		HTTPError(h, w, r, err)
-		return
-	}
+	// For now, don't bother checking disk for updates - two people should
+	// not run pointing at the same output.
+
+	// if err := UpdateManifest(); err != nil {
+	// 	HTTPError(h, w, r, err)
+	// 	return
+	// }
 
 	output := struct {
 		Project  string
-		Manifest []Manifest
+		Manifest []ManifestEntry
 	}{
 		h.Global.Project,
 		h.Global.Manifest(),
@@ -85,7 +88,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 
 	output := struct {
 		Project       string
-		ManifestEntry Manifest
+		ManifestEntry ManifestEntry
 		ManifestIndex int
 		EncodedImage  string
 		Width         int

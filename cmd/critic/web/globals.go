@@ -22,14 +22,18 @@ type Global struct {
 	DicomRoot    string
 
 	m        sync.RWMutex
-	manifest []Manifest
+	manifest *Manifest
 }
 
-func (g Global) Manifest() []Manifest {
+func (g Global) Manifest() []ManifestEntry {
 	g.m.RLock()
 	defer g.m.RUnlock()
 
-	return g.manifest
+	if g.manifest == nil {
+		return nil
+	}
+
+	return g.manifest.GetEntries()
 }
 
 type logger interface {
