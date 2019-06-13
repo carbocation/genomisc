@@ -11,12 +11,12 @@ import (
 	"github.com/carbocation/pfx"
 )
 
-func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCloser, error) {
+func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCloser, int64, error) {
 	if strings.HasPrefix(path, "gs://") {
 		// Detect the bucket and the path to the actual file
 		pathParts := strings.SplitN(strings.TrimPrefix(path, "gs://"), "/", 2)
 		if len(pathParts) != 2 {
-			return nil, fmt.Errorf("Tried to split your google storage path into 2 parts, but got %d: %v", len(pathParts), pathParts)
+			return nil, 0, fmt.Errorf("Tried to split your google storage path into 2 parts, but got %d: %v", len(pathParts), pathParts)
 		}
 		bucketName := pathParts[0]
 		pathName := pathParts[1]
@@ -32,10 +32,18 @@ func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCl
 			// nop for this type, and can be left nil
 		}
 
-		return wrappedHandle, nil
+		return wrappedHandle, wrappedHandle.storageReader.Attrs.Size, nil
 	}
 
-	return os.Open(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return f, 0, err
+	}
+	fstat, err := f.Stat()
+	if err != nil {
+		return f, 0, err
+	}
+	return f, fstat.Size(), nil
 }
 
 type ReaderAtCloser interface {

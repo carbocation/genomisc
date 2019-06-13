@@ -62,8 +62,17 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 
 	manifestEntry := h.Global.Manifest()[manifestIndex]
 
-	pathPart := h.Global.DicomRoot
-	im, err := ExtractDicomFromLocalFile(fmt.Sprintf("%s/%s", pathPart, manifestEntry.Zip), manifestEntry.Dicom, true)
+	// Read the zip file into memory still compressed - either from a local
+	// file, or from Google storage, depending on the prefix you provide.
+	f, nbytes, err := MaybeOpenFromGoogleStorage(fmt.Sprintf("%s/%s", h.Global.DicomRoot, manifestEntry.Zip), h.Global.storageClient)
+	if err != nil {
+		HTTPError(h, w, r, err)
+		return
+	}
+
+	// Now we have our compressed zip data in an io.ReaderAt, regardless of its
+	// origin. The zip library can now consume it.
+	im, err := ExtractDicomFromReaderAt(f, nbytes, manifestEntry.Dicom, true)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return
