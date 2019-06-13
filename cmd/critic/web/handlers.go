@@ -117,14 +117,29 @@ func (h *handler) TraceOverlayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO:
-	// Here, you need to actually ingest the response, etc
+	manifestEntry := h.Global.Manifest()[manifestIndex]
+
+	// Apply the annotation
 	r.ParseForm()
-	log.Println("Annotation submitted:", r.PostForm.Get("is_bad"))
+
+	userAnno := r.PostForm.Get("value")
+	log.Println("Annotation submitted:", manifestEntry.SampleID, userAnno)
+
+	if err := h.Global.manifest.SetAnnotation(manifestIndex, userAnno); err != nil {
+		HTTPError(h, w, r, err)
+		return
+	}
+
+	// Write to disk. Can consider launching in a goroutine to reduce delay.
+	if err := h.Global.manifest.WriteAnnotationsToDisk(); err != nil {
+		HTTPError(h, w, r, err)
+		return
+	}
 
 	nextURL, err := h.router.Get("critic").URL("manifest_index", strconv.Itoa(manifestIndex+1))
 	if err != nil {
 		HTTPError(h, w, r, err)
+		return
 	}
 
 	http.Redirect(w, r, nextURL.String(), http.StatusSeeOther)

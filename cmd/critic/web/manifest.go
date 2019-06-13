@@ -2,28 +2,71 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type DicomFilename string
 
-type Manifest struct {
+type AnnotationTracker struct {
+	AnnotationPath string
+
 	m       sync.RWMutex
 	Entries []ManifestEntry
 }
 
-func (m *Manifest) GetEntries() []ManifestEntry {
+func (m *AnnotationTracker) GetEntries() []ManifestEntry {
 	m.m.RLock()
 	defer m.m.RUnlock()
 
 	return m.Entries
 }
 
-func (m *Manifest) SaveAnnotations() {
+func (m *AnnotationTracker) SetAnnotation(manifestIdx int, value string) error {
+	m.m.Lock()
+	defer m.m.Unlock()
 
+	err := fmt.Errorf("manifest entry #%d was not found", manifestIdx)
+
+	if len(m.Entries)-1 < manifestIdx {
+		return err
+	}
+
+	chosen := m.Entries[manifestIdx]
+	chosen.Annotation.Date = time.Now().Format(time.RFC3339)
+	chosen.Annotation.Value = value
+
+	// Make sure the main array gets the values
+	m.Entries[manifestIdx] = chosen
+
+	return nil
+}
+
+func (m *AnnotationTracker) WriteAnnotationsToDisk() error {
+	m.m.Lock()
+	defer m.m.Unlock()
+
+	// f, err := os.Open(m.AnnotationPath)
+	f, err := os.OpenFile(m.AnnotationPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, "sample_id\tdicom\tvalue\tdate\n")
+	for _, v := range m.Entries {
+		if v.Annotation.Value == "" {
+			continue
+		}
+
+		fmt.Fprintf(f, "%s\t%s\t%s\t%s\n", v.SampleID, v.Dicom, v.Annotation.Value, v.Annotation.Date)
+	}
+
+	return nil
 }
 
 type ManifestEntry struct {
@@ -38,7 +81,7 @@ type ManifestEntry struct {
 // ReadManifestAndCreateOutput takes the path to a manifest file and extracts each line. It
 // checks to see if the output file has already been created. If so, it reads
 // the output and matches it with the manifest, returning pre-populated values.
-func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*Manifest, error) {
+func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*AnnotationTracker, error) {
 
 	// Fetch any annotations that already exist, or create a file to hold them
 	// if none yet do.
@@ -109,7 +152,7 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*Manifest
 
 	sort.Slice(output, generateManifestSorter(output))
 
-	return &Manifest{Entries: output}, nil
+	return &AnnotationTracker{Entries: output, AnnotationPath: annotationPath}, nil
 }
 
 // generateManifestSorter is a convenience function to help sort a list of

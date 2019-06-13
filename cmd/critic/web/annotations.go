@@ -10,6 +10,7 @@ type Annotation struct {
 	Dicom    string
 	SampleID string
 	Value    string
+	Date     string
 }
 
 func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annotation, error) {
@@ -40,7 +41,7 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 		if i == 0 {
 			continue
 		}
-		if len(row) != 3 {
+		if len(row) != 4 {
 			continue
 		}
 
@@ -49,6 +50,7 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 			Dicom:    row[0],
 			SampleID: row[1],
 			Value:    row[2],
+			Date:     row[3],
 		}
 	}
 

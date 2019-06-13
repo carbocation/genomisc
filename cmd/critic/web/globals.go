@@ -22,7 +22,7 @@ type Global struct {
 	DicomRoot    string
 
 	m        sync.RWMutex
-	manifest *Manifest
+	manifest *AnnotationTracker
 }
 
 func (g Global) Manifest() []ManifestEntry {
