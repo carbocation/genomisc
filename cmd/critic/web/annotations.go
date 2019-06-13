@@ -6,6 +6,13 @@ import (
 	"os"
 )
 
+const (
+	AnnoSampleIDCol = iota
+	AnnoDicomCol
+	AnnoValueCol
+	AnnoDateCol
+)
+
 type Annotation struct {
 	Dicom    string
 	SampleID string
@@ -46,11 +53,11 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 		}
 
 		// DICOM filenames are UUIDs and so are unique.
-		extantAnnotations[DicomFilename(row[0])] = Annotation{
-			Dicom:    row[0],
-			SampleID: row[1],
-			Value:    row[2],
-			Date:     row[3],
+		extantAnnotations[DicomFilename(row[AnnoDicomCol])] = Annotation{
+			Dicom:    row[AnnoDicomCol],
+			SampleID: row[AnnoSampleIDCol],
+			Value:    row[AnnoValueCol],
+			Date:     row[AnnoDateCol],
 		}
 	}
 
