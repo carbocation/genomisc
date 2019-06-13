@@ -25,7 +25,7 @@ type Manifest struct {
 type Annotation struct {
 	Dicom    string
 	SampleID string
-	IsBad    bool
+	Value    string
 }
 
 func UpdateManifest() error {
@@ -140,7 +140,7 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) ([]Manifes
 
 func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annotation, error) {
 	// Create the annotation file, if it does not yet exist
-	log.Printf("Creating directory %s if it does not yet exist\n", annotationPath)
+	log.Printf("Creating %s if it does not yet exist\n", annotationPath)
 	if err := CreateFileAndPath(annotationPath); err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 	}
 	defer annoFile.Close()
 
-	// File format: tab-delimited, 3 columns: dicom_filename, sample_id, is_bad
+	// File format: tab-delimited, 3 columns: dicom_filename, sample_id, annotation
 	cread := csv.NewReader(annoFile)
 	cread.Comma = '\t'
 	priorAnnotationCSV, err := cread.ReadAll()
@@ -170,16 +170,11 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 			continue
 		}
 
-		isBad := false
-		if row[2] == "1" {
-			isBad = true
-		}
-
 		// DICOM filenames are UUIDs and so are unique.
 		extantAnnotations[DicomFilename(row[0])] = Annotation{
 			Dicom:    row[0],
 			SampleID: row[1],
-			IsBad:    isBad,
+			Value:    row[2],
 		}
 	}
 
