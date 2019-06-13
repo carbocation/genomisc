@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"syscall"
@@ -77,6 +78,18 @@ func main() {
 	}
 
 	global.log.Println("Launching", global.Site)
+
+	whoami, err := user.Current()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	global.log.Println("Locally, you should now run:")
+	global.log.Printf("gcloud compute ssh %s@%s -- -NnT -L %d:localhost:%d\n", whoami.Username, hostname, *port, *port)
 
 	go func() {
 		global.log.Println("Starting HTTP server on port", *port)
