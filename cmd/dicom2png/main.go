@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 func main() {
@@ -36,6 +37,9 @@ func main() {
 
 	zipFileCol, dicomFileCol := 0, 0
 
+	concurrency := runtime.NumCPU()
+	sem := make(chan bool, concurrency)
+
 	for i, row := range entries {
 		if i == 0 {
 			for j, col := range row {
@@ -49,11 +53,18 @@ func main() {
 			continue
 		}
 
-		if err := ProcessOneFile(inputPath, outputPath, row[zipFileCol], row[dicomFileCol]); err != nil {
-			log.Fatalln(err)
-		}
+		sem <- true
+		go func(zipStr, dicomStr string) {
+			if err := ProcessOneFile(inputPath, outputPath, zipStr, dicomStr); err != nil {
+				log.Println(err.Error(), "Skipping file...")
+			}
+			<-sem
+		}(row[zipFileCol], row[dicomFileCol])
 	}
 
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
+	}
 }
 
 func ProcessOneFile(inputPath, outputPath, zipName, dicomName string) error {
