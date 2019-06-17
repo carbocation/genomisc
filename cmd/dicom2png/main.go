@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/csv"
 	"flag"
+	"image"
+	"image/color"
 	"image/png"
 	"log"
 	"os"
@@ -73,10 +75,22 @@ func ProcessOneFile(inputPath, outputPath, zipName, dicomName string) error {
 		return err
 	}
 
+	// Will output an RGBA image since that's apparently easier for FastAI to work with
+	size := img.Bounds().Size()
+	rect := image.Rect(0, 0, size.X, size.Y)
+	colImg := image.NewRGBA(rect)
+	for x := 0; x < size.X; x++ {
+		for y := 0; y < size.Y; y++ {
+			pixel := img.At(x, y)
+
+			colImg.Set(x, y, color.RGBA64Model.Convert(pixel))
+		}
+	}
+
 	f, err := os.Create(outputPath + "/" + dicomName + ".png")
 	if err != nil {
 		return err
 	}
 
-	return png.Encode(f, img)
+	return png.Encode(f, colImg)
 }
