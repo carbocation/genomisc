@@ -21,6 +21,7 @@
     <li class="breadcrumb-item"><a href="/listproject">{{$.Data.Project}}</a></li>
     <li class="breadcrumb-item active">Zip: {{$.Data.ManifestEntry.Zip}}</li>
     <li class="breadcrumb-item"><a href="?overlay={{if $.Data.ShowOverlay}}off{{else}}on{{end}}">Toggle Overlay</a></li>
+    <li class="breadcrumb-tiem"><a href="/critic/{{add 1 $.Data.ManifestIndex}}">Skip</a></li>
 </ol>
 
 <form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">

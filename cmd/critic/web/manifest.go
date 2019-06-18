@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -150,7 +149,8 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*Annotati
 		})
 	}
 
-	sort.Slice(output, generateManifestSorter(output))
+	// For now, don't sort manifests - permits you to arrange them in a preprocessing step
+	// sort.Slice(output, generateManifestSorter(output))
 
 	return &AnnotationTracker{Entries: output, AnnotationPath: annotationPath}, nil
 }
