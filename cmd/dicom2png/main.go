@@ -14,9 +14,11 @@ import (
 
 func main() {
 	var inputPath, outputPath, manifest string
+	var includeOverlay bool
 	flag.StringVar(&inputPath, "raw", "", "Path to the local folder containing the raw zip files")
 	flag.StringVar(&outputPath, "out", "", "Path to the local folder where the extracted PNGs will go")
 	flag.StringVar(&manifest, "manifest", "", "Manifest file containing Zip names and Dicom names.")
+	flag.BoolVar(&includeOverlay, "include-overlay", true, "Print the overlay on top of the images?")
 
 	flag.Parse()
 	if inputPath == "" || outputPath == "" {
@@ -57,7 +59,7 @@ func main() {
 
 		sem <- true
 		go func(zipStr, dicomStr string) {
-			if err := ProcessOneFile(inputPath, outputPath, zipStr, dicomStr); err != nil {
+			if err := ProcessOneFile(inputPath, outputPath, zipStr, dicomStr, includeOverlay); err != nil {
 				log.Println(err.Error(), "Skipping file...")
 			}
 			<-sem
@@ -69,8 +71,8 @@ func main() {
 	}
 }
 
-func ProcessOneFile(inputPath, outputPath, zipName, dicomName string) error {
-	img, err := ExtractDicomFromLocalFile(filepath.Join(inputPath, zipName), dicomName, true)
+func ProcessOneFile(inputPath, outputPath, zipName, dicomName string, includeOverlay bool) error {
+	img, err := ExtractDicomFromLocalFile(filepath.Join(inputPath, zipName), dicomName, includeOverlay)
 	if err != nil {
 		return err
 	}
