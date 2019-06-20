@@ -33,6 +33,7 @@ type DicomMeta struct {
 	DeviceSerialNumber string
 	SoftwareVersions   string
 	StationName        string
+	EchoTime           string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -177,6 +178,10 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 
 		if elem.Tag == dicomtag.StationName {
 			output.StationName = elem.Value[0].(string)
+		}
+
+		if elem.Tag == dicomtag.EchoTime {
+			output.EchoTime = elem.Value[0].(string)
 		}
 	}
 
