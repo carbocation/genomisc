@@ -84,7 +84,8 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 		var bitsAllocated, bitsStored, highBit uint16
 		_, _, _ = bitsAllocated, bitsStored, highBit
 
-		var windowCenter, windowWidth uint16
+		var windowCenter int16
+		var windowWidth uint16
 		var nOverlayRows, nOverlayCols int
 
 		var img *image.Gray16
@@ -106,11 +107,11 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 				highBit = elem.Value[0].(uint16)
 			} else if elem.Tag == dicomtag.WindowCenter {
 				// log.Printf("WindowCenter: %+v %T\n", elem.Value, elem.Value[0])
-				windowCenter64, err := strconv.ParseUint(elem.Value[0].(string), 10, 16)
+				windowCenter64, err := strconv.ParseInt(elem.Value[0].(string), 10, 16)
 				if err != nil {
 					return nil, err
 				}
-				windowCenter = uint16(windowCenter64)
+				windowCenter = int16(windowCenter64)
 
 			} else if elem.Tag == dicomtag.WindowWidth {
 				// log.Printf("WindowWidth: %+v %T\n", elem.Value, elem.Value[0])
@@ -230,7 +231,7 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 }
 
 // Algorithm from https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
-func ApplyWindowScaling(intensity, windowCenter, windowWidth uint16) float64 {
+func ApplyWindowScaling(intensity uint16, windowCenter int16, windowWidth uint16) float64 {
 	x := float64(intensity)
 	center := float64(windowCenter)
 	width := float64(windowWidth)
