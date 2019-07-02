@@ -51,7 +51,7 @@ func main() {
 	// fmt.Println(variant.Alleles)
 
 	// ac := make(map[int]float64)
-	fmt.Printf("chr\tpos\tref\talt\tsample_row_id\talt_allele_dosage\n")
+	fmt.Printf("chr\tpos\trsid\tref\talt\tsample_row_id\talt_allele_dosage\n")
 	for sampleFileRow, v := range variant.SampleProbabilities {
 		aac := 0.0
 		for allele, prob := range v.Probabilities {
@@ -63,7 +63,7 @@ func main() {
 			// ac[allele] += prob
 
 		}
-		fmt.Printf("%s\t%d\t%s\t%s\t%d\t%f\n", variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aac)
+		fmt.Printf("%s\t%d\t%s\t%s\t%s\t%d\t%f\n", variant.Chromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aac)
 	}
 
 	// fmt.Println("Summed allelic dosage")
