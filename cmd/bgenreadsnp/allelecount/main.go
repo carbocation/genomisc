@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/carbocation/bgen"
 	_ "github.com/mattn/go-sqlite3"
@@ -37,7 +38,7 @@ func main() {
 	}
 	defer bgi.Close()
 	bgi.Metadata.FirstThousandBytes = nil
-	log.Printf("%+v\n", *bgi.Metadata)
+	// log.Printf("%+v\n", *bgi.Metadata)
 
 	idx, err := FindOneVariant(bgi, rsID)
 	if err != nil {
@@ -51,8 +52,7 @@ func main() {
 	// fmt.Println(variant.Alleles)
 
 	ac := make(map[int]float64)
-	fmt.Printf("chr\tpos\tsample_row_id\tminor_allele_dosage\n")
-	for _, v := range variant.Probabilities.SampleProbabilities {
+	for _, v := range variant.SampleProbabilities {
 		// mac := 0.0
 		for allele, prob := range v.Probabilities {
 			// 0 for AA
@@ -67,8 +67,15 @@ func main() {
 
 	}
 
-	fmt.Println("Summed allelic dosage")
-	fmt.Println(ac)
+	a0 := ac[0]*2 + ac[1]
+	a1 := ac[2]*2 + ac[1]
+
+	fmt.Printf("chr\tpos\trsid\ta0\ta1\ta0_count\ta1_count\n")
+	fmt.Printf("%s\t%d\t%s\t%s\t%s\t%f\t%f\n", stripLeadingZero(variant.Chromosome), variant.Position, variant.RSID, variant.Alleles[0].String(), variant.Alleles[1].String(), a0, a1)
+}
+
+func stripLeadingZero(in string) string {
+	return strings.TrimPrefix(in, "0")
 }
 
 func FindOneVariant(bgi *bgen.BGIIndex, rsID string) (bgen.VariantIndex, error) {
