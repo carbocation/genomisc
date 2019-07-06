@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 
 	"github.com/carbocation/genomisc"
 	"github.com/carbocation/genomisc/prsparser"
@@ -48,12 +49,12 @@ func (t *Task) Clear() {
 	t.touched = false
 }
 
-func (t *Task) Print(inputBucket, outputBucket, layout string) {
+func (t *Task) Print(inputBucket, outputBucket, layout, sourceFileName string) {
 	if t == nil {
 		return
 	}
 
-	fmt.Printf("%s\t%d\t%d\t%s\t%s\t%s\n", t.Chromosome, t.FirstLine, t.LastLine, inputBucket, fmt.Sprintf("%s/%d.tsv", outputBucket, t.ID), layout)
+	fmt.Printf("%s\t%d\t%d\t%s\t%s\t%s\t%s\n", t.Chromosome, t.FirstLine, t.LastLine, inputBucket, fmt.Sprintf("%s/%d.tsv", outputBucket, t.ID), layout, sourceFileName)
 }
 
 func init() {
@@ -131,7 +132,9 @@ func main() {
 		}
 	}
 
-	fmt.Printf("--env chrom\t--env firstline\t--env lastline\t--input infile\t--output outfile\t--env layout\n")
+	sourceFileName := path.Base(prsPath)
+
+	fmt.Printf("--env chrom\t--env firstline\t--env lastline\t--input infile\t--output outfile\t--env layout\t--env source\n")
 
 	reader := csv.NewReader(fd)
 	reader.Comma = parser.CSVReaderSettings.Comma
@@ -178,7 +181,7 @@ func main() {
 
 			// 3) The task is complete
 			if task.Active() {
-				task.Print(inputBucket, outputBucket, layout)
+				task.Print(inputBucket, outputBucket, layout, sourceFileName)
 				task.Clear()
 				taskCount++
 			}
@@ -192,7 +195,7 @@ func main() {
 
 		// Is this task too full?
 		if task.Count() >= variantsPerJob {
-			task.Print(inputBucket, outputBucket, layout)
+			task.Print(inputBucket, outputBucket, layout, sourceFileName)
 			task.Clear()
 			taskCount++
 		}
@@ -202,7 +205,7 @@ func main() {
 
 	// Final cleanup of the last task
 	if task.Active() {
-		task.Print(inputBucket, outputBucket, layout)
+		task.Print(inputBucket, outputBucket, layout, sourceFileName)
 		task.Clear()
 		taskCount++
 	}

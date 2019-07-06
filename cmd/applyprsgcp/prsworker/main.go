@@ -33,11 +33,13 @@ func main() {
 		chromosome       string
 		firstLine        int
 		lastLine         int
+		sourceFile       string
 	)
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&chromosome, "chromosome", "", "Chromosome this job is looking at")
+	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
 	flag.IntVar(&firstLine, "first_line", 0, "First line in the file to start counting toward the score")
 	flag.IntVar(&lastLine, "last_line", 0, "Last line in the file to count toward the score")
 	flag.Parse()
@@ -45,6 +47,11 @@ func main() {
 	if chromosome == "" {
 		flag.PrintDefaults()
 		log.Fatalln("Please provide --chromosome")
+	}
+
+	if sourceFile == "" {
+		flag.PrintDefaults()
+		log.Fatalln("Please provide --source")
 	}
 
 	if bgenTemplatePath == "" {
@@ -76,9 +83,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("sample_file_row_id\tscore\tn_incremented\n")
+	fmt.Printf("sample_file_row\tsource\tscore\tn_incremented\n")
 	for file_row, v := range score {
-		fmt.Fprintf(STDOUT, "%d\t%f\t%d\n", file_row, v.SumScore, v.NIncremented)
+		fmt.Fprintf(STDOUT, "%d\t%s\t%f\t%d\n", file_row, sourceFile, v.SumScore, v.NIncremented)
 	}
 
 }
