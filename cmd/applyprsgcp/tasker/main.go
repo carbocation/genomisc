@@ -54,7 +54,7 @@ func (t *Task) Print(inputBucket, outputBucket, layout, sourceFileName string) {
 		return
 	}
 
-	fmt.Printf("%s\t%d\t%d\t%s\t%s\t%s\t%s\n", t.Chromosome, t.FirstLine, t.LastLine, inputBucket, fmt.Sprintf("%s/%d.tsv", outputBucket, t.ID), layout, sourceFileName)
+	fmt.Printf("%s\t%d\t%d\t%s\t%s\t%s\t%s\n", t.Chromosome, t.FirstLine, t.LastLine, inputBucket, fmt.Sprintf("%s/%s-%d.tsv", outputBucket, sourceFileName, t.ID), layout, sourceFileName)
 }
 
 func init() {
