@@ -12,11 +12,6 @@ import (
 	"github.com/carbocation/genomisc/prsparser"
 )
 
-type command struct {
-	Arg string
-	Val string
-}
-
 type Task struct {
 	ID         int
 	Chromosome string
