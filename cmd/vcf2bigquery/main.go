@@ -36,8 +36,10 @@ func main() {
 
 	var sampleFields flagSlice
 	var vcfFile, assembly, chromosome string
-	var chunk, chunksize int
+	var chunk, chunksize, startPos, endPos int
 	flag.StringVar(&chromosome, "chromosome", "", "If set, only extracts from one specific chromosome.")
+	flag.IntVar(&startPos, "start_pos", 0, "In kilobases. If set, only extracts from this position onward within the specified chromosome.")
+	flag.IntVar(&endPos, "end_pos", 0, "In kilobases. If set, only extracts until this position within the specified chromosome.")
 	flag.StringVar(&vcfFile, "vcf", "", "Path to VCF containing diploid genotype data to be linearized.")
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
 	flag.IntVar(&chunksize, "chunksize", 0, "Use this chunksize (in kilobases).")
@@ -51,9 +53,13 @@ func main() {
 	var err error
 	var chunks []vcf.TabixLocus
 
+	if chunk == 0 && (startPos != 0 || endPos != 0) {
+		log.Fatalln("--start_pos and --end_pos can only be set for chunked jobs (--chunk)")
+	}
+
 	if chunksize > 0 {
 		// Kilobases (kibibases, I guess)
-		chunks, err = SplitChrPos(chunksize*1000, assembly, chromosome)
+		chunks, err = SplitChrPos(chunksize*1000, assembly, chromosome, startPos*1000, endPos*1000)
 		if err != nil {
 			log.Fatalln(err)
 		}

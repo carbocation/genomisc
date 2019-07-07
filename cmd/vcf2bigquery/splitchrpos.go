@@ -59,16 +59,26 @@ func chrPosSlice(assembly string, chromosome string) ([]vcf.TabixLocus, error) {
 	return loci, nil
 }
 
-func SplitChrPos(chunksize int, assembly string, chromosome string) ([]vcf.TabixLocus, error) {
+func SplitChrPos(chunksize int, assembly string, chromosome string, startPos, endPos int) ([]vcf.TabixLocus, error) {
 	loci, err := chrPosSlice(assembly, chromosome)
 
 	output := make([]vcf.TabixLocus, 0)
 
-	for _, chromosome := range loci {
+	start := 0
+	if chromosome != "" {
+		start = startPos
+	}
 
-		for locationInChromosome := 0; locationInChromosome < int(chromosome.End()); locationInChromosome += chunksize {
+	for _, locus := range loci {
+
+		end := int(locus.End())
+		if chromosome != "" && endPos != 0 {
+			end = endPos
+		}
+
+		for locationInChromosome := start; locationInChromosome < end; locationInChromosome += chunksize {
 			output = append(output, vcf.MakeTabixLocus(
-				chromosome.Chrom(),
+				locus.Chrom(),
 				locationInChromosome,
 				locationInChromosome+chunksize,
 			))
