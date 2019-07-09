@@ -175,7 +175,7 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 				log.Println("Image bounds:", img.Bounds().Dx(), img.Bounds().Dy())
 			}
 
-			// Overlay
+			// Extract the overlay, if it exists
 			if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
 				log.Println("Found the Overlay")
 
@@ -210,6 +210,7 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 			}
 		}
 
+		// Draw the overlay
 		if includeOverlay && img != nil && overlayPixels != nil {
 			// Iterate over the bytes. There will be 1 value for each cell.
 			// So in a 1024x1024 overlay, you will expect 1,048,576 cells.
