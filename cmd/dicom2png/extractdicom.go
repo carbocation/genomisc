@@ -8,8 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
-	"strconv"
 
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/dicomtag"
@@ -84,11 +84,12 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 		var bitsAllocated, bitsStored, highBit uint16
 		_, _, _ = bitsAllocated, bitsStored, highBit
 
-		var windowCenter int16
-		var windowWidth uint16
 		var nOverlayRows, nOverlayCols int
 
 		var img *image.Gray16
+
+		var imgRows, imgCols int
+		var imgPixels []int
 		var overlayPixels []int
 
 		for _, elem := range parsedData.Elements {
@@ -105,25 +106,14 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 			} else if elem.Tag == dicomtag.HighBit {
 				// log.Printf("HighBit: %+v %T\n", elem.Value, elem.Value[0])
 				highBit = elem.Value[0].(uint16)
-			} else if elem.Tag == dicomtag.WindowCenter {
-				// log.Printf("WindowCenter: %+v %T\n", elem.Value, elem.Value[0])
-				windowCenter64, err := strconv.ParseInt(elem.Value[0].(string), 10, 16)
-				if err != nil {
-					return nil, err
-				}
-				windowCenter = int16(windowCenter64)
-
-			} else if elem.Tag == dicomtag.WindowWidth {
-				// log.Printf("WindowWidth: %+v %T\n", elem.Value, elem.Value[0])
-				windowWidth64, err := strconv.ParseUint(elem.Value[0].(string), 10, 16)
-				if err != nil {
-					return nil, err
-				}
-				windowWidth = uint16(windowWidth64)
 			} else if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x0010}) == 0 {
 				nOverlayRows = int(elem.Value[0].(uint16))
 			} else if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x0011}) == 0 {
 				nOverlayCols = int(elem.Value[0].(uint16))
+			} else if elem.Tag == dicomtag.Rows {
+				imgRows = int(elem.Value[0].(uint16))
+			} else if elem.Tag == dicomtag.Columns {
+				imgCols = int(elem.Value[0].(uint16))
 			}
 
 			if false {
@@ -163,16 +153,11 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 						return nil, fmt.Errorf("Frame is encapsulated, which we did not expect")
 					}
 
-					img = image.NewGray16(image.Rect(0, 0, frame.NativeData.Cols, frame.NativeData.Rows))
 					for j := 0; j < len(frame.NativeData.Data); j++ {
-						leVal := uint16(frame.NativeData.Data[j][0])
-
-						// Should be %cols and /cols -- row count is not necessary here
-						img.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Cols, color.Gray16{Y: uint16(float64(1<<16) * ApplyWindowScaling(leVal, windowCenter, windowWidth))})
+						imgPixels = append(imgPixels, frame.NativeData.Data[j][0])
 					}
 				}
 
-				log.Println("Image bounds:", img.Bounds().Dx(), img.Bounds().Dy())
 			}
 
 			// Extract the overlay, if it exists
@@ -210,6 +195,23 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 			}
 		}
 
+		// Identify the brightest pixel
+		maxIntensity := 0
+		for _, v := range imgPixels {
+			if v > maxIntensity {
+				maxIntensity = v
+			}
+		}
+
+		// Draw the image
+		img = image.NewGray16(image.Rect(0, 0, imgCols, imgRows))
+		for j := 0; j < len(imgPixels); j++ {
+			leVal := imgPixels[j]
+
+			// Should be %cols and /cols -- row count is not necessary here
+			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyPythonicWindowScaling(leVal, maxIntensity)})
+		}
+
 		// Draw the overlay
 		if includeOverlay && img != nil && overlayPixels != nil {
 			// Iterate over the bytes. There will be 1 value for each cell.
@@ -231,19 +233,10 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 	return nil, fmt.Errorf("Did not find the requested Dicom %s", dicomName)
 }
 
-// Algorithm from https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
-func ApplyWindowScaling(intensity uint16, windowCenter int16, windowWidth uint16) float64 {
-	x := float64(intensity)
-	center := float64(windowCenter)
-	width := float64(windowWidth)
-
-	if x < center-0.5-(width-1)/2 {
-		return 0.0
+func ApplyPythonicWindowScaling(intensity, maxIntensity int) uint16 {
+	if intensity < 0 {
+		intensity = 0
 	}
 
-	if x > center-0.5+(width-1)/2 {
-		return 1.0
-	}
-
-	return ((x-(center-0.5))/(width-1) + 0.5)
+	return uint16(float64(math.MaxUint16) * float64(intensity) / float64(maxIntensity))
 }
