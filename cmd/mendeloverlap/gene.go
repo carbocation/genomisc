@@ -9,7 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gobuffalo/packr"
+	"github.com/carbocation/pfx"
+	"github.com/gobuffalo/packr/v2"
 )
 
 const (
@@ -62,9 +63,12 @@ func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
 // span of transcript start - transcript end, so there is just one entry per
 // gene.
 func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error) {
-	lookups := packr.NewBox("./lookups")
+	lookups := packr.New("Human Genome Assembly", "./lookups")
 
-	file := lookups.Bytes("ensembl.grch37.p13.genes")
+	file, err := lookups.Find("ensembl.grch37.p13.genes")
+	if err != nil {
+		return nil, pfx.Err(err)
+	}
 	buf := bytes.NewBuffer(file)
 	cr := csv.NewReader(buf)
 	cr.Comma = '\t'
