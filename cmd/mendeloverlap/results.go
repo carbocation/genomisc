@@ -19,8 +19,8 @@ type Hist struct {
 	Original bool
 }
 
-func (e Results) Summarize(repeat int) {
-	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+func (e Results) Summarize(repeat int, transcriptStartOnly bool) {
+	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
 
 	mendelianCounts := make(map[int]Hist)
 	for i := 0; i < repeat; i++ {
@@ -29,7 +29,7 @@ func (e Results) Summarize(repeat int) {
 				// Only visit the truth case once
 				continue
 			}
-			val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+			val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
 			hist := mendelianCounts[val]
 			hist.Value = val
 			hist.Count++
@@ -73,7 +73,7 @@ func (e Results) Summarize(repeat int) {
 	mgenes = make([]Gene, 0, len(e.MendelianGenes))
 	for _, v := range e.MendelianGenes {
 		for _, locus := range e.Permutations[0].Loci {
-			if locus.IsGeneWithinRadius(v, e.Radius) {
+			if locus.IsGeneWithinRadius(v, e.Radius, transcriptStartOnly) {
 				if _, exists := seengenemap[v.Symbol]; exists {
 					continue
 				}
@@ -106,7 +106,7 @@ func (e Results) Summarize(repeat int) {
 	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", float64(equallyOrMoreExtreme)/float64(repeat*len(e.Permutations)))
 }
 
-func (e Results) FisherExactTest(nAllGenes int) float64 {
+func (e Results) FisherExactTest(nAllGenes int, transcriptStartOnly bool) float64 {
 	// FisherExactTest computes Fisher's Exact Test for
 	//  contigency tables. Nomenclature:
 	//
@@ -126,11 +126,11 @@ func (e Results) FisherExactTest(nAllGenes int) float64 {
 	nAllMendelianGenes := len(e.MendelianGenes)
 
 	// Mendelian genes that we did not find in this permutation
-	notfoundMendelianGenes := nAllMendelianGenes - e.MendelianGeneCount()
+	notfoundMendelianGenes := nAllMendelianGenes - e.MendelianGeneCount(transcriptStartOnly)
 
-	residualGenes := nAllGenes - e.NonMendelianGeneCount() - e.MendelianGeneCount()
+	residualGenes := nAllGenes - e.NonMendelianGeneCount() - e.MendelianGeneCount(transcriptStartOnly)
 
-	_, _, _, twop := fet.FisherExactTest(e.MendelianGeneCount(), notfoundMendelianGenes, e.NonMendelianGeneCount(), residualGenes)
+	_, _, _, twop := fet.FisherExactTest(e.MendelianGeneCount(transcriptStartOnly), notfoundMendelianGenes, e.NonMendelianGeneCount(), residualGenes)
 
 	return twop
 }
@@ -144,10 +144,10 @@ func (e Results) NonMendelianGeneCount() int {
 	return n
 }
 
-func (e Results) MendelianGeneCount() int {
+func (e Results) MendelianGeneCount(transcriptStartOnly bool) int {
 	n := 0
 	for _, v := range e.Permutations {
-		n += v.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+		n += v.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
 	}
 
 	return n

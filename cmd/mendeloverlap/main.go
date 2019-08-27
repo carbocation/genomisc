@@ -12,11 +12,12 @@ import (
 
 func main() {
 	var (
-		mendelianGeneFile string
-		SNPsnapFile       string
-		radius            float64
-		overrideMissing   bool
-		repeat            int
+		mendelianGeneFile   string
+		SNPsnapFile         string
+		radius              float64
+		overrideMissing     bool
+		transcriptStartOnly bool
+		repeat              int
 	)
 
 	fmt.Println("This program uses GRCh37")
@@ -24,6 +25,7 @@ func main() {
 	flag.StringVar(&SNPsnapFile, "snpsnap", "", "Filename containing SNPsnap output.")
 	flag.Float64Var(&radius, "radius", 250, "Radius, in kilobases, to define whether part of a transcript is 'within' a given locus.")
 	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
+	flag.BoolVar(&transcriptStartOnly, "transcriptstart", false, "Measure radius to the transcript start site only? If false, will measure radius to start or end of the transcript (whichever is closer).")
 	flag.IntVar(&repeat, "repeat", 1, "Iterate over the SNPSnap input this many times.")
 	flag.Parse()
 
@@ -52,10 +54,14 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Println("Using a radius of", radius, "kilobases")
+	if transcriptStartOnly {
+		fmt.Println("Using a radius of", radius, "kilobases from the transcript start only")
+	} else {
+		fmt.Println("Using a radius of", radius, "kilobases")
+	}
 
 	permutations.MendelianGenes = mendelianTranscripts
 	permutations.Radius = radius
 
-	permutations.Summarize(repeat)
+	permutations.Summarize(repeat, transcriptStartOnly)
 }

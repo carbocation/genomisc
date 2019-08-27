@@ -32,6 +32,7 @@ type Gene struct {
 	Chromosome              string
 	EarliestTranscriptStart int
 	LatestTranscriptEnd     int
+	PlusStrand              bool
 }
 
 func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
@@ -110,7 +111,18 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 			return nil, err
 		}
 
-		results = append(results, Gene{Symbol: rec[GeneName], Chromosome: rec[Chromosome], EarliestTranscriptStart: start, LatestTranscriptEnd: end})
+		strandInt, err := strconv.Atoi(rec[Strand])
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, Gene{
+			Symbol:                  rec[GeneName],
+			Chromosome:              rec[Chromosome],
+			EarliestTranscriptStart: start,
+			LatestTranscriptEnd:     end,
+			PlusStrand:              strandInt > 0,
+		})
 	}
 
 	keepers := make(map[string]Gene)
