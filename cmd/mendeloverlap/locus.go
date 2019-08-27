@@ -13,6 +13,12 @@ func (l Locus) IsGeneWithinRadius(gene Gene, radius float64, transcriptStartOnly
 		return false
 	}
 
+	// Regardless of other options, if the SNP is physicall on a transcript, we
+	// will count it:
+	if l.Position >= gene.EarliestTranscriptStart && l.Position <= gene.LatestTranscriptEnd {
+		return true
+	}
+
 	// If you only want to assess based on distance from the transcription start
 	// site:
 	if transcriptStartOnly {

@@ -55,7 +55,7 @@ func main() {
 	}
 
 	if transcriptStartOnly {
-		fmt.Println("Using a radius of", radius, "kilobases from the transcript start only")
+		fmt.Println("Using a radius of", radius, "kilobases from the transcript start (or within the transcript itself) only")
 	} else {
 		fmt.Println("Using a radius of", radius, "kilobases")
 	}
