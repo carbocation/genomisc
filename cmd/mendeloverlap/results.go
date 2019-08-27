@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/glycerine/golang-fisher-exact"
+	fet "github.com/glycerine/golang-fisher-exact"
 )
 
 type Results struct {
@@ -19,16 +19,22 @@ type Hist struct {
 	Original bool
 }
 
-func (e Results) Summarize() {
+func (e Results) Summarize(repeat int) {
 	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
 
 	mendelianCounts := make(map[int]Hist)
-	for _, permutation := range e.Permutations {
-		val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
-		hist := mendelianCounts[val]
-		hist.Value = val
-		hist.Count++
-		mendelianCounts[val] = hist
+	for i := 0; i < repeat; i++ {
+		for j, permutation := range e.Permutations {
+			if i > 0 && j == 0 {
+				// Only visit the truth case once
+				continue
+			}
+			val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius)
+			hist := mendelianCounts[val]
+			hist.Value = val
+			hist.Count++
+			mendelianCounts[val] = hist
+		}
 	}
 
 	histslice := make([]Hist, 0, len(mendelianCounts))
@@ -83,7 +89,7 @@ func (e Results) Summarize() {
 	}
 
 	fmt.Println()
-	fmt.Println("Examined", len(e.Permutations), "permutations")
+	fmt.Println("Examined", repeat*len(e.Permutations), "permutations")
 	fmt.Printf("N_Overlapping_Loci\tN_Permutations\tContains_Original_Dataset\n")
 	equallyOrMoreExtreme := 0
 	for _, v := range histslice {
@@ -97,7 +103,7 @@ func (e Results) Summarize() {
 		}
 	}
 	fmt.Println()
-	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", float64(equallyOrMoreExtreme)/float64(len(e.Permutations)))
+	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", float64(equallyOrMoreExtreme)/float64(repeat*len(e.Permutations)))
 }
 
 func (e Results) FisherExactTest(nAllGenes int) float64 {
