@@ -5,8 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"os"
+
+	"github.com/carbocation/genomisc/hwecgo"
 
 	"github.com/carbocation/bgen"
 	_ "github.com/mattn/go-sqlite3"
@@ -56,7 +57,7 @@ func main() {
 	log.Printf("%+v\n", *bgi.Metadata)
 
 	rdr := bg.NewVariantReader()
-	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tAC\tMAF\tAA\tAa\taa\tHWEChiSq\n")
+	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tAC\tMAF\tAA\tAa\taa\tHWE_Exact_P\n")
 
 	if rsID != "" {
 		idx, err := FindOneVariant(bgi, rsID)
@@ -135,13 +136,14 @@ func SampleLookup(sampleFile, sampleIDFile string) ([]bool, bool, error) {
 }
 
 func handleVariant(variant *bgen.Variant, subset bool, shouldCount []bool) {
-	hwe, ac, _, minaf, AAf, Aaf, aaf := ComputeHWEChiSq(variant.Probabilities.SampleProbabilities, subset, shouldCount)
-	fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.6e\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], ac, minaf, AAf, Aaf, aaf, hwe)
+	ac, _, minaf, AAf, Aaf, aaf, exactP := ComputeHWEChiSq(variant.SampleProbabilities, subset, shouldCount)
+
+	fmt.Printf("%s\t%s\t%d\t%s\t%s\t%.6e\t%.3e\t%.3e\t%.3e\t%.3e\t%.3e\n", variant.RSID, variant.Chromosome, variant.Position, variant.Alleles[0], variant.Alleles[1], ac, minaf, AAf, Aaf, aaf, exactP)
 }
 
 // ComputeHWEChiSq calculates the Hardy-Weinberg equilibrium chi square value at
 // a given site, based on the observed and expected alleles.
-func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount []bool) (chisquare, ac, majaf, minaf, AAf, Aaf, aaf float64) {
+func ComputeHWEChiSq(samples []bgen.SampleProbability, subset bool, shouldCount []bool) (ac, majaf, minaf, AAf, Aaf, aaf, exactP float64) {
 	// Genotype count observations
 	AA, Aa, aa := 0.0, 0.0, 0.0
 	for i, v := range samples {
@@ -159,16 +161,14 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount
 	// Observed N (sample count) may be smaller than the number of samples
 	N := AA + Aa + aa
 
+	// Note: we truncate to integer here
+	exactP = hwecgo.Exact(int64(AA), int64(Aa), int64(aa))
+
 	AlleleCount := 2.0 * N
 
 	// Allele frequencies depends on the allele count, not the sample count
 	A := (2.0*AA + Aa) / (AlleleCount)
 	a := (Aa + 2.0*aa) / (AlleleCount)
-
-	// Genotype count expectations
-	eAA := A * A * N
-	eAa := 2.0 * A * a * N
-	eaa := a * a * N
 
 	// Assign AF to major or minor correctly
 	majaf = A
@@ -177,16 +177,13 @@ func ComputeHWEChiSq(samples []*bgen.SampleProbability, subset bool, shouldCount
 		minaf, majaf = majaf, minaf
 	}
 
-	// ChiSquare
-	return math.Pow(eAA-AA, 2)/eAA +
-			math.Pow(eAa-Aa, 2)/eAa +
-			math.Pow(eaa-aa, 2)/eaa,
-		AlleleCount,
+	return AlleleCount,
 		majaf,
 		minaf,
 		AA / N,
 		Aa / N,
-		aa / N
+		aa / N,
+		exactP
 }
 
 func FindOneVariant(bgi *bgen.BGIIndex, rsID string) (bgen.VariantIndex, error) {
