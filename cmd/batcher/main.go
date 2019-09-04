@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"broad/ghgwas/ukbb/bulkprocess"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 var (
