@@ -1,7 +1,6 @@
 package main
 
 import (
-	"broad/ghgwas/cmd/applyprs"
 	"fmt"
 	"log"
 	"runtime"
@@ -10,14 +9,14 @@ import (
 	"github.com/carbocation/genomisc/prsparser"
 )
 
-func AccumulateScore(bgenPath string, sites []bgen.VariantIndex) ([]applyprs.Sample, error) {
+func AccumulateScore(bgenPath string, sites []bgen.VariantIndex) ([]Sample, error) {
 	// At least one site is valid
 	log.Println("Site 1:", sites[0])
 
 	jobs := make(chan bgen.VariantIndex)
-	results := make(chan []applyprs.Sample)
+	results := make(chan []Sample)
 	errors := make(chan error)
-	final := make(chan []applyprs.Sample)
+	final := make(chan []Sample)
 
 	// Launch workers
 	concurrency := 2 * runtime.NumCPU()
@@ -37,9 +36,9 @@ func AccumulateScore(bgenPath string, sites []bgen.VariantIndex) ([]applyprs.Sam
 	}(errors)
 
 	// Launch reducer that accumulates results
-	go func(results, final chan []applyprs.Sample) {
+	go func(results, final chan []Sample) {
 
-		var accumulator []applyprs.Sample
+		var accumulator []Sample
 
 		processed := 0
 		for i := 0; i < len(sites); i++ {
@@ -52,8 +51,8 @@ func AccumulateScore(bgenPath string, sites []bgen.VariantIndex) ([]applyprs.Sam
 			}
 
 			if processed == 0 {
-				accumulator = make([]applyprs.Sample, 0, len(res))
-				var v applyprs.Sample
+				accumulator = make([]Sample, 0, len(res))
+				var v Sample
 				for j := range res {
 					v = res[j]
 					v.NIncremented = 1
@@ -91,7 +90,7 @@ func AccumulateScore(bgenPath string, sites []bgen.VariantIndex) ([]applyprs.Sam
 
 }
 
-func Worker(bgPath string, jobs <-chan bgen.VariantIndex, results chan<- []applyprs.Sample, errors chan<- error) {
+func Worker(bgPath string, jobs <-chan bgen.VariantIndex, results chan<- []Sample, errors chan<- error) {
 	b, err := bgen.Open(bgPath)
 	if err != nil {
 		panic(err.Error())
@@ -110,7 +109,7 @@ func Worker(bgPath string, jobs <-chan bgen.VariantIndex, results chan<- []apply
 	}
 }
 
-func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) ([]applyprs.Sample, error) {
+func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) ([]Sample, error) {
 	nonNilErr := ErrorInfo{Message: "", Chromosome: vi.Chromosome, Position: vi.Position}
 
 	if prs == nil || b == nil {
@@ -143,7 +142,7 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) (
 		return nil, nonNilErr
 	}
 
-	results := make([]applyprs.Sample, variant.NSamples, variant.NSamples)
+	results := make([]Sample, variant.NSamples, variant.NSamples)
 
 	for i := 0; i < len(results); i++ {
 		results[i].SumScore = ComputeScore(variant.SampleProbabilities[i], variant, prs)
