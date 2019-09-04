@@ -1,7 +1,6 @@
 package main
 
 import (
-	"broad/ghgwas/lib/vcf"
 	"bufio"
 	"compress/gzip"
 	"flag"
@@ -51,7 +50,7 @@ func main() {
 	flag.Parse()
 
 	var err error
-	var chunks []vcf.TabixLocus
+	var chunks []TabixLocus
 
 	if chunk == 0 && (startPos != 0 || endPos != 0) {
 		log.Fatalln("--start_pos and --end_pos can only be set for chunked jobs (--chunk)")
@@ -158,7 +157,7 @@ func main() {
 
 		// Read only a subset via tabix
 		locus := chunks[chunk-1]
-		if err := ReadTabixVCF(rdr, vcfFile, []vcf.TabixLocus{locus}, concurrencyLimit, &pool, completedWork, sampleFields); err != nil {
+		if err := ReadTabixVCF(rdr, vcfFile, []TabixLocus{locus}, concurrencyLimit, &pool, completedWork, sampleFields); err != nil {
 			log.Println(err)
 		}
 
@@ -170,7 +169,7 @@ func main() {
 	log.Println("Completed")
 }
 
-func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []vcf.TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) error {
+func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) error {
 
 	tbx, err := bix.New(vcfFile)
 	if err != nil {

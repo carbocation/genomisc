@@ -1,7 +1,6 @@
 package main
 
 import (
-	"broad/ghgwas/lib/vcf"
 	"bytes"
 	"encoding/csv"
 	"log"
@@ -10,7 +9,7 @@ import (
 	"github.com/gobuffalo/packr/v2"
 )
 
-func chrPosSlice(assembly string, chromosome string) ([]vcf.TabixLocus, error) {
+func chrPosSlice(assembly string, chromosome string) ([]TabixLocus, error) {
 	lookups := packr.New("lookups", "./lookups")
 
 	file, err := lookups.Find(assembly)
@@ -26,7 +25,7 @@ func chrPosSlice(assembly string, chromosome string) ([]vcf.TabixLocus, error) {
 		return nil, err
 	}
 
-	loci := make([]vcf.TabixLocus, 0)
+	loci := make([]TabixLocus, 0)
 	header := make(map[string]int)
 	for i, v := range entries {
 		if i == 0 {
@@ -53,16 +52,16 @@ func chrPosSlice(assembly string, chromosome string) ([]vcf.TabixLocus, error) {
 		if err != nil {
 			return nil, err
 		}
-		loci = append(loci, vcf.MakeTabixLocus(v[header["name"]], 0, end))
+		loci = append(loci, MakeTabixLocus(v[header["name"]], 0, end))
 	}
 
 	return loci, nil
 }
 
-func SplitChrPos(chunksize int, assembly string, chromosome string, startPos, endPos int) ([]vcf.TabixLocus, error) {
+func SplitChrPos(chunksize int, assembly string, chromosome string, startPos, endPos int) ([]TabixLocus, error) {
 	loci, err := chrPosSlice(assembly, chromosome)
 
-	output := make([]vcf.TabixLocus, 0)
+	output := make([]TabixLocus, 0)
 
 	start := 0
 	if chromosome != "" {
@@ -77,7 +76,7 @@ func SplitChrPos(chunksize int, assembly string, chromosome string, startPos, en
 		}
 
 		for locationInChromosome := start; locationInChromosome < end; locationInChromosome += chunksize {
-			output = append(output, vcf.MakeTabixLocus(
+			output = append(output, MakeTabixLocus(
 				locus.Chrom(),
 				locationInChromosome,
 				locationInChromosome+chunksize,

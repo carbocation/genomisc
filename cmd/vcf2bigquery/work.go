@@ -4,9 +4,8 @@ import (
 	"log"
 	"sync"
 
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/brentp/vcfgo"
+	"gopkg.in/guregu/null.v3"
 )
 
 type Work struct {
