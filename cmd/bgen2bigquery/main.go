@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -18,7 +19,14 @@ const (
 	CHR
 )
 
+var (
+	BufferSize = 4096 * 8
+	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
+)
+
 func main() {
+	defer STDOUT.Flush()
+
 	var bgenTemplatePath, assembly, snpfile string
 
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated full path to bgens, with %s in place of its chromosome number. Index file is assumed to be .bgi at the same path.")
@@ -54,7 +62,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("chr\tpos_%s\trsid\tref\talt\tsample_row_id\talt_allele_dosage\n", assembly)
+	fmt.Fprintf(STDOUT, "chr\tpos_%s\trsid\tref\talt\tsample_row_id\talt_allele_dosage\n", assembly)
 
 	for i, row := range allSites {
 		if len(row) != 2 {
@@ -113,7 +121,7 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 
 		}
 
-		fmt.Printf("%s\t%d\t%s\t%s\t%s\t%d\t%f\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aac)
+		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%d\t%f\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aac)
 	}
 
 	return nil
