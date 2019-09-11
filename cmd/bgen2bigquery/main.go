@@ -19,6 +19,13 @@ const (
 	CHR
 )
 
+const (
+	// MissingAltAlleleIndicatorString is the string that we will use to
+	// represent a missing site. For the purposes of BigQuery, the empty string
+	// is most convenient. TODO: Make this value modifiable.
+	MissingAltAlleleIndicatorString = ""
+)
+
 var (
 	BufferSize = 4096 * 8
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
@@ -109,6 +116,7 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 
 	fixedChromosome := FixChromosomeIfNumeric(variant.Chromosome)
 
+	var aacText string
 	for sampleFileRow, v := range variant.SampleProbabilities {
 		aac := 0.0
 		for allele, prob := range v.Probabilities {
@@ -121,7 +129,13 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 
 		}
 
-		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%d\t%f\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aac)
+		if v.Missing {
+			aacText = MissingAltAlleleIndicatorString
+		} else {
+			aacText = fmt.Sprintf("%f", aac)
+		}
+
+		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%d\t%s\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aacText)
 	}
 
 	return nil
