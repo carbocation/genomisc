@@ -109,10 +109,17 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 	if err := bgi.DB.Get(&idx, "SELECT * FROM Variant WHERE rsid=? LIMIT 1", rsID); err != nil {
 		return err
 	}
+	if idx.Chromosome == "" && idx.Position == 0 {
+		// Didn't read any data
+		return fmt.Errorf("'%s' was not found in index file '%s'", rsID, bgiPath)
+	}
 
 	// Read & print the variant from the BGEN
 	rdr := bg.NewVariantReader()
 	variant := rdr.ReadAt(int64(idx.FileStartPosition))
+	if err := rdr.Error(); err != nil {
+		return fmt.Errorf("'%s' error: %v", rsID, err)
+	}
 
 	fixedChromosome := FixChromosomeIfNumeric(variant.Chromosome)
 
