@@ -81,6 +81,12 @@ func main() {
 		}
 	}
 
+	if chromosome != "" && chunksize == 0 {
+		log.Printf("Chromosome was set, but chunksize was not. To enable per-chromosome variant extraction, set --chunk and --chunksize")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	if keepAlt || keepMissing {
 		log.Println("Reference alleles will *not* be printed.")
 	}
@@ -97,6 +103,7 @@ func main() {
 	}
 
 	if vcfFile == "" || assembly == "" {
+		log.Println("Please pass both -vcf and -assembly")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
