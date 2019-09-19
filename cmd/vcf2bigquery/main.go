@@ -18,6 +18,11 @@ import (
 	"github.com/brentp/vcfgo"
 )
 
+// Special value that is to be set using ldflags
+// E.g.: go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"
+// Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
+var builddate string
+
 var (
 	BufferSize = 4096 * 8
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
@@ -32,6 +37,8 @@ var (
 
 func main() {
 	defer STDOUT.Flush()
+
+	fmt.Fprintf(os.Stderr, "This vcf2bigquery binary was built at: %s\n", builddate)
 
 	var sampleFields flagSlice
 	var vcfFile, assembly, chromosome string
