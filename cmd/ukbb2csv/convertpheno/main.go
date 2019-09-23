@@ -15,6 +15,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/carbocation/genomisc"
+	"github.com/carbocation/pfx"
 	"google.golang.org/api/iterator"
 )
 
@@ -52,19 +53,25 @@ func main() {
 	defer STDOUT.Flush()
 
 	var (
-		phenoPaths  flagSlice
-		acknowledge bool
-		BQ          = &WrappedBigQuery{}
+		phenoPathList string
+		acknowledge   bool
+		BQ            = &WrappedBigQuery{}
 	)
-	flag.StringVar(&BQ.Project, "project", "broad-ml4cvd", "Name of the Google Cloud project that hosts your BigQuery database instance")
-	flag.StringVar(&BQ.Database, "bigquery", "ukbb7089_201903", "BigQuery phenotype database name")
-	flag.Var(&phenoPaths, "pheno", "phenotype file for the UKBB. Pass this flag once per file if you want to process multiple files at once. Every FieldID that is seen in an earlier file will be ignored in later files.")
+	flag.StringVar(&BQ.Project, "project", "broad-ml4cvd", "Name of the Google Cloud project that hosts your BigQuery dataset")
+	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery phenotype dataset that will/does contain the 'phenotype' table")
+	flag.StringVar(&phenoPathList, "pheno", "", "File containing the paths of each phenotype file for the UKBB that you want to process in this run. Each file should be on its own line. The files with the newest data should be listed first: every FieldID that is seen in an earlier file will be ignored in later files.")
 	flag.BoolVar(&acknowledge, "ack", false, "Acknowledge the limitations of the tool")
 	flag.Parse()
 
-	if phenoPaths.String() == "" {
+	if phenoPathList == "" {
+		log.Println("Please pass --pheno a file containing paths to the phenotype data.")
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	phenoPaths, err := ExtractPhenoFileNames(phenoPathList)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	for _, phenoPath := range phenoPaths {
@@ -97,7 +104,6 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 
 	// Map out known FieldIDs so we don't add duplicate phenotype records
 	// connect to BigQuery
-	var err error
 	BQ.Context = context.Background()
 	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)
 	if err != nil {
@@ -356,9 +362,9 @@ func FindExistingFields(wbq *WrappedBigQuery) (map[string]struct{}, error) {
 	itr, err := query.Read(wbq.Context)
 	if err != nil && strings.Contains(err.Error(), "Error 404") {
 		// Not an error; the table just doesn't exist yet
-		return nil, nil
+		return knownFieldIDs, nil
 	} else if err != nil {
-		return nil, err
+		return nil, pfx.Err(err)
 	}
 	for {
 		var values struct {
@@ -369,7 +375,7 @@ func FindExistingFields(wbq *WrappedBigQuery) (map[string]struct{}, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, pfx.Err(err)
 		}
 		knownFieldIDs[strconv.FormatInt(values.FieldID, 10)] = struct{}{}
 	}
