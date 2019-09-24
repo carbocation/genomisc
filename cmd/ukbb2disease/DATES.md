@@ -72,6 +72,6 @@ Useful for:
 * Self-reported cancer
   * FieldID: 20001
   * Date: 20006
-* Cancer registry (NOTE: BRITTLE: Currently includes any cancer, heuristic matching based on number of occurrences being 1-17 as of 9/2019)
-  * FieldID: 40009 ("reported occurrences of cancer")
+* Cancer registry (NOTE: BRITTLE: Currently includes any cancer, heuristic matching based on "Record providence" as of 9/2019)
+  * FieldID: 40021
   * Date: 40005

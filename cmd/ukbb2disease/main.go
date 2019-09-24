@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -38,15 +39,34 @@ func main() {
 	var diseaseName string
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
-	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., broad-ml4cvd.ukbb7089_201904)")
+	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
-	flag.StringVar(&materializedDB, "materialized", "broad-ml4cvd.ukbb7089_201904", "project.database storing materialized view tables")
+	flag.StringVar(&materializedDB, "materialized", "", "project.database storing materialized view tables, e.g., ukbb-analyses.ukbb7089_201904")
 	flag.BoolVar(&displayQuery, "display-query", false, "Display the constructed query and exit?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
 	flag.Parse()
 
-	if BQ.Project == "" || BQ.Database == "" || tabfile == "" || materializedDB == "" {
+	if BQ.Project == "" {
+		fmt.Fprintln(os.Stderr, "Please provide --project")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if BQ.Database == "" {
+		fmt.Fprintln(os.Stderr, "Please provide --database")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if tabfile == "" {
+		fmt.Fprintln(os.Stderr, "Please provide --tabfile")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if materializedDB == "" {
+		fmt.Fprintln(os.Stderr, "Please provide --materialized")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
