@@ -10,12 +10,13 @@ WITH dated_fields AS (
   JOIN `ukbb-analyses.ukbb7089_201909.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
     AND (
       FALSE
+      -- p for phenotype field, d for date field
       OR (p.FieldID=42013 AND d.FieldID=42012)
       OR (p.FieldID=42011 AND d.FieldID=42010)
       OR (p.FieldID=42009 AND d.FieldID=42008)
       OR (p.FieldID=42007 AND d.FieldID=42006)
       OR (p.FieldID=42001 AND d.FieldID=42000)
-      OR (p.FieldID=40005 AND d.FieldID=40009)
+      OR (p.FieldID=40009 AND d.FieldID=40005)
     )
   LEFT JOIN `ukbb-analyses.ukbb7089_201909.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
 ), 
