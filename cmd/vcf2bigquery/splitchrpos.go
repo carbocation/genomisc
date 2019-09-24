@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -60,6 +61,9 @@ func chrPosSlice(assembly string, chromosome string) ([]TabixLocus, error) {
 
 func SplitChrPos(chunksize int, assembly string, chromosome string, startPos, endPos int) ([]TabixLocus, error) {
 	loci, err := chrPosSlice(assembly, chromosome)
+	if err != nil {
+		return nil, fmt.Errorf("SplitChrPos: %v", err)
+	}
 
 	output := make([]TabixLocus, 0)
 

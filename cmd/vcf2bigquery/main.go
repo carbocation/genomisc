@@ -67,7 +67,7 @@ func main() {
 		// Kilobases (kibibases, I guess)
 		chunks, err = SplitChrPos(chunksize*1000, assembly, chromosome, startPos*1000, endPos*1000)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("Error processing chunked VCF: %v\n", err)
 		}
 
 		log.Printf("Split genome into %d chunks of ~%d kilobases each\n", len(chunks), chunksize)
@@ -112,7 +112,7 @@ func main() {
 
 	fraw, err := os.Open(vcfFile)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("Error opening VCF: %s\n", err)
 	}
 	defer fraw.Close()
 
