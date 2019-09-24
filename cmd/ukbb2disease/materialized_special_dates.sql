@@ -15,6 +15,7 @@ WITH dated_fields AS (
       OR (p.FieldID=42009 AND d.FieldID=42008)
       OR (p.FieldID=42007 AND d.FieldID=42006)
       OR (p.FieldID=42001 AND d.FieldID=42000)
+      OR (p.FieldID=40005 AND d.FieldID=40009)
     )
   LEFT JOIN `broad-ml4cvd.ukbb7089_201904.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
 ), 

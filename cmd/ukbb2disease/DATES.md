@@ -69,6 +69,9 @@ Useful for:
 * Non-cancer illness
   * FieldID: 20002
   * Date: 20008
-* Cancer
+* Self-reported cancer
   * FieldID: 20001
   * Date: 20006
+* Cancer registry (NOTE: BRITTLE: Currently includes any cancer, heuristic matching based on number of occurrences being 1-17 as of 9/2019)
+  * FieldID: 40009 ("reported occurrences of cancer")
+  * Date: 40005
