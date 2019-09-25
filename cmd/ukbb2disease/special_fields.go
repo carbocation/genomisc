@@ -28,6 +28,7 @@ var (
 		20002: struct{}{},
 		20001: struct{}{},
 		40021: struct{}{},
+		40020: struct{}{}, // Death
 	}
 )
 

@@ -17,6 +17,7 @@ WITH dated_fields AS (
       OR (p.FieldID=42007 AND d.FieldID=42006)
       OR (p.FieldID=42001 AND d.FieldID=42000)
       OR (p.FieldID=40021 AND d.FieldID=40005)
+      OR (p.FieldID=40020 AND d.FieldID=40000) -- death
     )
   LEFT JOIN `ukbb-analyses.ukbb7089_201909.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
 ), 

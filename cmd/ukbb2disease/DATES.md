@@ -75,3 +75,6 @@ Useful for:
 * Cancer registry (NOTE: BRITTLE: Currently includes any cancer, heuristic matching based on "Record providence" as of 9/2019)
   * FieldID: 40021
   * Date: 40005
+* Death registry (NOTE: May be brittle since it relies on sources of death information.)
+  * FieldID: 40020
+  * Date: 40000
