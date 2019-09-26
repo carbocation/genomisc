@@ -190,6 +190,24 @@ func (t *TabFile) CheckSensibility() ([]string, error) {
 	return nil, nil
 }
 
+// CheckUndatedFields notifies the user when we're unaware of a complementary
+// date field for a disease field. In this circumstance, any matching
+// participant will be set to prevalent (on the day of enrollment) and therefore
+// can never have incident disease. This is desirable when there is truly no
+// informative field for timing of an event. But, most often, this indicates
+// that a disease<->onset field pair is just not yet recognized. (E.g., the
+// cancer registry as of mid-2019). Therefore, this is something that may merit
+// a warning.
+func (t *TabFile) CheckUndatedFields() ([]int, error) {
+	stdFields := t.AllStandardFields()
+
+	if len(stdFields) < 1 {
+		return nil, nil
+	}
+
+	return stdFields, fmt.Errorf("The following fields are not recognized as having a date: %+v. Currently, if matched, they will cause the person to have *prevalent* disease only and will prevent them from having incident disease. If this is in error, please contact the maintainer of this software", stdFields)
+}
+
 // ParseTabFile consumes a tabfile and returns our machine representation of
 // that file
 func ParseTabFile(tabPath string) (*TabFile, error) {

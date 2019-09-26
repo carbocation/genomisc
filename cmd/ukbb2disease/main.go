@@ -43,6 +43,7 @@ func main() {
 	var tabfile string
 	var displayQuery bool
 	var override bool
+	var allowUndated bool
 	var diseaseName string
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
@@ -51,6 +52,7 @@ func main() {
 	flag.StringVar(&materializedDB, "materialized", "", "project.database storing materialized view tables, e.g., ukbb-analyses.ukbb7089_201904")
 	flag.BoolVar(&displayQuery, "display-query", false, "Display the constructed query and exit?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
+	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
 	flag.Parse()
 
@@ -99,6 +101,17 @@ func main() {
 	} else if err != nil && override {
 		log.Println(diseaseName, err)
 		log.Printf("%s: Overriding error check for missing fields and continuing.\n", diseaseName)
+	}
+
+	// Check for the use of fields where we don't know the date (which forces
+	// them to set disease status to prevalent)
+	_, err = tabs.CheckUndatedFields()
+	if err != nil && !allowUndated {
+		log.Println(err)
+		log.Fatalf("%s: Remove the undated fields from your tabfile, update this software with information about the dates of those fields, or re-run with the -allow-undated flag to process anyway.\n", diseaseName)
+	} else if err != nil && allowUndated {
+		log.Println(diseaseName, err)
+		log.Printf("%s: Overriding failed undated field check and continuing.\n", diseaseName)
 	}
 
 	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)

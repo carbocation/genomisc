@@ -204,7 +204,10 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 	query = fmt.Sprintf(query, standardPart, includePart, excludePart)
 
 	if displayQuery {
+
 		fmt.Println(query)
+		fmt.Println("Query parameters:")
+
 		for _, v := range params {
 			if x, ok := v.Value.([]string); ok {
 				fmt.Printf("%v: (\"%s\")\n", v.Name, strings.Join(x, `","`))
