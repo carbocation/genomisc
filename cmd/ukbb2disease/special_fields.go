@@ -29,6 +29,8 @@ var (
 		20001: struct{}{},
 		40021: struct{}{},
 		40020: struct{}{}, // Death
+		40006: struct{}{}, // Cancer Registry ICD10
+		40013: struct{}{}, // Cancer Registry ICD9
 	}
 )
 
