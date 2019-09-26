@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -208,6 +209,93 @@ func (t *TabFile) CheckUndatedFields() ([]int, error) {
 	return stdFields, fmt.Errorf("The following fields are not recognized as having a date: %+v. Currently, if matched, they will cause the person to have *prevalent* disease only and will prevent them from having incident disease. If this is in error, please contact the maintainer of this software", stdFields)
 }
 
+func consolidateDuplicates(list []TabEntry) ([]TabEntry, error) {
+	outputMap := make(map[int]TabEntry)
+
+	// Consolidate so that each ID is seen in only one TabEntry, which may still
+	// have duplicate values
+	for _, row := range list {
+		field, exists := outputMap[row.FieldID]
+		if !exists {
+			field = row
+			outputMap[row.FieldID] = field
+			continue
+		}
+		mixedList := field.Values
+		mixedList = append(mixedList, row.Values...)
+		field.Values = mixedList
+		outputMap[row.FieldID] = field
+	}
+
+	// Now consolidate values within each ID, so that each ID will only see each
+	// value at most once
+	for i, field := range outputMap {
+		seenValue := make(map[string]struct{})
+		replacementSlice := make([]string, 0)
+		for _, value := range field.Values {
+			if _, exists := seenValue[value]; exists {
+				continue
+			}
+
+			seenValue[value] = struct{}{}
+			replacementSlice = append(replacementSlice, value)
+		}
+
+		sort.Strings(replacementSlice)
+		field.Values = replacementSlice
+		outputMap[i] = field
+	}
+
+	output := make([]TabEntry, 0, len(outputMap))
+	for _, v := range outputMap {
+		output = append(output, v)
+	}
+
+	return output, nil
+}
+
+func (t *TabFile) consolidateDuplicates() error {
+	hesin, err := consolidateDuplicates(t.Include.Hesin)
+	if err != nil {
+		return err
+	}
+	t.Include.Hesin = hesin
+
+	special, err := consolidateDuplicates(t.Include.Special)
+	if err != nil {
+		return err
+	}
+	t.Include.Special = special
+
+	standard, err := consolidateDuplicates(t.Include.Standard)
+	if err != nil {
+		return err
+	}
+	t.Include.Standard = standard
+
+	// Exclusions
+
+	hesin, err = consolidateDuplicates(t.Exclude.Hesin)
+	if err != nil {
+		return err
+	}
+	t.Exclude.Hesin = hesin
+
+	special, err = consolidateDuplicates(t.Exclude.Special)
+	if err != nil {
+		return err
+	}
+	t.Exclude.Special = special
+
+	standard, err = consolidateDuplicates(t.Exclude.Standard)
+	if err != nil {
+		return err
+	}
+	t.Exclude.Standard = standard
+
+	return nil
+}
+
 // ParseTabFile consumes a tabfile and returns our machine representation of
 // that file
 func ParseTabFile(tabPath string) (*TabFile, error) {
@@ -264,6 +352,10 @@ func ParseTabFile(tabPath string) (*TabFile, error) {
 				output.Include.Standard = append(output.Include.Standard, entry)
 			}
 		}
+	}
+
+	if err := output.consolidateDuplicates(); err != nil {
+		return nil, err
 	}
 
 	return output, nil
