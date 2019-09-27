@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strings"
 
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/prsparser"
@@ -126,8 +127,10 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) (
 		return nil, nonNilErr
 	}
 
-	if (prs.Allele1 == vi.Allele1 && prs.Allele2 == vi.Allele2) ||
-		(prs.Allele1 == vi.Allele2 && prs.Allele2 == vi.Allele1) {
+	// Check whether there is allelic match (we assume same strand) between PRS
+	// and the genetic data. Do this in case-insensitive fashion.
+	if (strings.EqualFold(string(prs.Allele1), string(vi.Allele1)) && strings.EqualFold(string(prs.Allele2), string(vi.Allele2))) ||
+		(strings.EqualFold(string(prs.Allele1), string(vi.Allele2)) && strings.EqualFold(string(prs.Allele2), string(vi.Allele1))) {
 		// Must be the case
 	} else {
 		nonNilErr.Message = fmt.Sprintf("At %s:%d, PRS Alleles were %s,%s but variant alleles were %s,%s", vi.Chromosome, vi.Position, prs.Allele1, prs.Allele2, vi.Allele1, vi.Allele2)
