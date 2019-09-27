@@ -163,11 +163,11 @@ func ComputeScore(sampleProb bgen.SampleProbability, v *bgen.Variant, prs *prspa
 		return 0.0
 	}
 
-	if prs.EffectAllele == v.Alleles[0] {
+	if strings.EqualFold(string(prs.EffectAllele), string(v.Alleles[0])) {
 		return prs.Score * (2.0*sampleProb.Probabilities[0] + sampleProb.Probabilities[1])
 	}
 
-	if prs.EffectAllele == v.Alleles[1] {
+	if strings.EqualFold(string(prs.EffectAllele), string(v.Alleles[1])) {
 		return prs.Score * (sampleProb.Probabilities[1] + 2.0*sampleProb.Probabilities[2])
 	}
 

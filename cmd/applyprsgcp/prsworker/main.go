@@ -119,6 +119,11 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Println("There are", len(currentVariantScoreLookup), "variants in the PRS database within this job's range")
+	for _, v := range currentVariantScoreLookup {
+		log.Println("Example PRS entry from your score file:")
+		log.Printf("%+v\n", v)
+		break
+	}
 
 	// Load the BGEN Index
 	bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
