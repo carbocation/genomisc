@@ -40,7 +40,7 @@ func (prsp *PRSParser) ParseRow(row []string) (PRS, error) {
 	return (*prsp.Layout.Parser)(prsp.Layout, row)
 }
 
-var defaultParseRow = func(layout *Layout, row []string) (PRS, error) {
+func DefaultParseRow(layout *Layout, row []string) (PRS, error) {
 	p := PRS{}
 	p.EffectAllele = Allele(row[layout.ColEffectAllele])
 	p.Allele1 = Allele(row[layout.ColAllele1])
@@ -60,6 +60,10 @@ var defaultParseRow = func(layout *Layout, row []string) (PRS, error) {
 	}
 
 	return p, nil
+}
+
+var defaultParseRow = func(layout *Layout, row []string) (PRS, error) {
+	return DefaultParseRow(layout, row)
 }
 
 var ldpredParseRow = func(layout *Layout, row []string) (PRS, error) {
