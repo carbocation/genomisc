@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/carbocation/genomisc/prsparser"
 )
@@ -34,7 +36,9 @@ func main() {
 		firstLine        int
 		lastLine         int
 		sourceFile       string
+		customLayout     string
 	)
+	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
@@ -62,6 +66,39 @@ func main() {
 	if inputBucket == "" {
 		flag.PrintDefaults()
 		log.Fatalln("Please provide --input")
+	}
+
+	if customLayout != "" {
+		layout = "CUSTOM"
+
+		cols := strings.Split(customLayout, ",")
+		if x := len(cols); x != 6 {
+			log.Fatalf("--custom-layout was toggled; 6 column numbers were expected, but %d were given\n", x)
+		}
+		intCols := make([]int, 0, len(cols))
+		for i, col := range cols {
+			j, err := strconv.ParseInt(col, 10, 32)
+			if err != nil {
+				log.Fatalf("The identifier for column %d (value %s) is not an integer", i, col)
+			}
+			intCols = append(intCols, int(j))
+		}
+
+		udf := prsparser.Layout{
+			Delimiter:       '\t', // TODO: make this configurable
+			Comment:         '#',  // TODO: make this configurable
+			ColEffectAllele: intCols[0],
+			ColAllele1:      intCols[1],
+			ColAllele2:      intCols[2],
+			ColChromosome:   intCols[3],
+			ColPosition:     intCols[4],
+			ColScore:        intCols[5],
+		}
+
+		log.Println("Using custom parser:")
+		fmt.Fprintf(os.Stderr, "%+v\n", udf)
+
+		prsparser.Layouts["CUSTOM"] = udf
 	}
 
 	if err := LoadPRSInRange(inputBucket, layout, chromosome, firstLine, lastLine); err != nil {
