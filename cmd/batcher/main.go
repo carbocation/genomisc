@@ -121,6 +121,7 @@ func main() {
 
 	// Find all of the files you'd like to keep in the batch
 	requestCount := 0
+	foundZipAndDicomFields := false
 	for {
 		record, err := r.Read()
 		if err == io.EOF {
@@ -134,7 +135,11 @@ func main() {
 			log.Fatalf("Expected at least 2 columns; found %d\n", len(record))
 		}
 
-		if requestCount == 0 {
+		// Until we have figured out which field holds the zip and which holds
+		// the dicom file, we can't proceed. If there are header lines, we might
+		// need to process an arbitrary number of lines until we find a .zip and
+		// .dcm containing field.
+		if !foundZipAndDicomFields {
 			for i, v := range record {
 				if strings.Contains(v, ".zip") {
 					ZipColumn = i
@@ -144,6 +149,12 @@ func main() {
 					DicomColumn = i
 					continue
 				}
+			}
+
+			if ZipColumn > 0 && DicomColumn > 0 {
+				foundZipAndDicomFields = true
+			} else {
+				continue
 			}
 
 			log.Println("Zero-based Zip field is", ZipColumn, "E.g.:", record[ZipColumn])
