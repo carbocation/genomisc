@@ -91,7 +91,7 @@ func main() {
 	}()
 
 	// Setup the temp folder
-	tempSubfolder := filepath.Join(tmpPath, RandOrthoglyphs(15))
+	tempSubfolder := filepath.Join(tmpPath) //, RandOrthoglyphs(15))
 	os.Mkdir(tempSubfolder, os.ModePerm)
 
 	log.Println("Copying requested files to a temporary directory:", tempSubfolder)
