@@ -117,18 +117,18 @@ func main() {
 	fmt.Fprintln(os.Stderr, "Including:")
 	for _, v := range tabs.AllIncluded() {
 		fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
-		for _, val := range v.Values {
-			fmt.Fprintf(os.Stderr, "\t\t%s\n", val)
-		}
+		fmt.Fprintf(os.Stderr, "\t\t")
+		fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
+		fmt.Fprintf(os.Stderr, "\n")
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 
 	fmt.Fprintln(os.Stderr, "Excluding:")
 	for _, v := range tabs.AllExcluded() {
 		fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
-		for _, val := range v.Values {
-			fmt.Fprintf(os.Stderr, "\t\t%s\n", val)
-		}
+		fmt.Fprintf(os.Stderr, "\t\t")
+		fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
+		fmt.Fprintf(os.Stderr, "\n")
 	}
 	if len(tabs.AllExcluded()) < 1 {
 		fmt.Fprintf(os.Stderr, "\t(No exclusion criteria)\n")
