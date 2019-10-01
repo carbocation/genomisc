@@ -16,6 +16,8 @@ var (
 		41200: struct{}{},
 		41203: struct{}{},
 		41205: struct{}{},
+		40006: struct{}{}, // Cancer Registry ICD10
+		40013: struct{}{}, // Cancer Registry ICD9
 	}
 
 	MaterializedSpecial = map[int]struct{}{
@@ -29,8 +31,6 @@ var (
 		20001: struct{}{},
 		40021: struct{}{},
 		40020: struct{}{}, // Death
-		40006: struct{}{}, // Cancer Registry ICD10
-		40013: struct{}{}, // Cancer Registry ICD9
 	}
 )
 
@@ -41,6 +41,11 @@ var (
 	ICD9 = map[int]struct{}{
 		41203: struct{}{},
 		41205: struct{}{},
+		// 40013 Cancer Registry ICD9 is intentionally excluded, since asking
+		// the user to include the cancer registry when they are not including
+		// cancer codes would be counterproductive. TODO: recognize specific ICD
+		// codes and make the prompt if the user includes cancer-specific codes
+		// but not the cancer registry.
 	}
 
 	ICD10 = map[int]struct{}{
@@ -48,6 +53,11 @@ var (
 		41204: struct{}{},
 		40001: struct{}{},
 		40002: struct{}{},
+		// 40006 Cancer Registry ICD10 is intentionally excluded, since asking
+		// the user to include the cancer registry when they are not including
+		// cancer codes would be counterproductive. TODO: recognize specific ICD
+		// codes and make the prompt if the user includes cancer-specific codes
+		// but not the cancer registry.
 	}
 
 	OPCS = map[int]struct{}{
