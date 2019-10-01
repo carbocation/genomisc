@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -100,14 +101,33 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	N, err = BQ.AddDiedDate(out)
 	log.Println("Found", N, "died results")
 	if N == 0 {
+		for k := range out {
+			entry := out[k]
+			entry.Missing = append(entry.Missing, "died[40000]")
+			out[k] = entry
+		}
 		log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
 	}
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	N, err = BQ.AddPrimaryCareFlag(out)
+	log.Println("Found", N, "primary care results")
+	if N == 0 {
+		for k := range out {
+			entry := out[k]
+			entry.Missing = append(entry.Missing, "gp_registrations[42038]")
+			out[k] = entry
+		}
+		log.Println("Warning: 0 primary care registrations found. Are you missing FieldID 42038?")
+	}
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// Print
-	fmt.Printf("sample_id\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tlost_to_followup_date\tlost_to_followup_age\tcomputed_date\tmissing_fields\n")
+	fmt.Printf("sample_id\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tlost_to_followup_date\tlost_to_followup_age\tcomputed_date\tmissing_fields\thas_gp_data\n")
 	for _, v := range out {
 
 		// Some samples have been removed
@@ -115,7 +135,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			continue
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n",
 			v.SampleID,
 			TimeToUKBDate(v.Born()),
 			TimeToUKBDate(v.enrolled),
@@ -130,6 +150,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			TimesToFractionalYears(v.Born(), v.lost.Time),
 			TimeToUKBDate(v.computed),
 			v.MissingToString(),
+			BoolToInt(v.hasPrimaryCareData),
 		)
 	}
 
@@ -214,6 +235,35 @@ func (BQ *WrappedBigQuery) AddDiedDate(out map[int64]CensorResult) (int, error) 
 		}
 		if err := entry.died.Scan(diedDate); err != nil {
 			log.Println("Died date parsing issue for", entry)
+		}
+
+		out[k] = entry
+	}
+
+	return N, nil
+}
+
+func (BQ *WrappedBigQuery) AddPrimaryCareFlag(out map[int64]CensorResult) (int, error) {
+
+	// 42039 is the number of gp_registrations records; having >0 will be
+	// considered to be present, otherwise absent. Since this is registration,
+	// we don't rely on the presence of a diagnosis.
+	res, err := BigQuerySingleFieldFirst(BQ, 42038)
+	if err != nil {
+		return 0, err
+	}
+	N := len(res)
+
+	for k, v := range res {
+		entry := out[k]
+
+		registrations, err := strconv.Atoi(v)
+		if err != nil {
+			log.Printf("gp_registrations parsing issue (%s) for %+v\n", err.Error(), entry)
+		}
+
+		if registrations > 0 {
+			entry.hasPrimaryCareData = true
 		}
 
 		out[k] = entry

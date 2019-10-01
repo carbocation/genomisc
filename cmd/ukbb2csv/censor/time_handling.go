@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+func BoolToInt(input bool) int {
+	if input {
+		return 1
+	}
+
+	return 0
+}
+
 func TimeToUKBDate(t time.Time) string {
 	if t.Equal(time.Time{}) {
 		return NullMarker

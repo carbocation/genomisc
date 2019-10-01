@@ -28,6 +28,10 @@ type CensorResult struct {
 	phenoCensored time.Time
 	deathCensored time.Time
 
+	// Flag since only ~50% of the UKBB has primary care data so this is heavily
+	// biased
+	hasPrimaryCareData bool
+
 	// convenience / not exported
 	bornYear  string
 	bornMonth string
