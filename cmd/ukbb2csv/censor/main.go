@@ -36,8 +36,8 @@ func main() {
 
 	flag.StringVar(&phenoCensorDateString, "pheno_censor", "", "With format YYYY-MM-DD, please provide the Hospital Data censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
 	flag.StringVar(&deathCensorDateString, "death_censor", "", "With format YYYY-MM-DD, please provide the Death censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
-	flag.StringVar(&BQ.Project, "project", "broad-ml4cvd", "Name of the Google Cloud project that hosts your BigQuery database instance")
-	flag.StringVar(&BQ.Database, "bigquery", "ukbb7089_r10data", "BigQuery source database name")
+	flag.StringVar(&BQ.Project, "project", "", "Name of the Google Cloud project that hosts your BigQuery database instance")
+	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery source database name")
 	flag.Parse()
 
 	if phenoCensorDateString == "" || deathCensorDateString == "" || BQ.Project == "" || BQ.Database == "" {
