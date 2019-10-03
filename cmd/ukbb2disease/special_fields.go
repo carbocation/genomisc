@@ -1,5 +1,13 @@
 package main
 
+import (
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
 var (
 	// These identify which FieldIDs should be special-cased: either to the
 	// HESIN table or the table with fields that have a specially-known date.
@@ -31,6 +39,13 @@ var (
 		20001: struct{}{},
 		40021: struct{}{},
 		40020: struct{}{}, // Death
+		42003: struct{}{}, // STEMI
+		42005: struct{}{}, // NSTEMI
+		42019: struct{}{}, // All-cause dementia
+		42021: struct{}{}, // Alzheimer dementia
+		42023: struct{}{}, // Vascular dementia
+		42025: struct{}{}, // Frontotemporal dementia
+		42027: struct{}{}, // ESRD
 	}
 )
 
@@ -76,4 +91,25 @@ func IsSpecial(fieldID int) bool {
 	_, exists := MaterializedSpecial[fieldID]
 
 	return exists
+}
+
+func describeDateFields() {
+	fmt.Fprintf(os.Stderr, "\nNote that the tool tries to set accurate dates only for the following FieldIDs:\n")
+	fmt.Fprintf(os.Stderr, "\tICD-like FieldIDs:\n")
+
+	out := make([]string, 0, len(MaterializedHesin))
+	for icd := range MaterializedHesin {
+		out = append(out, strconv.Itoa(icd))
+	}
+	sort.StringSlice(out).Sort()
+	fmt.Fprintf(os.Stderr, "\t\t%s\n", strings.Join(out, ","))
+
+	fmt.Fprintf(os.Stderr, "\tOther FieldIDs:\n")
+
+	out = make([]string, 0, len(MaterializedSpecial))
+	for icd := range MaterializedSpecial {
+		out = append(out, strconv.Itoa(icd))
+	}
+	sort.StringSlice(out).Sort()
+	fmt.Fprintf(os.Stderr, "\t\t%s\n", strings.Join(out, ","))
 }

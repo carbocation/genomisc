@@ -16,10 +16,17 @@ WITH dated_fields AS (
       OR (p.FieldID=42009 AND d.FieldID=42008) -- Ischemic stroke
       OR (p.FieldID=42007 AND d.FieldID=42006) -- Stroke
       OR (p.FieldID=42001 AND d.FieldID=42000) -- MI
+      OR (p.FieldID=42003 AND d.FieldID=42002) -- STEMI
+      OR (p.FieldID=42005 AND d.FieldID=42004) -- NSTEMI
       OR (p.FieldID=40021 AND d.FieldID=40005) -- Cancer Registry record origin (easy way to check for existence of at least one cancer)
       OR (p.FieldID=40020 AND d.FieldID=40000) -- death
       OR (p.FieldID=40006 AND d.FieldID=40005) -- Cancer Registry ICD10
       OR (p.FieldID=40013 AND d.FieldID=40005) -- Cancer Registry ICD9
+      OR (p.FieldID=42027 AND d.FieldID=42026) -- ESRD
+      OR (p.FieldID=42019 AND d.FieldID=42018) -- All-cause dementia
+      OR (p.FieldID=42021 AND d.FieldID=42020) -- Alzheimer dementia
+      OR (p.FieldID=42023 AND d.FieldID=42022) -- Vascular dementia
+      OR (p.FieldID=42025 AND d.FieldID=42024) -- Frontotemporal dementia
     )
   LEFT JOIN `ukbb-analyses.ukbb7089_201909.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
 ), 

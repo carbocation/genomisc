@@ -32,6 +32,13 @@ var (
 
 var materializedDB string
 
+func init() {
+	flag.Usage = func() {
+		flag.PrintDefaults()
+		describeDateFields()
+	}
+}
+
 func main() {
 	defer STDOUT.Flush()
 
@@ -58,25 +65,25 @@ func main() {
 
 	if BQ.Project == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --project")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
 	if BQ.Database == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --database")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
 	if tabfile == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --tabfile")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
 	if materializedDB == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --materialized")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
