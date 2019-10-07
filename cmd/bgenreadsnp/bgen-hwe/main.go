@@ -19,8 +19,8 @@ func main() {
 	flag.StringVar(&bgenPath, "bgen", "", "Path to the BGEN file")
 	flag.StringVar(&bgiPath, "bgi", "", "Path to the BGEN index. If blank, will assume it's the BGEN path suffixed with .bgi")
 	flag.StringVar(&rsID, "snp", "", "SNP ID. If blank, this will run on all SNPs found in the BGEN.")
-	flag.StringVar(&sampleFile, "sample", "", "File that maps samples to the blank rows in the BGEN. Must be in .sample file format.")
-	flag.StringVar(&sampleIDFile, "sample_ids", "", "File that has one sample ID per row. (A subset of the IDs in the sample file.)")
+	flag.StringVar(&sampleFile, "sample", "", "File that maps samples to the blank rows in the BGEN. Must be in the Oxford .sample file format.")
+	flag.StringVar(&sampleIDFile, "sample_ids", "", "File that has one sample ID per row. (A subset of the IDs in the sample file.) Must have a header row (or will skip your first entry).")
 	flag.Parse()
 
 	if bgiPath == "" {
