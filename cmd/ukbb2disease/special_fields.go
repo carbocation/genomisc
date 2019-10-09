@@ -47,6 +47,7 @@ var (
 		42025: struct{}{}, // Frontotemporal dementia
 		42027: struct{}{}, // ESRD
 		6150:  struct{}{}, // Self-reported MI, Angina, CVA, HTN
+		6152:  struct{}{}, // Self-reported DVT, PE, Asthma, Hayfever, Emphysema
 	}
 )
 

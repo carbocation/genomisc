@@ -58,7 +58,9 @@ self_reported_aged_subfields AS (
     CASE
       -- If the participant declined to state when the event occurred, assign it
       -- as of the date of enrollment
-      WHEN d.value IN ('-1', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+      WHEN p.FieldID=6150 AND d.value IN ('-1', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+      -- The decline values differ in FieldID 6152
+      WHEN p.FieldID=6152 AND d.value IN ('-3', '-7') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
       -- If the participant did state when the event occurred, figure out the
       -- date of that event based on their age and their birthdate
       WHEN SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) IS NOT NULL THEN SAFE.DATE_ADD(c.birthdate, INTERVAL SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) DAY)
@@ -72,11 +74,21 @@ self_reported_aged_subfields AS (
     AND (
       FALSE
       -- p for phenotype field, d for date field
+      
+      -- FieldID 6150
       OR (p.FieldID=6150 AND p.value='1' AND d.FieldID=3894) -- Self-reported MI
       OR (p.FieldID=6150 AND p.value='2' AND d.FieldID=3627) -- Self-reported angina
       OR (p.FieldID=6150 AND p.value='3' AND d.FieldID=4056) -- Self-reported stroke
       OR (p.FieldID=6150 AND p.value='4' AND d.FieldID=2966) -- Self-reported hypertension
+      
+      -- FieldID 6152
+      OR (p.FieldID=6152 AND p.value='5' AND d.FieldID=4012) -- Self-reported DVT
+      OR (p.FieldID=6152 AND p.value='6' AND d.FieldID=3992) -- Self-reported Emphysema
+      OR (p.FieldID=6152 AND p.value='7' AND d.FieldID=4022) -- Self-reported PE
+      OR (p.FieldID=6152 AND p.value='8' AND d.FieldID=3786) -- Self-reported Asthma
+      OR (p.FieldID=6152 AND p.value='9' AND d.FieldID=3761) -- Self-reported Hayfever/rhinitis/eczema
     )
+    
   LEFT JOIN `ukbb-analyses.ukbb7089_201910.dictionary` dict ON dict.FieldID = d.FieldID 
   LEFT JOIN `ukbb-analyses.ukbb7089_201910.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value AND cod.coding_file_id = dict.coding_file_id 
 )
