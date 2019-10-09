@@ -159,4 +159,6 @@ func main() {
 	if err := ExecuteQuery(BQ, query, diseaseName, missingFields); err != nil {
 		log.Fatalln(diseaseName, err)
 	}
+
+	fmt.Fprintf(os.Stderr, "Finished producing output for %s\n", diseaseName)
 }
