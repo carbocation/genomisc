@@ -48,6 +48,10 @@ var (
 		42027: struct{}{}, // ESRD
 		6150:  struct{}{}, // Self-reported MI, Angina, CVA, HTN
 		6152:  struct{}{}, // Self-reported DVT, PE, Asthma, Hayfever, Emphysema
+
+		// These are specially constructed but don't have a known date and just
+		// get set to the enroll date
+		3079: struct{}{}, // Pacemaker ()
 	}
 )
 

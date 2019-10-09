@@ -91,6 +91,19 @@ self_reported_aged_subfields AS (
     
   LEFT JOIN `ukbb-analyses.ukbb7089_201910.dictionary` dict ON dict.FieldID = d.FieldID 
   LEFT JOIN `ukbb-analyses.ukbb7089_201910.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value AND cod.coding_file_id = dict.coding_file_id 
+), 
+-- Fields for which the age at the time of event is known not to be 
+-- recorded, and so therefore the date is assigned as the date of enrollment
+self_reported_undated_fields AS (
+  SELECT p.FieldID, p.sample_id eid, p.value code, '' meaning,
+      -- Assign it as of the date of enrollment
+      c.enroll_date vdate
+  FROM `ukbb-analyses.ukbb7089_201910.censor` c
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` p on p.sample_id = c.sample_id AND 
+  (
+    FALSE
+    OR (p.FieldID=3079 AND p.value='1') -- Pacemaker
+  )
 )
 
 SELECT 
@@ -101,6 +114,8 @@ FROM (
   SELECT * FROM dated_fields_fractional
   UNION DISTINCT
   SELECT * FROM self_reported_aged_subfields
+  UNION DISTINCT 
+  SELECT * FROM self_reported_undated_fields
 ) diagnostics
 WHERE TRUE
   AND vdate IS NOT NULL
