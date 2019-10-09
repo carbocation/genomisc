@@ -1,3 +1,4 @@
+-- Fields for which the date at which an event first happened was reported.
 WITH dated_fields AS (
   SELECT p.FieldID, p.sample_id eid, p.value code, cod.meaning,
     CASE
@@ -5,9 +6,9 @@ WITH dated_fields AS (
       WHEN cod.meaning LIKE ('%unknown%') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
       ELSE SAFE.PARSE_DATE("%E4Y-%m-%d", d.value)
     END vdate
-  FROM `ukbb-analyses.ukbb7089_201909.phenotype` p
-  JOIN `ukbb-analyses.ukbb7089_201909.phenotype` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id AND denroll.instance = 0 AND denroll.array_idx = 0
-  JOIN `ukbb-analyses.ukbb7089_201909.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
+  FROM `ukbb-analyses.ukbb7089_201910.phenotype` p
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id AND denroll.instance = 0 AND denroll.array_idx = 0
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
     AND (
       FALSE
       -- p for phenotype field, d for date field
@@ -28,8 +29,10 @@ WITH dated_fields AS (
       OR (p.FieldID=42023 AND d.FieldID=42022) -- Vascular dementia
       OR (p.FieldID=42025 AND d.FieldID=42024) -- Frontotemporal dementia
     )
-  LEFT JOIN `ukbb-analyses.ukbb7089_201909.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
+  LEFT JOIN `ukbb-analyses.ukbb7089_201910.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
 ), 
+-- Fields for which the year at which an event first happened (rather than the
+-- *date*) is reported.
 dated_fields_fractional AS (
   SELECT p.FieldID, p.sample_id eid, p.value code, cod.meaning,
   CASE
@@ -37,16 +40,45 @@ dated_fields_fractional AS (
       WHEN cod.meaning LIKE ('%unknown%') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
       ELSE SAFE.PARSE_DATE("%Y", d.value)
     END vdate
-  FROM `ukbb-analyses.ukbb7089_201909.phenotype` p
-  JOIN `ukbb-analyses.ukbb7089_201909.phenotype` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id AND denroll.instance = 0 AND denroll.array_idx = 0
-  JOIN `ukbb-analyses.ukbb7089_201909.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
+  FROM `ukbb-analyses.ukbb7089_201910.phenotype` p
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id AND denroll.instance = 0 AND denroll.array_idx = 0
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
     AND (
       FALSE
       OR (p.FieldID=20004 AND d.FieldID=20010)
       OR (p.FieldID=20002 AND d.FieldID=20008)
       OR (p.FieldID=20001 AND d.FieldID=20006)
     )
-  LEFT JOIN `ukbb-analyses.ukbb7089_201909.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
+  LEFT JOIN `ukbb-analyses.ukbb7089_201910.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value
+),
+-- Fields for which the age (not date) of first event is explained in a field,
+-- where the FieldID for the age lookup depends on the field value
+self_reported_aged_subfields AS (
+  SELECT p.FieldID, p.sample_id eid, p.value code, cod.meaning,
+    CASE
+      -- If the participant declined to state when the event occurred, assign it
+      -- as of the date of enrollment
+      WHEN d.value IN ('-1', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+      -- If the participant did state when the event occurred, figure out the
+      -- date of that event based on their age and their birthdate
+      WHEN SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) IS NOT NULL THEN SAFE.DATE_ADD(c.birthdate, INTERVAL SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) DAY)
+      -- If there was a parsing issue, assign it as the date of enrollment
+      ELSE SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+    END vdate
+  FROM `ukbb-analyses.ukbb7089_201910.censor` c
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` p on p.sample_id = c.sample_id
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id
+  JOIN `ukbb-analyses.ukbb7089_201910.phenotype` d ON d.sample_id=p.sample_id AND d.instance = p.instance AND d.array_idx = p.array_idx
+    AND (
+      FALSE
+      -- p for phenotype field, d for date field
+      OR (p.FieldID=6150 AND p.value='1' AND d.FieldID=3894) -- Self-reported MI
+      OR (p.FieldID=6150 AND p.value='2' AND d.FieldID=3627) -- Self-reported angina
+      OR (p.FieldID=6150 AND p.value='3' AND d.FieldID=4056) -- Self-reported stroke
+      OR (p.FieldID=6150 AND p.value='4' AND d.FieldID=2966) -- Self-reported hypertension
+    )
+  LEFT JOIN `ukbb-analyses.ukbb7089_201910.dictionary` dict ON dict.FieldID = d.FieldID 
+  LEFT JOIN `ukbb-analyses.ukbb7089_201910.coding` cod ON cod.coding_file_id = d.coding_file_id AND cod.coding = d.value AND cod.coding_file_id = dict.coding_file_id 
 )
 
 SELECT 
@@ -55,6 +87,8 @@ FROM (
   SELECT * FROM dated_fields
   UNION DISTINCT
   SELECT * FROM dated_fields_fractional
+  UNION DISTINCT
+  SELECT * FROM self_reported_aged_subfields
 ) diagnostics
 WHERE TRUE
   AND vdate IS NOT NULL
