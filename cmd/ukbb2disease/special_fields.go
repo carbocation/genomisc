@@ -46,6 +46,7 @@ var (
 		42023: struct{}{}, // Vascular dementia
 		42025: struct{}{}, // Frontotemporal dementia
 		42027: struct{}{}, // ESRD
+		6150:  struct{}{}, // Self-reported MI, Angina, CVA, HTN
 	}
 )
 
