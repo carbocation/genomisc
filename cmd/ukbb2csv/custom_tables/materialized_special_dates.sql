@@ -59,8 +59,11 @@ self_reported_aged_subfields AS (
       -- If the participant declined to state when the event occurred, assign it
       -- as of the date of enrollment
       WHEN p.FieldID=6150 AND d.value IN ('-1', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
-      -- The decline values differ in FieldID 6152
+      -- The decline values for FieldID 6152
       WHEN p.FieldID=6152 AND d.value IN ('-3', '-7') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+      -- The decline values for diabetes fields
+      WHEN p.FieldID IN (2443) AND d.value IN ('-1', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
+      WHEN p.FieldID IN (4041) AND d.value IN ('-1', '-2', '-3') THEN SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)
       -- If the participant did state when the event occurred, figure out the
       -- date of that event based on their age and their birthdate
       WHEN SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) IS NOT NULL THEN SAFE.DATE_ADD(c.birthdate, INTERVAL SAFE_CAST(SAFE_CAST(d.value AS FLOAT64)*365 AS INT64) DAY)
@@ -87,6 +90,10 @@ self_reported_aged_subfields AS (
       OR (p.FieldID=6152 AND p.value='7' AND d.FieldID=4022) -- Self-reported PE
       OR (p.FieldID=6152 AND p.value='8' AND d.FieldID=3786) -- Self-reported Asthma
       OR (p.FieldID=6152 AND p.value='9' AND d.FieldID=3761) -- Self-reported Hayfever/rhinitis/eczema
+      
+      -- Diabetes FieldIDs
+      OR (p.FieldID=2443 AND p.value='1' AND d.FieldID=2976) -- Self-reported DM
+      OR (p.FieldID=4041 AND p.value='1' AND d.FieldID=2976) -- Self-reported gestational diabetes
     )
     
   LEFT JOIN `ukbb-analyses.ukbb7089_201910.dictionary` dict ON dict.FieldID = d.FieldID 
