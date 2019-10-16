@@ -39,6 +39,11 @@ pruneSNPs <- function(dat, flanking = 5e5, significance = 5e-8) {
     if(nrow(best)==0){
         return()
     }
+
+    # If there are tied P-values... just pick one
+    if(nrow(best) > 1){
+        best <- best[1,]
+    }
     
     # If the best remaining SNP is outside of your permitted bounds, exit
     if(best$P_BOLT_LMM > significance) {
