@@ -51,18 +51,18 @@ func main() {
 	finishedCheckingExisting := false
 	for i, row := range entries {
 		exists := false
-		zipFile := ""
+		zipFile := fmt.Sprintf("%s_%s", row[0], row[1])
 
 		if !finishedCheckingExisting {
 			// Since statting on a GCSFuse filesystem is slow, we assume sorted
 			// order. If that is true, then once we stop finding files we have
 			// already downloaded, we can stop checking.
-			for _, suffix := range []string{"zip", "cram", "cram.crai"} {
-				zipFile = fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
+			for _, suffix := range []string{"zip", "cram", "cram.crai", "xml"} {
+				downloadFileName := fmt.Sprintf("%s_%s.%s", row[0], row[1], suffix)
 
 				// If we already downloaded this file, skip it
-				if _, err := os.Stat(zipFile); !os.IsNotExist(err) {
-					log.Println(i, len(entries), "Already downloaded", zipFile)
+				if _, err := os.Stat(downloadFileName); !os.IsNotExist(err) {
+					log.Println(i, len(entries), "Already downloaded", downloadFileName)
 					exists = true
 					break
 				}
