@@ -91,6 +91,42 @@ func ManifestFor12LeadEKG(path string) error {
 
 	semaphore := make(chan struct{}, concurrency)
 
+	header := []string{"sample_id",
+		"FieldID",
+		"instance",
+		"ObservationType",
+		"ObservationDateTime.Year",
+		"ObservationDateTime.Month",
+		"ObservationDateTime.Day",
+		"ObservationDateTime.Hour",
+		"ClinicalInfo.DeviceInfo.Desc",
+		"ClinicalInfo.DeviceInfo.SoftwareVer",
+		"ClinicalInfo.DeviceInfo.AnalysisVer",
+		"PatientInfo.PaceMaker",
+
+		// Only relevant for 12-lead
+		"DeviceType",
+		"RestingECGMeasurements.SokolovLVHIndex.Text",
+		"RestingECGMeasurements.SokolovLVHIndex.Units",
+		"RestingECGMeasurements.MeasurementTable.LeadOrder",
+		"RestingECGMeasurements.VentricularRate.Text",
+		"RestingECGMeasurements.PQInterval.Text",
+		"RestingECGMeasurements.PDuration.Text",
+		"RestingECGMeasurements.QRSDuration.Text",
+		"RestingECGMeasurements.QTInterval.Text",
+		"RestingECGMeasurements.QTCInterval.Text",
+		"RestingECGMeasurements.RRInterval.Text",
+		"RestingECGMeasurements.PPInterval.Text",
+		"RestingECGMeasurements.PAxis.Text",
+		"RestingECGMeasurements.RAxis.Text",
+		"RestingECGMeasurements.TAxis.Text",
+		"RestingECGMeasurements.QTDispersion.Text",
+		"RestingECGMeasurements.QTDispersionBazett.Text",
+		"RestingECGMeasurements.QRSNum",
+	}
+
+	fmt.Println(strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
+
 	for _, file := range files {
 
 		// Will block after `concurrency` simultaneous goroutines are running
@@ -109,42 +145,6 @@ func ManifestFor12LeadEKG(path string) error {
 				return
 			}
 			// Exercise EKG
-
-			header := []string{"sample_id",
-				"FieldID",
-				"instance",
-				"ObservationType",
-				"ObservationDateTime.Year",
-				"ObservationDateTime.Month",
-				"ObservationDateTime.Day",
-				"ObservationDateTime.Hour",
-				"ClinicalInfo.DeviceInfo.Desc",
-				"ClinicalInfo.DeviceInfo.SoftwareVer",
-				"ClinicalInfo.DeviceInfo.AnalysisVer",
-				"PatientInfo.PaceMaker",
-
-				// Only relevant for 12-lead
-				"DeviceType",
-				"RestingECGMeasurements.SokolovLVHIndex.Text",
-				"RestingECGMeasurements.SokolovLVHIndex.Units",
-				"RestingECGMeasurements.MeasurementTable.LeadOrder",
-				"RestingECGMeasurements.VentricularRate.Text",
-				"RestingECGMeasurements.PQInterval.Text",
-				"RestingECGMeasurements.PDuration.Text",
-				"RestingECGMeasurements.QRSDuration.Text",
-				"RestingECGMeasurements.QTInterval.Text",
-				"RestingECGMeasurements.QTCInterval.Text",
-				"RestingECGMeasurements.RRInterval.Text",
-				"RestingECGMeasurements.PPInterval.Text",
-				"RestingECGMeasurements.PAxis.Text",
-				"RestingECGMeasurements.RAxis.Text",
-				"RestingECGMeasurements.TAxis.Text",
-				"RestingECGMeasurements.QTDispersion.Text",
-				"RestingECGMeasurements.QTDispersionBazett.Text",
-				"RestingECGMeasurements.QRSNum",
-			}
-
-			results <- strings.ReplaceAll(strings.Join(header, "\t"), ".", "_")
 
 			ekg := bulkprocess.EKG12Lead{}
 
@@ -240,6 +240,39 @@ func ManifestForExerciseEKG(path string) error {
 
 	}()
 
+	header := []string{"sample_id",
+		"FieldID",
+		"instance",
+		"ObservationType",
+		"ObservationDateTime.Year",
+		"ObservationDateTime.Month",
+		"ObservationDateTime.Day",
+		"ekg.ObservationDateTime.Hour",
+		"testDuration",
+		"ClinicalInfo.DeviceInfo.Desc",
+		"ClinicalInfo.DeviceInfo.SoftwareVer",
+		"ClinicalInfo.DeviceInfo.AnalysisVer",
+		"PatientVisit.AssignedPatientLocation.Facility",
+		"PatientVisit.AssignedPatientLocation.LocationNumber",
+		"PatientInfo.PaceMaker",
+
+		// Only relevant for exercise
+		"Protocol.Device",
+		"ExerciseMeasurements.ExercisePhaseTime.Minute",
+		"ExerciseMeasurements.MaxWorkload.Text",
+		"ExerciseMeasurements.RestingStats.RestHR",
+		"ExerciseMeasurements.MaxHeartRate",
+		"ExerciseMeasurements.MaxPredictedHR",
+		"ExerciseMeasurements.PercentAchievedMaxPredicted",
+		"TWACycleData.Resolution.Text",
+		"TWACycleData.Resolution.Units",
+		"TWACycleData.SampleRate.Text",
+		"TWACycleData.SampleRate.Units",
+		"TrendData.NumberOfEntries",
+	}
+
+	fmt.Println(strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
+
 	semaphore := make(chan struct{}, concurrency)
 
 	for _, file := range files {
@@ -260,39 +293,6 @@ func ManifestForExerciseEKG(path string) error {
 				return
 			}
 			// Exercise EKG
-
-			header := []string{"sample_id",
-				"FieldID",
-				"instance",
-				"ObservationType",
-				"ObservationDateTime.Year",
-				"ObservationDateTime.Month",
-				"ObservationDateTime.Day",
-				"ekg.ObservationDateTime.Hour",
-				"testDuration",
-				"ClinicalInfo.DeviceInfo.Desc",
-				"ClinicalInfo.DeviceInfo.SoftwareVer",
-				"ClinicalInfo.DeviceInfo.AnalysisVer",
-				"PatientVisit.AssignedPatientLocation.Facility",
-				"PatientVisit.AssignedPatientLocation.LocationNumber",
-				"PatientInfo.PaceMaker",
-
-				// Only relevant for exercise
-				"Protocol.Device",
-				"ExerciseMeasurements.ExercisePhaseTime.Minute",
-				"ExerciseMeasurements.MaxWorkload.Text",
-				"ExerciseMeasurements.RestingStats.RestHR",
-				"ExerciseMeasurements.MaxHeartRate",
-				"ExerciseMeasurements.MaxPredictedHR",
-				"ExerciseMeasurements.PercentAchievedMaxPredicted",
-				"TWACycleData.Resolution.Text",
-				"TWACycleData.Resolution.Units",
-				"TWACycleData.SampleRate.Text",
-				"TWACycleData.SampleRate.Units",
-				"TrendData.NumberOfEntries",
-			}
-
-			results <- strings.ReplaceAll(strings.Join(header, "\t"), ".", "_")
 
 			ekg := bulkprocess.EKGExercise{}
 
