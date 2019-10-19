@@ -1,6 +1,27 @@
 package main
 
-import "math"
+import (
+	"fmt"
+	"math"
+	"strings"
+)
+
+type Loci []Locus
+
+func (l Loci) String() string {
+	s := make([]string, 0)
+	for _, v := range []Locus(l) {
+		sb := strings.Builder{}
+		sb.WriteString(v.Chromosome)
+		sb.WriteString(":")
+		sb.WriteString(fmt.Sprintf("%d", v.Position))
+		sb.String()
+
+		s = append(s, sb.String())
+	}
+
+	return strings.Join(s, ",")
+}
 
 type Locus struct {
 	Index      int

@@ -19,6 +19,11 @@ type Hist struct {
 	Original bool
 }
 
+type geneWithLoci struct {
+	Gene
+	Loci Loci
+}
+
 func (e Results) Summarize(repeat int, transcriptStartOnly bool) {
 	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
 
@@ -69,23 +74,32 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool) {
 	fmt.Println()
 
 	// Mendelian genes that overlap with your loci
-	seengenemap := make(map[string]struct{})
-	mgenes = make([]Gene, 0, len(e.MendelianGenes))
+	seengenemap := make(map[string]int)
+	yourMgenes := make([]geneWithLoci, 0, len(e.MendelianGenes))
 	for _, v := range e.MendelianGenes {
 		for _, locus := range e.Permutations[0].Loci {
 			if locus.IsGeneWithinRadius(v, e.Radius, transcriptStartOnly) {
-				if _, exists := seengenemap[v.Symbol]; exists {
+				if seenGeneID, exists := seengenemap[v.Symbol]; exists {
+					geneLoc := yourMgenes[seenGeneID]
+					geneLoc.Loci = append(geneLoc.Loci, locus)
+					yourMgenes[seenGeneID] = geneLoc
 					continue
 				}
-				mgenes = append(mgenes, v)
-				seengenemap[v.Symbol] = struct{}{}
+
+				geneLoc := geneWithLoci{
+					Gene: v,
+					Loci: []Locus{locus},
+				}
+
+				yourMgenes = append(yourMgenes, geneLoc)
+				seengenemap[v.Symbol] = len(yourMgenes) - 1
 			}
 		}
 	}
-	fmt.Printf("%d Mendelian genes overlapped with your original SNP list:\n", len(mgenes))
-	sort.Slice(mgenes, func(i, j int) bool { return mgenes[i].Symbol < mgenes[j].Symbol })
-	for i, v := range mgenes {
-		fmt.Printf("%d) %s\n", i+1, v.Symbol)
+	fmt.Printf("%d Mendelian genes overlapped with your original SNP list:\n", len(yourMgenes))
+	sort.Slice(yourMgenes, func(i, j int) bool { return yourMgenes[i].Symbol < yourMgenes[j].Symbol })
+	for i, v := range yourMgenes {
+		fmt.Printf("%d) %s %s\n", i+1, v.Symbol, v.Loci)
 	}
 
 	fmt.Println()
