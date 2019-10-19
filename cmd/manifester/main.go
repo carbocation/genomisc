@@ -91,13 +91,13 @@ func ManifestFor12LeadEKG(path string) error {
 
 	semaphore := make(chan struct{}, concurrency)
 
-	header := []string{"sample_id",
+	header := []string{
+		"sample_id",
 		"FieldID",
 		"instance",
+		"xml_file",
 		"ObservationType",
-		"ObservationDateTime.Year",
-		"ObservationDateTime.Month",
-		"ObservationDateTime.Day",
+		"ObservationDate",
 		"ObservationDateTime.Hour",
 		"ClinicalInfo.DeviceInfo.Desc",
 		"ClinicalInfo.DeviceInfo.SoftwareVer",
@@ -163,10 +163,11 @@ func ManifestFor12LeadEKG(path string) error {
 				return
 			}
 
-			results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s-%02s-%02s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+			results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s-%02s-%02s\t%02s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
 				strings.Split(file.Name(), "_")[0],
 				strings.Split(file.Name(), "_")[1],
 				strings.Split(file.Name(), "_")[2],
+				file.Name(),
 				ekg.ObservationType,
 				ekg.ObservationDateTime.Year,
 				ekg.ObservationDateTime.Month,
@@ -240,13 +241,13 @@ func ManifestForExerciseEKG(path string) error {
 
 	}()
 
-	header := []string{"sample_id",
+	header := []string{
+		"sample_id",
 		"FieldID",
 		"instance",
+		"xml_file",
 		"ObservationType",
-		"ObservationDateTime.Year",
-		"ObservationDateTime.Month",
-		"ObservationDateTime.Day",
+		"ObservationDate",
 		"ekg.ObservationDateTime.Hour",
 		"testDuration",
 		"ClinicalInfo.DeviceInfo.Desc",
@@ -313,7 +314,7 @@ func ManifestForExerciseEKG(path string) error {
 
 			testDuration := ""
 
-			start, err := time.Parse(time.RFC3339Nano, fmt.Sprintf("%s-%02s-%02sT%s:%s:%s.0Z",
+			start, err := time.Parse(time.RFC3339Nano, fmt.Sprintf("%s-%02s-%02sT%02s:%02s:%02s.0Z",
 				ekg.ObservationDateTime.Year,
 				ekg.ObservationDateTime.Month,
 				ekg.ObservationDateTime.Day,
@@ -323,7 +324,7 @@ func ManifestForExerciseEKG(path string) error {
 			if err != nil {
 				log.Println(err)
 			} else {
-				end, err := time.Parse(time.RFC3339Nano, fmt.Sprintf("%s-%02s-%02sT%s:%s:%s.0Z",
+				end, err := time.Parse(time.RFC3339Nano, fmt.Sprintf("%s-%02s-%02sT%02s:%02s:%02s.0Z",
 					ekg.ObservationEndDateTime.Year,
 					ekg.ObservationEndDateTime.Month,
 					ekg.ObservationEndDateTime.Day,
@@ -338,10 +339,11 @@ func ManifestForExerciseEKG(path string) error {
 				}
 			}
 
-			results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s-%02s-%02s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+			results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s-%02s-%02s\t%02s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
 				strings.Split(file.Name(), "_")[0],
 				strings.Split(file.Name(), "_")[1],
 				strings.Split(file.Name(), "_")[2],
+				file.Name(),
 				ekg.ObservationType,
 				ekg.ObservationDateTime.Year,
 				ekg.ObservationDateTime.Month,
