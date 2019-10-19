@@ -14,6 +14,7 @@ func main() {
 	var (
 		mendelianGeneFile   string
 		SNPsnapFile         string
+		truthLociFile       string
 		radius              float64
 		overrideMissing     bool
 		transcriptStartOnly bool
@@ -23,6 +24,7 @@ func main() {
 	fmt.Println("This program uses GRCh37")
 	flag.StringVar(&mendelianGeneFile, "mendel", "", "Filename containing one gene symbol per line representing your Mendelian disease genes.")
 	flag.StringVar(&SNPsnapFile, "snpsnap", "", "Filename containing SNPsnap output.")
+	flag.StringVar(&truthLociFile, "truthloci", "", "Optional. Filename containing truth loci (one chr:pos per line). If set, overrides the first column in --snpsnap file as the representative of the real loci from your study.")
 	flag.Float64Var(&radius, "radius", 250, "Radius, in kilobases, to define whether part of a transcript is 'within' a given locus.")
 	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
 	flag.BoolVar(&transcriptStartOnly, "transcriptstart", false, "Measure radius to the transcript start site only? If false, will measure radius to start or end of the transcript (whichever is closer).")
@@ -52,6 +54,15 @@ func main() {
 	permutations, err := ReadSNPsnap(SNPsnapFile)
 	if err != nil {
 		log.Fatalln(err)
+	}
+
+	if truthLociFile != "" {
+		yourPermutations, err := ReadSNPsnap(truthLociFile)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		permutations.Permutations[0].Loci = yourPermutations.Permutations[0].Loci
 	}
 
 	if transcriptStartOnly {
