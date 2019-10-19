@@ -7,6 +7,8 @@ library("data.table")
 
 option_list = list(
     make_option(c("-f", "--file"), type="character", default=NULL, help="BOLT output file"),
+    make_option(c("-o", "--leadsnp_file"), type="character", default="gwasclump.leadsnps", help="Filename where Lead SNPs will be printed"),
+    make_option(c("-l", "--locusid_file"), type="character", default="gwasclump.allsnps.locusid", help="Filename where all SNPs will be printed, with LocusID matching the Lead SNP locus ID"),
     make_option(c("-p", "--pvalue"), type="numeric", default=5e-8, help="P value threshold, below which loci are considered significant"),
     make_option(c("-r", "--locusRadius"), type="numeric", default=NULL, help="Number of bases around each lead SNP to exclude other potential lead SNPs")
 )
@@ -92,6 +94,10 @@ iteratively.prune <- function(df, flanking=1e6, significance=1e-7) {
 dat <- fread(opt$file, showProgress=TRUE)
 
 pruned <- iteratively.prune(dat, significance = opt$pvalue, flanking=opt$locusRadius)
+
+# Assign locus IDs
+pruned$LocusID <- seq(1, nrow(pruned))
+
 N_Loci = nrow(pruned)
 
 if(is.null(N_Loci)) {
@@ -108,6 +114,15 @@ res <- data.frame(
 
 message(paste(res, collapse="\t"))
 
+dat$LocusID <- -1
+for(i in 1:nrow(dat)) {
+    sameChr <- subset(pruned, pruned$CHR == dat[i,]$CHR)
+    dat[i,]$LocusID <- sameChr[which.min(abs(sameChr$BP - dat[i,]$BP)),]$LocusID
+}
+
+# Write results to stdout
 write.table(pruned, stdout(), sep = "\t", row.names = FALSE, quote = FALSE)
 
-#pruned
+# Also write results to files
+write.table(pruned, opt$leadsnp_file, sep = "\t", row.names = FALSE, quote = FALSE)
+write.table(dat, opt$locusid_file, sep = "\t", row.names = FALSE, quote = FALSE)
