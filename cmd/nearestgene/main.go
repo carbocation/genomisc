@@ -122,10 +122,10 @@ func main() {
 			if tss {
 				// If it is on a transcript of one but not the other, keep the one where it's on the transcript
 				onTranscriptI, onTranscriptJ := false, false
-				if sitePosInt >= transcripts[i].TranscriptStart && sitePosInt <= transcripts[i].TranscriptEnd {
+				if between(sitePosInt, transcripts[i].TranscriptStart, transcripts[i].TranscriptEnd) {
 					onTranscriptI = true
 				}
-				if sitePosInt >= transcripts[j].TranscriptStart && sitePosInt <= transcripts[j].TranscriptEnd {
+				if between(sitePosInt, transcripts[j].TranscriptStart, transcripts[j].TranscriptEnd) {
 					onTranscriptJ = true
 				}
 				if onTranscriptI && !onTranscriptJ {
@@ -150,7 +150,7 @@ func main() {
 		})
 
 		onTranscript := false
-		if sitePosInt >= transcripts[0].TranscriptStart && sitePosInt <= transcripts[0].TranscriptEnd {
+		if between(sitePosInt, transcripts[0].TranscriptStart, transcripts[0].TranscriptEnd) {
 			onTranscript = true
 		}
 
@@ -188,4 +188,16 @@ func main() {
 			v.DistanceTranscriptStart, v.DistanceTranscriptEnd,
 			v.Distance, v.OnTranscript)
 	}
+}
+
+func between(query, pos1, pos2 int) bool {
+	if pos1 > pos2 {
+		pos1, pos2 = pos2, pos1
+	}
+
+	if query >= pos1 && query <= pos2 {
+		return true
+	}
+
+	return false
 }
