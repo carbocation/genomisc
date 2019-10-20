@@ -101,12 +101,12 @@ func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error)
 			continue
 		}
 
-		start, err := strconv.Atoi(rec[GeneStartOneBased])
+		start, err := strconv.Atoi(rec[TranscriptStartOneBased])
 		if err != nil {
 			return nil, err
 		}
 
-		end, err := strconv.Atoi(rec[GeneEndOneBased])
+		end, err := strconv.Atoi(rec[TranscriptEndOneBased])
 		if err != nil {
 			return nil, err
 		}
