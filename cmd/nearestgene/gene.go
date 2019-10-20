@@ -94,14 +94,19 @@ func FetchGenes() ([]Gene, error) {
 			continue
 		}
 
-		start, err := strconv.Atoi(rec[GeneStartOneBased])
+		start, err := strconv.Atoi(rec[TranscriptStartOneBased])
 		if err != nil {
 			return nil, err
 		}
 
-		end, err := strconv.Atoi(rec[GeneEndOneBased])
+		end, err := strconv.Atoi(rec[TranscriptEndOneBased])
 		if err != nil {
 			return nil, err
+		}
+
+		// Reverse start and end for minus strand
+		if rec[Strand] == "-1" {
+			start, end = end, start
 		}
 
 		results = append(results, Gene{Symbol: rec[GeneName], Chromosome: rec[Chromosome], TranscriptStart: start, TranscriptEnd: end})
