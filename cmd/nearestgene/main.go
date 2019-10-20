@@ -7,10 +7,16 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+// Special value that is to be set using ldflags
+// E.g.: go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"
+// Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
+var builddate string
 
 var BioMartFilename string
 
@@ -25,6 +31,8 @@ func main() {
 		assembly  string
 		tss       bool
 	)
+
+	fmt.Fprintf(os.Stderr, "This nearestgene binary was built at: %s\n", builddate)
 
 	flag.StringVar(&sitesFile, "sites", "", "Filename containing one site per line (represented as chr:pos)")
 	flag.StringVar(&assembly, "assembly", "37", fmt.Sprint("Version of genome assembly. Options:", assemblies))
@@ -73,16 +81,28 @@ func main() {
 	}
 
 	output := make([]outputType, 0)
+	likelyHeader := false
 
-	for site := range sitesList {
+	i := 0
+	for _, site := range sitesList {
 		parts := strings.Split(site, ":")
-		if len(parts) != 2 {
+		if len(parts) != 2 && i == 0 {
+			// First entry may be a header
+			i++
+			likelyHeader = true
+			continue
+		} else if len(parts) != 2 {
 			log.Fatalf("%s cannot be split into exactly 2 parts\n", site)
 		}
 
 		siteChr := parts[0]
 		sitePosInt, err := strconv.Atoi(parts[1])
-		if err != nil {
+		if err != nil && i == 0 {
+			// First entry may be a header
+			i++
+			likelyHeader = true
+			continue
+		} else if err != nil {
 			log.Fatalln(err)
 		}
 		sitePos := float64(sitePosInt)
@@ -90,6 +110,13 @@ func main() {
 		sort.Slice(transcripts, func(i, j int) bool {
 			if transcripts[i].Chromosome != siteChr {
 				return false
+			}
+
+			// Disfavor minimally annotated genes
+			if strings.Contains(transcripts[i].Symbol, ".") && !strings.Contains(transcripts[j].Symbol, ".") {
+				return false
+			} else if !strings.Contains(transcripts[i].Symbol, ".") && strings.Contains(transcripts[j].Symbol, ".") {
+				return true
 			}
 
 			if tss {
@@ -145,9 +172,11 @@ func main() {
 				output[len(output)-1].Distance = 0
 			}
 		}
+
+		i++
 	}
 
-	if x, y := len(output), len(sitesList); x < y {
+	if x, y := len(output), len(sitesList); y-x > 2 || (y-x == 1 && !likelyHeader) {
 		log.Fatalf("Identified genes for %d fewer sites than expected\n", y-x)
 	}
 

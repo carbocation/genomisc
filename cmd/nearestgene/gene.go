@@ -32,7 +32,7 @@ type Gene struct {
 	TranscriptEnd   int
 }
 
-func ReadSitesFile(fileName string) (map[string]struct{}, error) {
+func ReadSitesFile(fileName string) ([]string, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -46,12 +46,12 @@ func ReadSitesFile(fileName string) (map[string]struct{}, error) {
 		return nil, err
 	}
 
-	sites := make(map[string]struct{})
+	sites := make([]string, 0)
 	for _, cols := range lines {
 		if len(cols) < 1 {
 			continue
 		}
-		sites[strings.TrimSpace(cols[0])] = struct{}{}
+		sites = append(sites, strings.TrimSpace(cols[0]))
 	}
 
 	return sites, nil
@@ -86,6 +86,11 @@ func FetchGenes() ([]Gene, error) {
 		if len(rec[Chromosome]) > 2 {
 			// Longer chromosome names probably represent patches, which we are
 			// not equipped to handle.
+			continue
+		}
+
+		if strings.TrimSpace(rec[ProteinStableID]) == "" {
+			// No protein product - not relevant to this program.
 			continue
 		}
 
