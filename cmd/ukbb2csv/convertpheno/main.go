@@ -12,20 +12,28 @@ import (
 
 func main() {
 	var (
-		phenoPathList string
-		acknowledge   bool
-		noDB          bool
-		BQ            = &convertpheno.WrappedBigQuery{}
+		checkMethod    string
+		phenoPathList  string
+		dictionaryFile string
+		acknowledge    bool
+		BQ             = &convertpheno.WrappedBigQuery{}
 	)
-	flag.BoolVar(&noDB, "nodb", false, "If false (default), check the GCP database for pre-existing fields. If true, then skips the DB check.")
-	flag.StringVar(&BQ.Project, "project", "", "Name of the Google Cloud project that hosts your BigQuery dataset")
-	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery phenotype dataset that will/does contain the 'phenotype' table")
+	flag.StringVar(&checkMethod, "method", "bigquery", "Method of checking for pre-existing fields. Options: bigquery, none")
+	flag.StringVar(&BQ.Project, "project", "", "Name of the Google Cloud project that hosts your BigQuery dataset (only if method == 'bigquery')")
+	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery phenotype dataset that will/does contain the 'phenotype' table (only if method == 'bigquery')")
+	flag.StringVar(&dictionaryFile, "dictionary", "", "File containing the parsed output from `convertdict`. Required if method == 'none'")
 	flag.StringVar(&phenoPathList, "pheno", "", "File containing the paths of each phenotype file for the UKBB that you want to process in this run. Each file should be on its own line. The files with the newest data should be listed first: every FieldID that is seen in an earlier file will be ignored in later files.")
 	flag.BoolVar(&acknowledge, "ack", false, "Acknowledge the limitations of the tool")
 	flag.Parse()
 
 	if phenoPathList == "" {
 		log.Println("Please pass --pheno a file containing paths to the phenotype data.")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if checkMethod != "bigquery" && checkMethod != "none" {
+		log.Println("Valid --method options include bigquery and none")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -47,7 +55,7 @@ func main() {
 		}
 	}
 
-	if !acknowledge {
+	if !acknowledge && checkMethod == "bigquery" {
 		fmt.Fprintln(os.Stderr, "!! -- !!")
 		fmt.Fprintln(os.Stderr, "NOTE")
 		fmt.Fprintln(os.Stderr, "!! -- !!")
@@ -63,7 +71,15 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 
 	log.Println("Processing", len(phenoPaths), "files:", phenoPaths)
 
-	if err := convertpheno.RunAllBackendBQ(phenoPaths, BQ); err != nil {
-		log.Fatalln(err)
+	switch checkMethod {
+	case "bigquery":
+		if err := convertpheno.RunAllBackendBQ(phenoPaths, BQ); err != nil {
+			log.Fatalln(err)
+		}
+
+	case "none":
+		if err := convertpheno.RunAllBackendCSV(phenoPaths, dictionaryFile); err != nil {
+			log.Fatalln(err)
+		}
 	}
 }

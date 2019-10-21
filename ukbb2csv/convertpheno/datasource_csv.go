@@ -2,7 +2,6 @@ package convertpheno
 
 import (
 	"bufio"
-	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -12,35 +11,25 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
+
 	"github.com/carbocation/genomisc"
-	"github.com/carbocation/pfx"
-	"google.golang.org/api/iterator"
 )
 
-func RunAllBackendBQ(phenoPaths []string, BQ *WrappedBigQuery) error {
+const (
+	DictionaryFieldIDCol      = 2
+	DictionaryCodingFileIDCol = 14
+)
+
+func RunAllBackendCSV(phenoPaths []string, dictionaryCSV string) error {
 	defer STDOUT.Flush()
-
-	var err error
-
-	// Map out known FieldIDs so we don't add duplicate phenotype records
-	// connect to BigQuery
-	BQ.Context = context.Background()
-	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)
-	if err != nil {
-		return fmt.Errorf("connecting to BigQuery: %v", err)
-	}
-	defer BQ.Client.Close()
-	knownFieldIDs, err := findExistingFieldsBQ(BQ)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Println("Found", len(knownFieldIDs), "FieldIDs already in the database, will ignore those FieldIDs in the new data, if present.")
 
 	fmt.Printf("sample_id\tFieldID\tinstance\tarray_idx\tvalue\tcoding_file_id\n")
 
+	knownFieldIDs := make(map[string]struct{})
+
 	// Process each file. KnownFieldIDs is modified within.
 	for _, phenoPath := range phenoPaths {
-		if err := processOnePathBQ(BQ, knownFieldIDs, phenoPath); err != nil {
+		if err := processOnePathCSV(dictionaryCSV, knownFieldIDs, phenoPath); err != nil {
 			log.Fatalln(err)
 		}
 	}
@@ -48,7 +37,7 @@ func RunAllBackendBQ(phenoPaths []string, BQ *WrappedBigQuery) error {
 	return nil
 }
 
-func processOnePathBQ(BQ *WrappedBigQuery, knownFieldIDs map[string]struct{}, phenoPath string) error {
+func processOnePathCSV(dictionaryCSV string, knownFieldIDs map[string]struct{}, phenoPath string) error {
 	headers := make(map[int]Column)
 
 	phenoPath = genomisc.ExpandHome(phenoPath)
@@ -78,7 +67,7 @@ func processOnePathBQ(BQ *WrappedBigQuery, knownFieldIDs map[string]struct{}, ph
 	if err != nil {
 		log.Fatalln("Header parsing error:", err)
 	}
-	if err := parseHeadersBQ(BQ, headRow, headers); err != nil {
+	if err := parseHeadersCSV(dictionaryCSV, headRow, headers); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -164,7 +153,7 @@ func processOnePathBQ(BQ *WrappedBigQuery, knownFieldIDs map[string]struct{}, ph
 	return nil
 }
 
-func parseHeadersBQ(wbq *WrappedBigQuery, row []string, headers map[int]Column) error {
+func parseHeadersCSV(dictionaryCSV string, row []string, headers map[int]Column) error {
 	for col, header := range row {
 		dash := strings.Index(header, "-")
 		dot := strings.Index(header, ".")
@@ -188,31 +177,37 @@ func parseHeadersBQ(wbq *WrappedBigQuery, row []string, headers map[int]Column) 
 		}
 	}
 
+	// Parse dictionary CSV
+	dict, err := os.Open(dictionaryCSV)
+	if err != nil {
+		return err
+	}
+
+	dictRecords, err := csv.NewReader(dict).ReadAll()
+	if err != nil {
+		return err
+	}
+
 	// Now make it easy to figure out if we have a coding file to map to
 
 	// Get the FieldID => coding_file_id map
 	codinglookup := []CodingFileLookup{}
-	// if err := db.Select(&codinglookup, "SELECT FieldID, coding_file_id FROM dictionary WHERE coding_file_id IS NOT NULL"); err != nil {
-	// 	return err
-	// }
-	query := wbq.Client.Query(fmt.Sprintf(`SELECT FieldID, coding_file_id
-FROM %s.dictionary
-WHERE coding_file_id IS NOT NULL`, wbq.Database))
-	itr, err := query.Read(wbq.Context)
-	if err != nil {
-		return err
-	}
-	for {
-		var values CodingFileLookup
 
-		err := itr.Next(&values)
-		if err == iterator.Done {
-			break
-		}
+	for _, rec := range dictRecords {
+		FieldID, err := strconv.ParseInt(rec[DictionaryFieldIDCol], 10, 64)
 		if err != nil {
-			return err
+			continue
 		}
-		codinglookup = append(codinglookup, values)
+
+		CodingFileID, err := strconv.ParseInt(rec[DictionaryCodingFileIDCol], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		codinglookup = append(codinglookup, CodingFileLookup{
+			FieldID:      FieldID,
+			CodingFileID: bigquery.NullInt64{Int64: CodingFileID},
+		})
 	}
 
 	// Annotate each header column with the CodingFileID that applies to
@@ -228,36 +223,4 @@ WHERE coding_file_id IS NOT NULL`, wbq.Database))
 	}
 
 	return nil
-}
-
-func findExistingFieldsBQ(wbq *WrappedBigQuery) (map[string]struct{}, error) {
-	// Map out known FieldIDs so we don't add duplicate phenotype records
-	knownFieldIDs := make(map[string]struct{})
-
-	query := wbq.Client.Query(fmt.Sprintf(`SELECT DISTINCT p.FieldID
-	FROM %s.phenotype p
-	WHERE p.FieldID IS NOT NULL
-`, wbq.Database))
-	itr, err := query.Read(wbq.Context)
-	if err != nil && strings.Contains(err.Error(), "Error 404") {
-		// Not an error; the table just doesn't exist yet
-		return knownFieldIDs, nil
-	} else if err != nil {
-		return nil, pfx.Err(err)
-	}
-	for {
-		var values struct {
-			FieldID int64 `bigquery:"FieldID"`
-		}
-		err := itr.Next(&values)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, pfx.Err(err)
-		}
-		knownFieldIDs[strconv.FormatInt(values.FieldID, 10)] = struct{}{}
-	}
-
-	return knownFieldIDs, nil
 }

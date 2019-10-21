@@ -42,7 +42,7 @@ type WrappedBigQuery struct {
 	Database string
 }
 
-type codingLookup struct {
+type CodingFileLookup struct {
 	FieldID      int64              `bigquery:"FieldID"`
 	CodingFileID bigquery.NullInt64 `bigquery:"coding_file_id"`
 }
