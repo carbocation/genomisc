@@ -13,6 +13,7 @@ import (
 	"cloud.google.com/go/bigquery"
 
 	"github.com/carbocation/genomisc"
+	"github.com/carbocation/pfx"
 )
 
 const (
@@ -30,7 +31,7 @@ func RunAllBackendCSV(phenoPaths []string, dictionaryCSV string) error {
 	// Process each file. KnownFieldIDs is modified within.
 	for _, phenoPath := range phenoPaths {
 		if err := processOnePathCSV(dictionaryCSV, knownFieldIDs, phenoPath); err != nil {
-			log.Fatalln(err)
+			return pfx.Err(err)
 		}
 	}
 
@@ -65,10 +66,10 @@ func processOnePathCSV(dictionaryCSV string, knownFieldIDs map[string]struct{}, 
 	// Map the headers
 	headRow, err := fileCSV.Read()
 	if err != nil {
-		log.Fatalln("Header parsing error:", err)
+		return pfx.Err(fmt.Errorf("Header parsing error: %v", err))
 	}
 	if err := parseHeadersCSV(dictionaryCSV, headRow, headers); err != nil {
-		log.Fatalln(err)
+		return pfx.Err(err)
 	}
 
 	// Track which fields are new
@@ -106,7 +107,7 @@ func processOnePathCSV(dictionaryCSV string, knownFieldIDs map[string]struct{}, 
 		if err != nil && err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalln(err)
+			return pfx.Err(err)
 		}
 
 		// Handle each sample
@@ -180,12 +181,16 @@ func parseHeadersCSV(dictionaryCSV string, row []string, headers map[int]Column)
 	// Parse dictionary CSV
 	dict, err := os.Open(dictionaryCSV)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
-	dictRecords, err := csv.NewReader(dict).ReadAll()
+	dictReader := csv.NewReader(dict)
+	dictReader.Comma = '\t'
+	dictReader.LazyQuotes = true
+
+	dictRecords, err := dictReader.ReadAll()
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	// Now make it easy to figure out if we have a coding file to map to
