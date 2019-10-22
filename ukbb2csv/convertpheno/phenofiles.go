@@ -1,4 +1,4 @@
-package main
+package convertpheno
 
 import (
 	"encoding/csv"
