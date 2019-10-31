@@ -1,0 +1,1 @@
+`combine-spreadsheets` takes data that is identically laid out but presented across multiple spreadsheets within the same file.
