@@ -45,14 +45,14 @@ func main() {
 				log.Fatalln("Nil row")
 			}
 
-			for colID := 0; colID <= row.LastCol(); colID++ {
+			for colID := 0; colID < row.LastCol(); colID++ {
 				value := row.Col(colID)
 
 				if sheetID == 0 && rowID == 0 {
 					output = append(output, make([]string, 0))
 
 					// Add an additional column for the sheet name
-					if sheetID == 0 && rowID == 0 && colID == row.LastCol() {
+					if sheetID == 0 && rowID == 0 && colID == row.LastCol()-1 {
 						output = append(output, make([]string, 0))
 					}
 
@@ -65,9 +65,9 @@ func main() {
 				// fmt.Println(sheetID, rowID, colID, value)
 			}
 			if sheetID == 0 && rowID == 0 {
-				output[row.LastCol()+1] = append(output[row.LastCol()+1], "Sheet")
+				output[row.LastCol()] = append(output[row.LastCol()], "Sheet")
 			}
-			output[row.LastCol()+1] = append(output[row.LastCol()+1], sheet.Name)
+			output[row.LastCol()] = append(output[row.LastCol()], sheet.Name)
 
 		}
 
