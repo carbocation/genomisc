@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/carbocation/pfx"
 )
 
 type PRSParser struct {
@@ -48,13 +50,13 @@ func DefaultParseRow(layout *Layout, row []string) (PRS, error) {
 	p.Chromosome = row[layout.ColChromosome]
 
 	if pos, err := strconv.Atoi(row[layout.ColPosition]); err != nil {
-		return p, err
+		return p, pfx.Err(fmt.Errorf("Error at ColPosition (%d): %v", layout.ColPosition, err))
 	} else {
 		p.Position = pos
 	}
 
 	if score, err := strconv.ParseFloat(row[layout.ColScore], 64); err != nil {
-		return p, err
+		return p, pfx.Err(fmt.Errorf("Error at ColScore (%d): %v", layout.ColScore, err))
 	} else {
 		p.Score = score
 	}
