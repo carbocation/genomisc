@@ -54,7 +54,10 @@ func LoadPRS(prsPath, layout string) error {
 		}
 
 		val, err := parser.ParseRow(row)
-		if err != nil {
+		if err != nil && i == 0 {
+			// Permit a header and skip it
+			continue
+		} else if err != nil {
 			return err
 		}
 
