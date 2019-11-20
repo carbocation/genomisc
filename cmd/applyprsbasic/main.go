@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -35,17 +36,24 @@ func main() {
 		layout           string
 		sourceFile       string
 		customLayout     string
+		samplePath       string
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
+	flag.StringVar(&samplePath, "sample", "", "Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
 	flag.Parse()
 
 	if sourceFile == "" {
 		flag.PrintDefaults()
 		log.Fatalln("Please provide --source")
+	}
+
+	if samplePath == "" {
+		flag.PrintDefaults()
+		log.Fatalln("Please provide --sample")
 	}
 
 	if bgenTemplatePath == "" {
@@ -119,7 +127,19 @@ func main() {
 	score := make([]Sample, 0)
 
 	// Header
-	fmt.Printf("sample_file_row\tsource\tscore\tn_incremented\n")
+	fmt.Printf("sample_id\tsource\tscore\tn_incremented\n")
+
+	// Load the .sample file:
+	sf, err := os.Open(samplePath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	sfCSV := csv.NewReader(sf)
+	sfCSV.Comma = ' '
+	sampleFileContents, err := sfCSV.ReadAll()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	chromosomalPRS := ChromosomalPRS(currentVariantScoreLookup)
 
@@ -183,7 +203,12 @@ func main() {
 	}
 
 	for fileRow, v := range score {
-		fmt.Fprintf(STDOUT, "%d\t%s\t%f\t%d\n", fileRow, sourceFile, v.SumScore, v.NIncremented)
+		// +2 because the sample file contains a header of 2 rows: (1) the true
+		// header, and (2) a second header indicating the value type of the
+		// column
+		sampleID := sampleFileContents[fileRow+2][0]
+
+		fmt.Fprintf(STDOUT, "%s\t%s\t%f\t%d\n", sampleID, sourceFile, v.SumScore, v.NIncremented)
 	}
 
 }
