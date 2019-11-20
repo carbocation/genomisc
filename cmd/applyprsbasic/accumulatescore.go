@@ -46,7 +46,8 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) (
 	results := make([]Sample, variant.NSamples, variant.NSamples)
 
 	for i := 0; i < len(results); i++ {
-		results[i].SumScore = ComputeScore(variant.SampleProbabilities[i], variant, prs)
+		results[i].SumScore += ComputeScore(variant.SampleProbabilities[i], variant, prs)
+		results[i].NIncremented += 1
 	}
 
 	if len(results) < 1 {

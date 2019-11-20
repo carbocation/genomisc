@@ -165,10 +165,12 @@ func main() {
 				} else {
 					// TODO: Consider only summing periodically - otherwise you are
 					// doing N*M operations
-					for k, v := range score {
-						prior := scoresThisSite[k]
+					for k, v := range scoresThisSite {
+						prior := score[k]
 						prior.NIncremented += v.NIncremented
 						prior.SumScore += v.SumScore
+
+						score[k] = prior
 					}
 				}
 			}
