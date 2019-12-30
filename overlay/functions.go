@@ -1,10 +1,34 @@
 package overlay
 
 import (
+	"image"
 	"image/color"
+	"os"
 	"strconv"
 	"strings"
+
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
+	_ "golang.org/x/image/bmp"
 )
+
+// OpenImageFromLocalFile pulls an image with the specified suffix (derived
+// from the DICOM name) from a local folder
+func OpenImageFromLocalFile(filePath string) (image.Image, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// Extract and decode the image. Must be PNG, GIF, BMP, or JPEG formatted
+	// (based on the decoders we have imported)
+	img, _, err := image.Decode(f)
+
+	return img, err
+}
 
 func rgbaFromColorCode(colorCode string) (color.Color, error) {
 	colorCode = strings.ReplaceAll(colorCode, "#", "")

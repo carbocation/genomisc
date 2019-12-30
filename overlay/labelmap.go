@@ -286,3 +286,63 @@ func (l LabelMap) Sorted() []Label {
 
 	return out
 }
+
+// CountEncodedPixels consumes an ID-encoded image (where each pixel is
+// #010101 for ID 1, #020202 for ID 2 etc), and returns a count for each
+// label.
+func (l LabelMap) CountEncodedPixels(bmpImage image.Image) (map[Label]int, error) {
+	// Map from the color code to the Label, with all of its attached
+	// information
+	colorLabels := make(map[uint32]Label)
+
+	outputCount := make(map[Label]int)
+
+	for y := 0; y < bmpImage.Bounds().Max.Y; y++ {
+		for x := 0; x < bmpImage.Bounds().Max.X; x++ {
+
+			// Find the color at this pixel
+			c := bmpImage.At(x, y)
+
+			// Find the color channel values for this pixel
+			pr, pg, pb, a := c.RGBA()
+
+			// Confirm that we're mapping ID 1 => #010101, etc
+			if pr != pg || pg != pb || pr != pb {
+				return nil, fmt.Errorf("Encoding expected to have equal values for R, G, and B. Instead, found %d, %d, %d", pr, pg, pb)
+			}
+
+			// Create the hex string representation. Since each color channel is
+			// "alpha-premultiplied" (https://golang.org/pkg/image/color/#RGBA),
+			// we need to divide by alpha (scaling 0-1), then multiplying by
+			// 255, to get what we're actually looking for
+			pixelID := uint32(math.Round(255 * float64(pr) / float64(a)))
+
+			// If we haven't yet mapped this point's color to a Label
+			// identifier, do so now:
+			if _, exists := colorLabels[pixelID]; !exists {
+
+				// Look up the ID
+				for _, v := range l.Sorted() {
+					if uint32(v.ID) == pixelID {
+						colorLabels[pixelID] = v
+						break
+					} else if pixelID == 0 {
+						// Background, special case
+						colorLabels[pixelID] = v
+						break
+					}
+				}
+			}
+
+			// Make sure that all labels are known
+			lab, exists := colorLabels[pixelID]
+			if !exists {
+				return nil, pfx.Err(fmt.Errorf("Saw color %v (ID %v) but could not find this color in the label map %+v", c, pixelID, l))
+			}
+
+			outputCount[lab]++
+		}
+	}
+
+	return outputCount, nil
+}
