@@ -52,7 +52,7 @@ func main() {
 	flag.IntVar(&chunk, "chunk", 0, "1-based: which chunk to iterate over (if --chunksize is set).")
 	flag.BoolVar(&keepMissing, "missing", false, "Print missing genotypes? (Will disable printing of ref alleles)")
 	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
-	flag.Var(&sampleFields, "field", "Fields to keep (other than GT, which is automatically included). Pass once per additional field, e.g., --field DP --field TLOD")
+	flag.Var(&sampleFields, "field", "Fields to keep (other than GT, which is automatically included). Pass once per additional field, e.g., --field DP --field TLOD. Note that you can force a look at the INFO field by prefixing with `INFO_` - useful in cases such as 'DP' which can exist per sample and across the study in the INFO field.")
 
 	flag.Parse()
 

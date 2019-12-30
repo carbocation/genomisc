@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/brentp/vcfgo"
@@ -120,8 +121,9 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 			} else if field, ok := sample.Fields[requestedField]; ok {
 				// Field is a sample-level field?
 				w.SampleFields = append(w.SampleFields, null.NewString(field, true))
-			} else if _, err := variant.Info().Get(requestedField); err == nil {
+			} else if _, err := variant.Info().Get(strings.TrimPrefix(requestedField, "INFO_")); err == nil {
 				// Field is at the variant-level (within the INFO field)?
+				// Note that you can force a look at the INFO field by prefixing with INFO_
 				// w.SampleFields = append(w.SampleFields, null.NewString(fmt.Sprint(field), true))
 				// TODO: This does not correctly handle multiallelics (which yield an array, from which you should pick the alleleID'th allele)
 				w.SampleFields = append(w.SampleFields, null.NewString(string(vcfgo.NewInfoByte(variant.Info().Bytes(), nil).SGet(requestedField)), true))
