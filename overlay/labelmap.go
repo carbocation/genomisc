@@ -31,6 +31,29 @@ type LabelMap map[string]Label
 // left atrium is red (ID 1), it will produce an image that is all black, with
 // values #000000 for the background and #010101 for the left atrium.
 func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, error) {
+
+	// Because the HTML5 canvas can be imprecise, we need to map nearby colors
+	colorPalette := color.Palette{}
+	for _, v := range l.Sorted() {
+
+		// Create this label's color.Color based on its hex representation, and
+		// add it to our permitted color palette
+		col, err := nrgbaFromColorCode(v.Color)
+		if err != nil {
+			continue
+		}
+		colorPalette = append(colorPalette, col)
+
+		// Double check that our palette colors map back to themselves
+		r, g, b, _ := col.RGBA()
+		cl := fmt.Sprintf("#%02x%02x%02x", uint8(r), uint8(g), uint8(b))
+
+		// Background is special cased to be allowed to mismatch
+		if cl != "#000000" && cl != v.Color {
+			return nil, fmt.Errorf("Label ID %d (color %s) mapped to %s instead of its own color", v.ID, v.Color, cl)
+		}
+	}
+
 	// Map from the color code to the Label, with all of its attached
 	// information
 	colorLabels := make(map[color.Color]Label)
@@ -41,11 +64,15 @@ func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, 
 		for x := 0; x < bmpImage.Bounds().Max.X; x++ {
 
 			// Find the color at this pixel
-			c := bmpImage.At(x, y)
+			rawC := bmpImage.At(x, y)
 
 			// If we haven't yet mapped this point's color to a Label
 			// identifier, do so now:
-			if _, exists := colorLabels[c]; !exists {
+			if _, exists := colorLabels[rawC]; !exists {
+
+				// The exact color chosen by HTML5 may or may not exist, so we
+				// will choose the nearest one from our palette:
+				c := colorPalette[colorPalette.Index(rawC)]
 
 				// Create the hex string representation
 				r, g, b, _ := c.RGBA()
@@ -54,20 +81,20 @@ func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, 
 				// Look up the hex string representation and map it
 				for _, v := range l.Sorted() {
 					if v.Color == cl {
-						colorLabels[c] = v
+						colorLabels[rawC] = v
 						break
 					} else if cl == "#000000" && v.ID == 0 {
 						// Background, special case
-						colorLabels[c] = v
+						colorLabels[rawC] = v
 						break
 					}
 				}
 			}
 
 			// Make sure that all labels are known
-			lab, exists := colorLabels[c]
+			lab, exists := colorLabels[rawC]
 			if !exists {
-				return nil, fmt.Errorf("Saw color %v but could not find this color in the label map", c)
+				return nil, fmt.Errorf("Saw color %v but could not find a neighbor for this color in the label map palette", rawC)
 			}
 
 			// If
