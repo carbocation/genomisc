@@ -3,6 +3,7 @@ package overlay
 import (
 	"encoding/json"
 	"os"
+	"strings"
 )
 
 type JSONConfig struct {
@@ -30,6 +31,13 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 
 	if out.ImagePath != "" {
 		out.PreParsed = true
+	}
+
+	// Internally, go uses lower case for all colors, so we will too (while
+	// permitting the user to use mixed case)
+	for k, v := range out.Labels {
+		v.Color = strings.ToLower(out.Labels[k].Color)
+		out.Labels[k] = v
 	}
 
 	return out, err
