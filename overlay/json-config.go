@@ -3,6 +3,8 @@ package overlay
 import (
 	"encoding/json"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,5 +42,33 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 		out.Labels[k] = v
 	}
 
+	// Interpret ~ if present
+	out.ConfigPath = expandHomeDir(out.ConfigPath)
+	out.ImagePath = expandHomeDir(out.ImagePath)
+	out.ManifestPath = expandHomeDir(out.ManifestPath)
+	out.Project = expandHomeDir(out.Project)
+
 	return out, err
+}
+
+// Via https://stackoverflow.com/a/17617721/199475
+func expandHomeDir(path string) string {
+
+	usr, err := user.Current()
+	if err != nil {
+		return path
+	}
+
+	dir := usr.HomeDir
+
+	if path == "~" {
+		// In case of "~", which won't be caught by the "else if"
+		path = dir
+	} else if strings.HasPrefix(path, "~/") {
+		// Use strings.HasPrefix so we don't match paths like
+		// "/something/~/something/"
+		path = filepath.Join(dir, path[2:])
+	}
+
+	return path
 }
