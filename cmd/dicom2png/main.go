@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"flag"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -26,9 +27,43 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := run(inputPath, outputPath, manifest, includeOverlay); err != nil {
+		log.Fatalln(err)
+	}
+
+}
+
+func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
+
+	zipMap, err := getZipMap(manifest)
+	if err != nil {
+		return err
+	}
+
+	// Now iterate over the zips and print out the requested dicoms as images
+
+	concurrency := runtime.NumCPU()
+	sem := make(chan bool, concurrency)
+
+	for zipFile, dicomList := range zipMap {
+		sem <- true
+		go func(zipFile string, dicoms []string) {
+			ProcessOneZipFile(inputPath, outputPath, zipFile, dicoms, includeOverlay)
+			<-sem
+		}(zipFile, dicomList)
+	}
+
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
+	}
+
+	return nil
+}
+
+func getZipMap(manifest string) (map[string][]string, error) {
 	f, err := os.Open(manifest)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	defer f.Close()
 
@@ -36,14 +71,16 @@ func main() {
 	csvReader.Comma = '\t'
 	entries, err := csvReader.ReadAll()
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
-	zipFileCol, dicomFileCol := 0, 0
+	zipFileCol, dicomFileCol := -1, -1
 
-	concurrency := runtime.NumCPU()
-	sem := make(chan bool, concurrency)
-
+	// First, identify whether we are extracting multiple images from any zips.
+	// If so, it will be more efficient to open the zip one time and extract the
+	// desired images, rather than opening/closing the zip for each image
+	// (especially if over gcsfuse)
+	zipMap := make(map[string][]string) // map[zip_file][]dicom_file
 	for i, row := range entries {
 		if i == 0 {
 			for j, col := range row {
@@ -55,27 +92,57 @@ func main() {
 			}
 
 			continue
+		} else if zipFileCol < 0 || dicomFileCol < 0 {
+			return nil, fmt.Errorf("Did not identify zip_file or dicom_file in the header line of %s", manifest)
 		}
 
-		sem <- true
-		go func(zipStr, dicomStr string) {
-			if err := ProcessOneFile(inputPath, outputPath, zipStr, dicomStr, includeOverlay); err != nil {
-				log.Println(err.Error(), "Skipping file...")
-			}
-			<-sem
-		}(row[zipFileCol], row[dicomFileCol])
+		// Append to this zip file's list of individual dicom images to process
+		zipMap[row[zipFileCol]] = append(zipMap[row[zipFileCol]], row[dicomFileCol])
 	}
 
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
+	return zipMap, nil
+}
+
+func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) {
+
+	f, err := os.Open(filepath.Join(inputPath, zipName))
+	if err != nil {
+		log.Printf("Skipping zip %s due to err: %s", zipName, err)
+		return
+	}
+	defer f.Close()
+
+	// the zip reader wants to know the # of bytes in advance
+	nBytes, err := f.Stat()
+	if err != nil {
+		log.Printf("Skipping zip %s due to err: %s", zipName, err)
+		return
+	}
+
+	// The zip is now open, so we don't have to reopen/reclose for every dicom
+	for _, dicomName := range dicomList {
+		err := func(dicom string) error {
+			// TODO: Can consider optimizing further. This is an o(n^2)
+			// operation - but if you printed the Dicom image to PNG within this
+			// function, you could make it accept a map and then only iterate in
+			// o(n) time. Not sure this is a bottleneck yet.
+			img, err := ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+			if err != nil {
+				return err
+			}
+
+			return imgToPNG(img, outputPath, dicomName)
+		}(dicomName)
+
+		// Since we want to continue processing the zip even if one of its
+		// dicoms was bad, simply log the error.
+		if err != nil {
+			log.Printf("%v: skipping dicom %s in zip %s", err, dicomName, zipName)
+		}
 	}
 }
 
-func ProcessOneFile(inputPath, outputPath, zipName, dicomName string, includeOverlay bool) error {
-	img, err := ExtractDicomFromLocalFile(filepath.Join(inputPath, zipName), dicomName, includeOverlay)
-	if err != nil {
-		return err
-	}
+func imgToPNG(img image.Image, outputPath, dicomName string) error {
 
 	// Will output an RGBA image since that's apparently easier for FastAI to work with
 	size := img.Bounds().Size()
@@ -94,5 +161,9 @@ func ProcessOneFile(inputPath, outputPath, zipName, dicomName string, includeOve
 		return err
 	}
 
-	return png.Encode(f, colImg)
+	if err := png.Encode(f, colImg); err != nil {
+		return err
+	}
+
+	return nil
 }
