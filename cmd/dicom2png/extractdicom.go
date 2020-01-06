@@ -160,11 +160,12 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 
 			}
 
-			// Extract the overlay, if it exists
-			if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
-				log.Println("Found the Overlay")
+			// Extract the overlay, if it exists and we want it
+			if includeOverlay && elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
+				// log.Println("Found the Overlay")
 
-				log.Println("Overlay bounds:", nOverlayCols, nOverlayRows)
+				// log.Println("Overlay bounds:", nOverlayCols, nOverlayRows)
+				_, _ = nOverlayCols, nOverlayRows
 
 				// We're in the overlay data
 				for _, enclosed := range elem.Value {
@@ -182,7 +183,7 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 					// len(cellVals) )
 					overlayPixels = make([]int, n_bits*len(cellVals), n_bits*len(cellVals))
 
-					log.Println("Created a", len(overlayPixels), "array to hold the output")
+					// log.Println("Created a", len(overlayPixels), "array to hold the output")
 
 					for i := range cellVals {
 						byte_as_int := cellVals[i]

@@ -13,7 +13,15 @@ import (
 	"runtime"
 )
 
+// Special value that is to be set using ldflags
+// E.g.: go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"
+// Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
+var builddate string
+
 func main() {
+
+	fmt.Fprintf(os.Stderr, "This dicom2png binary was built at: %s\n", builddate)
+
 	var inputPath, outputPath, manifest string
 	var includeOverlay bool
 	flag.StringVar(&inputPath, "raw", "", "Path to the local folder containing the raw zip files")
