@@ -46,6 +46,16 @@ func main() {
 		return
 	}
 
+	if BioMartFilename == "" {
+		fmt.Fprintln(os.Stderr, "Valid options for --assembly include:")
+		keys := make([]string, 0, len(assemblies))
+		for key := range assemblies {
+			keys = append(keys, key)
+		}
+		fmt.Fprintln(os.Stderr, strings.Join(keys, ", "))
+		os.Exit(1)
+	}
+
 	log.Println("Using", BioMartFilename)
 	if tss {
 		log.Println("Measuring distance from the transcript start site")

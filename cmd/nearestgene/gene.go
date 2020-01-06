@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gobuffalo/packr"
+	"github.com/carbocation/pfx"
+	"github.com/gobuffalo/packr/v2"
 )
 
 const (
@@ -59,9 +60,13 @@ func ReadSitesFile(fileName string) ([]string, error) {
 
 // FetchGenes pulls in all transcripts
 func FetchGenes() ([]Gene, error) {
-	lookups := packr.NewBox("./lookups")
+	lookups := packr.New("Human Genome Assembly", "./lookups")
 
-	file := lookups.Bytes(BioMartFilename)
+	file, err := lookups.Find(BioMartFilename)
+	if err != nil {
+		return nil, pfx.Err(err)
+	}
+
 	buf := bytes.NewBuffer(file)
 	cr := csv.NewReader(buf)
 	cr.Comma = '\t'
