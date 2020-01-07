@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	BufferSize = 4096
+	BufferSize = 4 * 4096
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 )
 
@@ -429,6 +429,7 @@ func ManifestForDicom(path string) error {
 		"echo_time",
 		"nominal_interval",
 		"slice_location",
+		"trigger_time",
 	)
 
 	concurrency := 4 * runtime.NumCPU()
@@ -507,7 +508,7 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		overlayText = "HasOverlay"
 	}
 
-	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s\t%s\t%s\t%s\t%v\t%s\t%s",
+	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s\t%s\t%s\t%s\t%v\t%s\t%s\t%s",
 		row.SampleID, row.FieldID, row.Instance, row.Index, row.ZipFile,
 		row.Filename, row.DicomMeta.SeriesDescription, studyDate.Format("2006-01-02"),
 		row.DicomMeta.InstanceNumber, overlayText, row.DicomMeta.OverlayFraction, row.DicomMeta.OverlayRows, row.DicomMeta.OverlayCols,
@@ -515,6 +516,6 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		row.DicomMeta.PatientX, row.DicomMeta.PatientY, row.DicomMeta.PatientZ, row.DicomMeta.PixelHeightMM, row.DicomMeta.PixelWidthMM,
 		row.DicomMeta.SliceThicknessMM,
 		row.DicomMeta.SeriesNumber, row.DicomMeta.AcquisitionNumber, row.DicomMeta.DeviceSerialNumber, row.DicomMeta.StationName, row.DicomMeta.SoftwareVersions,
-		row.DicomMeta.EchoTime, row.DicomMeta.NominalInterval, row.DicomMeta.SliceLocation)
+		row.DicomMeta.EchoTime, row.DicomMeta.NominalInterval, row.DicomMeta.SliceLocation, row.DicomMeta.TriggerTime)
 	return nil
 }

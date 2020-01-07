@@ -36,6 +36,7 @@ type DicomMeta struct {
 	EchoTime           string
 	NominalInterval    string
 	SliceLocation      string
+	TriggerTime        string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -198,6 +199,14 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			for k, v := range elem.Value {
 				if k == 0 {
 					output.SliceLocation = v.(string)
+				}
+			}
+		}
+
+		if elem.Tag == dicomtag.TriggerTime {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.TriggerTime = v.(string)
 				}
 			}
 		}
