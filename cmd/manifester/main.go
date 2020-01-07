@@ -31,9 +31,14 @@ func main() {
 	var path string
 	var filetypes string
 
-	flag.StringVar(&path, "path", "./", "Path where the UKBB bulk .zip files are being held.")
+	flag.StringVar(&path, "path", "", "Path where the UKBB bulk .zip files are being held.")
 	flag.StringVar(&filetypes, "type", "dicomzip", "File type. Options include 'dicomzip' (default), '12leadekg', and 'exerciseekg' (for EKG data).")
 	flag.Parse()
+
+	if path == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
 
 	if filetypes == "exerciseekg" {
 		if err := ManifestForExerciseEKG(path); err != nil {
@@ -394,7 +399,7 @@ func ManifestForDicom(path string) error {
 		return pfx.Err(err)
 	}
 
-	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		"sample_id",
 		"field_id",
 		"instance",
@@ -422,6 +427,8 @@ func ManifestForDicom(path string) error {
 		"station_name",
 		"software_versions",
 		"echo_time",
+		"nominal_interval",
+		"slice_location",
 	)
 
 	concurrency := 4 * runtime.NumCPU()
@@ -500,7 +507,7 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		overlayText = "HasOverlay"
 	}
 
-	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s\t%s\t%s\t%s\t%v",
+	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\t%s\t%s\t%s\t%s\t%v\t%s\t%s",
 		row.SampleID, row.FieldID, row.Instance, row.Index, row.ZipFile,
 		row.Filename, row.DicomMeta.SeriesDescription, studyDate.Format("2006-01-02"),
 		row.DicomMeta.InstanceNumber, overlayText, row.DicomMeta.OverlayFraction, row.DicomMeta.OverlayRows, row.DicomMeta.OverlayCols,
@@ -508,6 +515,6 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		row.DicomMeta.PatientX, row.DicomMeta.PatientY, row.DicomMeta.PatientZ, row.DicomMeta.PixelHeightMM, row.DicomMeta.PixelWidthMM,
 		row.DicomMeta.SliceThicknessMM,
 		row.DicomMeta.SeriesNumber, row.DicomMeta.AcquisitionNumber, row.DicomMeta.DeviceSerialNumber, row.DicomMeta.StationName, row.DicomMeta.SoftwareVersions,
-		row.DicomMeta.EchoTime)
+		row.DicomMeta.EchoTime, row.DicomMeta.NominalInterval, row.DicomMeta.SliceLocation)
 	return nil
 }

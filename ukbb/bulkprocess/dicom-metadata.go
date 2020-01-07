@@ -34,6 +34,8 @@ type DicomMeta struct {
 	SoftwareVersions   string
 	StationName        string
 	EchoTime           string
+	NominalInterval    string
+	SliceLocation      string
 }
 
 // Takes in a dicom file (in bytes), emit meta-information
@@ -183,7 +185,33 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 		if elem.Tag == dicomtag.EchoTime {
 			output.EchoTime = elem.Value[0].(string)
 		}
+
+		if elem.Tag == dicomtag.NominalInterval {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.NominalInterval = v.(string)
+				}
+			}
+		}
+
+		if elem.Tag == dicomtag.SliceLocation {
+			for k, v := range elem.Value {
+				if k == 0 {
+					output.SliceLocation = v.(string)
+				}
+			}
+		}
 	}
+
+	// for _, elem := range parsedData.Elements {
+	// 	tagInfo, err := dicomtag.Find(elem.Tag)
+	// 	if err != nil {
+	// 		continue
+	// 	}
+	// 	fmt.Println("Tag:", tagInfo, "Value:", elem.Value)
+	// 	time.Sleep(10 * time.Millisecond)
+	// }
+	// panic("Test")
 
 	return output, nil
 }
