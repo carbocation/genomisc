@@ -59,7 +59,9 @@ func (l *List) Extrema(adjacentN, discardN int) (Result, error) {
 	out.InstanceNumberAtMax = max.InstanceNumber
 	out.InstanceNumberAtMin = min.InstanceNumber
 	out.Max = max.TrueMetric
+	out.SmoothedMax = max.Metric
 	out.Min = min.TrueMetric
+	out.SmoothedMin = min.Metric
 	out.Discards = discardN
 	out.Window = adjacentN
 

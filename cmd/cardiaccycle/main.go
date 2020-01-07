@@ -17,8 +17,10 @@ type Result struct {
 	Column              string
 	InstanceNumberAtMin uint16
 	Min                 float64
+	SmoothedMin         float64
 	InstanceNumberAtMax uint16
 	Max                 float64
+	SmoothedMax         float64
 	Window              int
 	Discards            int
 }
@@ -75,9 +77,32 @@ func run(input string) error {
 		results = append(results, res)
 	}
 
-	fmt.Println(strings.Join([]string{"sample_id", "column", "instance_number_at_min", "min", "instance_number_at_max", "max", "window", "discards"}, "\t"))
+	fmt.Println(strings.Join([]string{
+		"sample_id",
+		"column",
+		"instance_number_at_min",
+		"min",
+		"smoothed_min",
+		"instance_number_at_max",
+		"max",
+		"smoothed_max",
+		"window",
+		"discards"},
+		"\t"))
+
 	for _, v := range results {
-		fmt.Printf("%s\t%s\t%d\t%f\t%d\t%f\t%d\t%d\n", v.SampleID, v.Column, v.InstanceNumberAtMin, v.Min, v.InstanceNumberAtMax, v.Max, v.Window, v.Discards)
+		fmt.Printf("%s\t%s\t%d\t%f\t%f\t%d\t%f\t%f\t%d\t%d\n",
+			v.SampleID,
+			v.Column,
+			v.InstanceNumberAtMin,
+			v.Min,
+			v.SmoothedMin,
+			v.InstanceNumberAtMax,
+			v.Max,
+			v.SmoothedMax,
+			v.Window,
+			v.Discards,
+		)
 	}
 
 	return nil
