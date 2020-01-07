@@ -8,60 +8,9 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
-
-type List struct {
-	*ring.Ring
-}
-
-func entryValue(entry interface{}) Entry {
-	return entry.(Entry)
-}
-
-func (l *List) GetAdjacent(n int) []Entry {
-	out := make([]Entry, 0, 1+2*n)
-
-	out = append(out, entryValue(l.Value))
-
-	current := l.Ring
-	for i := 0; i < n; i++ {
-		current = current.Prev()
-		out = append(out, entryValue(current.Value))
-	}
-
-	current = l.Ring
-	for i := 0; i < n; i++ {
-		current = current.Next()
-		out = append(out, entryValue(current.Value))
-	}
-
-	return out
-}
-
-type Entry struct {
-	InstanceNumber uint16
-	Metric         float64
-}
-
-func discardExtremes(entries []Entry, discardN int) ([]Entry, error) {
-	if discardN >= len(entries) {
-		return nil, fmt.Errorf("Tried to discard %d but only have %d", discardN, len(entries))
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Metric < entries[j].Metric
-	})
-
-	out := make([]Entry, 0, len(entries)-2*discardN)
-	for i := discardN; i < len(entries)-discardN; i++ {
-		out = append(out, entries[i])
-	}
-
-	return out, nil
-}
 
 type Result struct {
 	SampleID            string
@@ -74,65 +23,10 @@ type Result struct {
 	Discards            int
 }
 
-func median(entries []Entry) float64 {
-	floats := make([]float64, 0, len(entries))
-	for _, v := range entries {
-		floats = append(floats, v.Metric)
-	}
-
-	sort.Float64s(floats)
-
-	mIdx := len(floats) / 2
-
-	if len(floats)%2 == 1 {
-		return floats[mIdx]
-	}
-
-	return (floats[mIdx-1] + floats[mIdx]) / 2.0
-
-}
-
 type synthEntry struct {
 	InstanceNumber uint16
 	Metric         float64
 	TrueMetric     float64
-}
-
-func (l *List) Extrema(adjacentN, discardN int) (Result, error) {
-	out := Result{}
-
-	synthetic := make([]synthEntry, 0, l.Len())
-
-	for i := 0; i < l.Len(); i++ {
-		thisEntry := entryValue(l.Value)
-
-		adj := l.GetAdjacent(2)
-		mapped, err := discardExtremes(adj, 1)
-		if err != nil {
-			return out, err
-		}
-
-		synthEntry := synthEntry{InstanceNumber: thisEntry.InstanceNumber, Metric: median(mapped), TrueMetric: thisEntry.Metric}
-		synthetic = append(synthetic, synthEntry)
-
-		l.Ring = l.Next()
-	}
-
-	sort.Slice(synthetic, func(i, j int) bool {
-		return synthetic[i].Metric < synthetic[j].Metric
-	})
-
-	max := synthetic[len(synthetic)-1]
-	min := synthetic[0]
-
-	out.InstanceNumberAtMax = max.InstanceNumber
-	out.InstanceNumberAtMin = min.InstanceNumber
-	out.Max = max.TrueMetric
-	out.Min = min.TrueMetric
-	out.Discards = discardN
-	out.Window = adjacentN
-
-	return out, nil
 }
 
 const (
@@ -143,7 +37,7 @@ const (
 
 func main() {
 	var input string
-	flag.StringVar(&input, "file", "", "Comma-delimited file with 3 columns: sample_id, instance_number, and a metric")
+	flag.StringVar(&input, "file", "", "Comma-delimited file with a header and 3 columns in order: sample_id, instance_number, and a metric")
 
 	flag.Parse()
 
