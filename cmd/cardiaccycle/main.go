@@ -62,18 +62,6 @@ func run(input string) error {
 		return err
 	}
 
-	countMap := make(map[int]int)
-	for _, v := range sampleMap {
-		// if len(countMap) == 0 {
-		// 	log.Println(v)
-		// }
-		countMap[len(v)]++
-	}
-
-	// fmt.Println(len(sampleMap))
-	// fmt.Println(countMap)
-	// fmt.Println(len(ringMap))
-
 	results := make([]Result, 0, len(ringMap))
 
 	for sampleID, v := range ringMap {
