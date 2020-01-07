@@ -87,13 +87,9 @@ func sampleMapToRing(sampleMap map[string]map[uint16]float64) (map[string]*List,
 	out := make(map[string]*List)
 
 	for sampleID, counts := range sampleMap {
-		if len(counts) != 50 {
-			continue
-		}
+		cl := &List{ring.New(len(counts))}
 
-		cl := &List{ring.New(50)}
-
-		for i := 1; i <= 50; i++ {
+		for i := 1; i <= cl.Len(); i++ {
 			cl.Ring.Value = Entry{InstanceNumber: uint16(i), Metric: counts[uint16(i)]}
 			cl.Ring = cl.Next()
 		}
