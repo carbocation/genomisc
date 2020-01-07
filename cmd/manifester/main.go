@@ -14,12 +14,13 @@ import (
 
 	"golang.org/x/net/html/charset"
 
+	"github.com/carbocation/genomisc"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 )
 
 var (
-	BufferSize = 4 * 4096
+	BufferSize = 4096
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 )
 
@@ -28,16 +29,29 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var path string
+	var path, output string
 	var filetypes string
 
 	flag.StringVar(&path, "path", "", "Path where the UKBB bulk .zip files are being held.")
 	flag.StringVar(&filetypes, "type", "dicomzip", "File type. Options include 'dicomzip' (default), '12leadekg', and 'exerciseekg' (for EKG data).")
+	flag.StringVar(&output, "output", "", "Output file. If blank, output will go to STDOUT.")
 	flag.Parse()
 
 	if path == "" {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Replace the output target with a file, if desired
+	if output != "" {
+		outF, err := os.Create(genomisc.ExpandHome(output))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer outF.Close()
+
+		STDOUT = bufio.NewWriterSize(outF, BufferSize)
+		defer STDOUT.Flush()
 	}
 
 	if filetypes == "exerciseekg" {
