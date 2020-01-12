@@ -25,10 +25,12 @@ func init() {
 }
 
 func main() {
-	var overlayPath, jsonConfig string
+	var overlayPath, jsonConfig, manifest, suffix string
 
-	flag.StringVar(&overlayPath, "overlay", "", "Path to encoded overlay image")
+	flag.StringVar(&overlayPath, "overlay", "", "Path to folder with encoded overlay images")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
+	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
+	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -42,13 +44,45 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(config, overlayPath); err != nil {
+	if manifest != "" {
+
+		if err := runSlice(config, overlayPath, suffix, manifest); err != nil {
+			log.Fatalln(err)
+		}
+
+		return
+	}
+
+	if err := runFolder(config, overlayPath); err != nil {
 		log.Fatalln(err)
 	}
 
 }
 
-func run(config overlay.JSONConfig, overlayPath string) error {
+func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) error {
+
+	dicoms, err := getDicomSlice(manifest)
+	if err != nil {
+		return err
+	}
+
+	printHeader(config)
+
+	// Process every image in the manifest
+	for i, file := range dicoms {
+		if err := processOneImage(overlayPath+"/"+file+suffix, file, config); err != nil {
+			return err
+		}
+
+		if (i+1)%10000 == 0 {
+			log.Printf("Processed %d images\n", i+1)
+		}
+	}
+
+	return nil
+}
+
+func runFolder(config overlay.JSONConfig, overlayPath string) error {
 
 	files, err := scanFolder(overlayPath)
 	if err != nil {
@@ -124,6 +158,7 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 
 		if _, exists := countMap[v]; !exists {
 			entry = append(entry, "0")
+			entry = append(entry, "0") // connected components
 			continue
 		}
 

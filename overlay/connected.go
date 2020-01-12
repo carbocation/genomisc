@@ -57,7 +57,7 @@ func NewConnected(img image.Image) (Connected, error) {
 }
 
 func (c Connected) Count(l LabelMap) (map[Label]int, error) {
-	uf := unionfind.New(255)
+	uf := unionfind.NewThreadSafeUnionFind(25000)
 
 	var nextLabel uint32 = 1
 	for y, row := range c.imgData {
@@ -134,10 +134,11 @@ func (c Connected) Count(l LabelMap) (map[Label]int, error) {
 		}
 	}
 
+	// Iterate over the full list of possible labels so we can be sure that each
+	// one has a representation in our output
 	out := make(map[Label]int)
-	for id, v := range labels {
-		label := mapper[id]
-		out[label] = len(v)
+	for _, label := range l.Sorted() {
+		out[label] = len(labels[uint8(label.ID)])
 	}
 
 	return out, nil
