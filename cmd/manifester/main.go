@@ -514,7 +514,9 @@ func ManifestForDicom(path string) error {
 func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 	studyDate, err := row.ParsedDate()
 	if err != nil {
-		return err
+		log.Println("Ignoring date parsing error:", err)
+		// return err
+		studyDate = time.Time{}
 	}
 
 	overlayText := "NoOverlay"

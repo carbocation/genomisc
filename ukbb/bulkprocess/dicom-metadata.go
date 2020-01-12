@@ -160,31 +160,52 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 		}
 
 		if elem.Tag == dicomtag.Rows {
-			output.Rows = int(elem.Value[0].(uint16))
+			for _, v := range elem.Value {
+				output.Rows = int(v.(uint16))
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.Columns {
-			output.Cols = int(elem.Value[0].(uint16))
+			for _, v := range elem.Value {
+				output.Cols = int(v.(uint16))
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.AcquisitionNumber {
-			output.AcquisitionNumber = elem.Value[0].(string)
+			for _, v := range elem.Value {
+				output.AcquisitionNumber = v.(string)
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.DeviceSerialNumber {
-			output.DeviceSerialNumber = elem.Value[0].(string)
+			for _, v := range elem.Value {
+				output.DeviceSerialNumber = v.(string)
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.SoftwareVersions {
-			output.SoftwareVersions = elem.Value[0].(string)
+			for _, v := range elem.Value {
+				output.SoftwareVersions = v.(string)
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.StationName {
-			output.StationName = elem.Value[0].(string)
+			for _, v := range elem.Value {
+				output.StationName = v.(string)
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.EchoTime {
-			output.EchoTime = elem.Value[0].(string)
+			for _, v := range elem.Value {
+				output.EchoTime = v.(string)
+				break
+			}
 		}
 
 		if elem.Tag == dicomtag.NominalInterval {
