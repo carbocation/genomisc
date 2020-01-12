@@ -74,7 +74,7 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) e
 			return err
 		}
 
-		if (i+1)%10000 == 0 {
+		if (i+1)%1000 == 0 {
 			log.Printf("Processed %d images\n", i+1)
 		}
 	}
@@ -101,7 +101,7 @@ func runFolder(config overlay.JSONConfig, overlayPath string) error {
 			return err
 		}
 
-		if (i+1)%10000 == 0 {
+		if (i+1)%1000 == 0 {
 			log.Printf("Processed %d images\n", i+1)
 		}
 	}
