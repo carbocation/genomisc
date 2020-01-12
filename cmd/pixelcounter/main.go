@@ -58,13 +58,17 @@ func run(config overlay.JSONConfig, overlayPath string) error {
 	printHeader(config)
 
 	// Process every image in the folder
-	for _, file := range files {
+	for i, file := range files {
 		if file.IsDir() {
 			continue
 		}
 
 		if err := processOneImage(overlayPath+"/"+file.Name(), file.Name(), config); err != nil {
 			return err
+		}
+
+		if (i+1)%10000 == 0 {
+			log.Printf("Processed %d images\n", i+1)
 		}
 	}
 
