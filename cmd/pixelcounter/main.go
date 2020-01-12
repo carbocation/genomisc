@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -68,15 +69,26 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) e
 
 	printHeader(config)
 
+	concurrency := 4 * runtime.NumCPU()
+	sem := make(chan bool, concurrency)
+
 	// Process every image in the manifest
 	for i, file := range dicoms {
-		if err := processOneImage(overlayPath+"/"+file+suffix, file, config); err != nil {
-			return err
-		}
+		sem <- true
+		go func(file string) {
+			if err := processOneImage(overlayPath+"/"+file+suffix, file, config); err != nil {
+				log.Println(err)
+			}
+			<-sem
+		}(file)
 
 		if (i+1)%1000 == 0 {
 			log.Printf("Processed %d images\n", i+1)
 		}
+	}
+
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
 	}
 
 	return nil
@@ -91,19 +103,30 @@ func runFolder(config overlay.JSONConfig, overlayPath string) error {
 
 	printHeader(config)
 
+	concurrency := 4 * runtime.NumCPU()
+	sem := make(chan bool, concurrency)
+
 	// Process every image in the folder
 	for i, file := range files {
 		if file.IsDir() {
 			continue
 		}
 
-		if err := processOneImage(overlayPath+"/"+file.Name(), file.Name(), config); err != nil {
-			return err
-		}
+		sem <- true
+		go func(file string) {
+			if err := processOneImage(overlayPath+"/"+file, file, config); err != nil {
+				log.Println(err)
+			}
+			<-sem
+		}(file.Name())
 
 		if (i+1)%1000 == 0 {
 			log.Printf("Processed %d images\n", i+1)
 		}
+	}
+
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
 	}
 
 	return nil
