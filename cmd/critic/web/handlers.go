@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/gorilla/mux"
 )
 
@@ -81,7 +82,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Now we have our compressed zip data in an io.ReaderAt, regardless of its
 	// origin. The zip library can now consume it.
-	im, err := ExtractDicomFromReaderAt(f, nbytes, manifestEntry.Dicom, showOverlay)
+	im, err := bulkprocess.ExtractDicomFromReaderAt(f, nbytes, manifestEntry.Dicom, showOverlay)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return

@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 // Special value that is to be set using ldflags
@@ -134,7 +136,7 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			// operation - but if you printed the Dicom image to PNG within this
 			// function, you could make it accept a map and then only iterate in
 			// o(n) time. Not sure this is a bottleneck yet.
-			img, err := ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+			img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
 			if err != nil {
 				return err
 			}
