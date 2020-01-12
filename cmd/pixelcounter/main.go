@@ -77,6 +77,7 @@ func printHeader(config overlay.JSONConfig) {
 		formatted := fmt.Sprintf("ID%d_%s", v.ID, strings.ReplaceAll(v.Label, " ", "_"))
 
 		header = append(header, formatted)
+		header = append(header, fmt.Sprintf("%s_components", formatted))
 	}
 
 	fmt.Println(strings.Join(header, "\t"))
@@ -104,6 +105,17 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 		return err
 	}
 
+	// Count connected components
+	connected, err := overlay.NewConnected(rawOverlayImg)
+	if err != nil {
+		return err
+	}
+
+	connectedCounts, err := connected.Count(config.Labels)
+	if err != nil {
+		return err
+	}
+
 	for _, v := range config.Labels.Sorted() {
 
 		if _, exists := countMap[v]; !exists {
@@ -112,21 +124,10 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 		}
 
 		entry = append(entry, strconv.Itoa(countMap[v]))
+		entry = append(entry, strconv.Itoa(connectedCounts[v]))
 	}
 
 	fmt.Println(strings.Join(entry, "\t"))
 
 	return nil
 }
-
-// func openImage(pathTo string) (image.Image, error) {
-// 	f, err := os.Open(pathTo)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer f.Close()
-
-// 	img, _, err := image.Decode(f)
-
-// 	return img, err
-// }
