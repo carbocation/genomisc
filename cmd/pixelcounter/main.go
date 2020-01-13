@@ -141,6 +141,8 @@ func printHeader(config overlay.JSONConfig) {
 		header = append(header, fmt.Sprintf("%s_components", formatted))
 	}
 
+	header = append(header, "total_connected_components")
+
 	fmt.Println(strings.Join(header, "\t"))
 }
 
@@ -188,6 +190,12 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 		entry = append(entry, strconv.Itoa(countMap[v]))
 		entry = append(entry, strconv.Itoa(connectedCounts[v]))
 	}
+
+	totalComponents := 0
+	for _, v := range connectedCounts {
+		totalComponents += v
+	}
+	entry = append(entry, strconv.Itoa(totalComponents))
 
 	fmt.Println(strings.Join(entry, "\t"))
 
