@@ -3,7 +3,7 @@ package overlay
 import (
 	"image"
 
-	"github.com/carbocation/unionfind"
+	"github.com/theodesp/unionfind"
 )
 
 // Following the guide at
