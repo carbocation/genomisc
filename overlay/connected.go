@@ -71,23 +71,21 @@ func (c Connected) Count(l LabelMap) (map[Label]int, error) {
 				c.labels[y][x] = valUp
 			}
 
-			// If the left pixel's label is lower than that of the top pixel,
-			// use the left pixel instead - plus now we know these two labels
-			// need to be joined.
 			foundLeft, val := c.LabelLeft(x, y)
 			if foundLeft {
 				found = true
+				// This overrides the pixel if it was set by foundUp, but since
+				// we will find their shared root in the second pass, there is
+				// no reason to check or abort this override step.
+				c.labels[y][x] = val
+
 				if foundUp {
-
-					if val < c.labels[y][x] {
-						c.labels[y][x] = val
-
-						uf.Union(int(val), int(valUp))
-					} else {
-						uf.Union(int(valUp), int(val))
-					}
-				} else {
-					c.labels[y][x] = val
+					// If the left pixel's label differs from that of the top
+					// pixel, now we know these two labels need to be joined.
+					// Keeping the lower value here seems to be recommended but,
+					// as far as I can tell, is irrelevant because we check all
+					// roots in the second pass.
+					uf.Union(int(val), int(valUp))
 				}
 			}
 
@@ -95,7 +93,8 @@ func (c Connected) Count(l LabelMap) (map[Label]int, error) {
 				continue
 			}
 
-			// If not, it gets its own label
+			// If neither neighbor is a candidate root label, then this pixel
+			// gets its own label.
 			c.labels[y][x] = nextLabel
 			nextLabel++
 		}
@@ -104,14 +103,17 @@ func (c Connected) Count(l LabelMap) (map[Label]int, error) {
 	// Now reconcile the adjacent labels
 	for y, row := range c.labels {
 		for x, v := range row {
-			if root := uf.Root(int(v)); root < 0 {
+
+			root := uf.Root(int(v))
+			if root < 0 {
 				// No adjacent labels
 				continue
-			} else {
-				if root32 := uint32(root); root32 < v {
-					c.labels[y][x] = root32
-				}
 			}
+
+			// If a root exists, replace this label with the root label. The
+			// root isn't guaranteed to be numerically the smallest entry in its
+			// tree, so no value checks are done here.
+			c.labels[y][x] = uint32(root)
 		}
 	}
 
