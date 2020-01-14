@@ -14,6 +14,7 @@ import (
 
 type Result struct {
 	SampleID            string
+	SeriesNumber        string
 	Column              string
 	InstanceNumberAtMin uint16
 	Min                 float64
@@ -33,13 +34,14 @@ type synthEntry struct {
 
 const (
 	SampleID = iota
+	SeriesNumber
 	InstanceNumber
 	Metric
 )
 
 func main() {
 	var input string
-	flag.StringVar(&input, "file", "", "Comma-delimited file with a header and 3 columns in order: sample_id, instance_number, and a metric")
+	flag.StringVar(&input, "file", "", "Comma-delimited file with a header and 4 columns in order: sample_id, series_number, instance_number, and a metric")
 
 	flag.Parse()
 
@@ -71,7 +73,8 @@ func run(input string) error {
 		if err != nil {
 			return err
 		}
-		res.SampleID = sampleID
+		res.SampleID = sampleID.SampleID
+		res.SeriesNumber = sampleID.SeriesNumber
 		res.Column = colName
 
 		results = append(results, res)
@@ -79,6 +82,7 @@ func run(input string) error {
 
 	fmt.Println(strings.Join([]string{
 		"sample_id",
+		"series_number",
 		"column",
 		"instance_number_at_min",
 		"min",
@@ -91,8 +95,9 @@ func run(input string) error {
 		"\t"))
 
 	for _, v := range results {
-		fmt.Printf("%s\t%s\t%d\t%f\t%f\t%d\t%f\t%f\t%d\t%d\n",
+		fmt.Printf("%s\t%s\t%s\t%d\t%f\t%f\t%d\t%f\t%f\t%d\t%d\n",
 			v.SampleID,
+			v.SeriesNumber,
 			v.Column,
 			v.InstanceNumberAtMin,
 			v.Min,
@@ -108,8 +113,8 @@ func run(input string) error {
 	return nil
 }
 
-func sampleMapToRing(sampleMap map[string]map[uint16]float64) (map[string]*List, error) {
-	out := make(map[string]*List)
+func sampleMapToRing(sampleMap map[SeriesSample]map[uint16]float64) (map[SeriesSample]*List, error) {
+	out := make(map[SeriesSample]*List)
 
 	for sampleID, counts := range sampleMap {
 		cl := &List{ring.New(len(counts))}
@@ -125,15 +130,13 @@ func sampleMapToRing(sampleMap map[string]map[uint16]float64) (map[string]*List,
 	return out, nil
 }
 
-func fetchSampleMap(input string) (map[string]map[uint16]float64, string, error) {
-	colName := ""
-
+func fetchSampleMap(input string) (sampleMap map[SeriesSample]map[uint16]float64, colName string, err error) {
 	f, err := os.Open(input)
 	if err != nil {
 		return nil, colName, err
 	}
 
-	sampleMap := make(map[string]map[uint16]float64) // map[sample_id] contains => map[instance_number]metric
+	sampleMap = make(map[SeriesSample]map[uint16]float64) // map[sample_id] contains => map[instance_number]metric
 
 	r := csv.NewReader(f)
 	for i := 0; ; i++ {
@@ -146,15 +149,20 @@ func fetchSampleMap(input string) (map[string]map[uint16]float64, string, error)
 
 		if i == 0 {
 			// Skip the header
-			colName = line[2]
+			colName = line[Metric]
 			continue
 		}
 
-		if len(line) != 3 {
-			return nil, colName, fmt.Errorf("Expected 3 columns, got %d", len(line))
+		if len(line) != 4 {
+			return nil, colName, fmt.Errorf("Expected 4 columns, got %d", len(line))
 		}
 
-		instanceMap := sampleMap[line[SampleID]]
+		samp := SeriesSample{
+			SampleID:     line[SampleID],
+			SeriesNumber: line[SeriesNumber],
+		}
+
+		instanceMap := sampleMap[samp]
 		if instanceMap == nil {
 			instanceMap = make(map[uint16]float64)
 		}
@@ -171,7 +179,7 @@ func fetchSampleMap(input string) (map[string]map[uint16]float64, string, error)
 
 		instanceMap[uint16(inst)] = metric
 
-		sampleMap[line[SampleID]] = instanceMap
+		sampleMap[samp] = instanceMap
 	}
 
 	return sampleMap, colName, nil
