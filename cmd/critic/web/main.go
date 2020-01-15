@@ -36,12 +36,12 @@ func main() {
 		//syscall.SIGINFO,
 	)
 
-	var imageSuffix string
+	var preParsed bool
 	manifest := flag.String("manifest", "", "Tab-delimited manifest file which contains a zip_file and a dicom_file column (at least).")
 	dicomRoot := flag.String("dicom-path", "", "Root path under which all DICOM zip files sit. If empty, folder where manifest file ")
 	outputPath := flag.String("output", "", "Path to a file where all output will be written. Will be created if it does not yet exist.")
 	port := flag.Int("port", 9019, "Port for HTTP server")
-	flag.StringVar(&imageSuffix, "suffix", "", "(Optiona) Image suffix to append to the dicom name (useful if images are pre-parsed as PNGs, etc)")
+	flag.BoolVar(&preParsed, "preparsed", false, "(Optiona) If true, looks for pre-parsed images under ./dicom_pngs or ./merged_pngs under the ./output folder (useful if images are pre-parsed as PNGs)")
 	//dbName := flag.String("db_name", "pubrank", "Name of the database schema to connect to")
 	flag.Parse()
 
@@ -77,7 +77,7 @@ func main() {
 		ManifestPath: *manifest,
 		DicomRoot:    *dicomRoot,
 		manifest:     sortedAnnotatedManifest,
-		ImageSuffix:  imageSuffix,
+		PreParsed:    preParsed,
 	}
 
 	global.log.Println("Launching", global.Site)

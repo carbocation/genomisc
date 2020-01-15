@@ -54,6 +54,7 @@ func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCl
 }
 
 type ReaderAtCloser interface {
+	io.Reader
 	io.ReaderAt
 	io.Closer
 }
@@ -63,6 +64,18 @@ type GSReaderAtCloser struct {
 	*storage.ObjectHandle
 	Context context.Context
 	Closer  *func() error
+	Reader  *storage.Reader
+}
+
+func (o *GSReaderAtCloser) Read(p []byte) (n int, err error) {
+	if o.Reader == nil {
+		o.Reader, err = o.NewReader(o.Context)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return o.Reader.Read(p)
 }
 
 // ReadAt satisfies io.ReaderAt. Note that this is dependent upon making p a

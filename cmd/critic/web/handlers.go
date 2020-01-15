@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"image"
 	"image/png"
 	"log"
 	"net/http"
@@ -72,13 +73,27 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		showOverlay = false
 	}
 
-	// // Read the zip file either from a local file, or from Google storage,
-	// depending on the prefix you provide.
-	im, err := bulkprocess.ExtractDicomFromGoogleStorage(
-		fmt.Sprintf("%s/%s", h.Global.DicomRoot, manifestEntry.Zip),
-		manifestEntry.Dicom,
-		showOverlay,
-		h.Global.storageClient)
+	var im image.Image
+
+	if !h.Global.PreParsed {
+		// Read the zip file either from a local file, or from Google storage,
+		// depending on the prefix you provide.
+		im, err = bulkprocess.ExtractDicomFromGoogleStorage(
+			fmt.Sprintf("%s/%s", h.Global.DicomRoot, manifestEntry.Zip),
+			manifestEntry.Dicom,
+			showOverlay,
+			h.Global.storageClient)
+	} else {
+		// If there is a suffix, we're directly reading an image, not through a
+		// zipped DICOM
+
+		// TODO: Stop hardcoding the subfolders and suffixes - make this configurable
+		if showOverlay {
+			im, err = bulkprocess.ExtractImageFromGoogleStorage(manifestEntry.Dicom, ".png.overlay.png", h.Global.DicomRoot+"/merged_pngs", h.Global.storageClient)
+		} else {
+			im, err = bulkprocess.ExtractImageFromGoogleStorage(manifestEntry.Dicom, ".png", h.Global.DicomRoot+"/dicom_pngs", h.Global.storageClient)
+		}
+	}
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return
