@@ -118,12 +118,13 @@ func (c Connected) Count(l LabelMap) (map[Label]int, error) {
 	}
 
 	// Count number of components per label
-	labels := make(map[uint8]map[uint32]struct{})
-	mapper := make(map[uint8]Label)
+	labels := make(map[uint8]map[uint32]struct{}) //map[labelID] => map[(label, connected component)]exists
 	for _, v := range l.Sorted() {
 		labels[uint8(v.ID)] = make(map[uint32]struct{})
-		mapper[uint8(v.ID)] = v
 	}
+
+	// Each pixel is now marked with its corresponding [label, connected]
+	// component tuple.
 	for y, row := range c.labels {
 		for x, v := range row {
 			// Original label ID:
