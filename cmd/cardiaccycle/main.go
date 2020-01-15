@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -119,8 +120,19 @@ func sampleMapToRing(sampleMap map[SeriesSample]map[uint16]float64) (map[SeriesS
 	for sampleID, counts := range sampleMap {
 		cl := &List{ring.New(len(counts))}
 
-		for i := 1; i <= cl.Len(); i++ {
-			cl.Ring.Value = Entry{InstanceNumber: uint16(i), Metric: counts[uint16(i)]}
+		// Note: For some samples, the instance_number doesn't increase linearly
+		// from 1 : X. In one example, the instance_number started at 51 and
+		// continued to 100. So, can't assume that if there ar 100, they will go
+		// 1-100 nicely.
+		keys := make([]uint16, 0, cl.Len())
+		for key := range counts {
+			keys = append(keys, key)
+		}
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+		// for i := 1; i <= cl.Len(); i++ {
+		for _, v := range keys {
+			cl.Ring.Value = Entry{InstanceNumber: v, Metric: counts[v]}
 			cl.Ring = cl.Next()
 		}
 
@@ -153,8 +165,8 @@ func fetchSampleMap(input string) (sampleMap map[SeriesSample]map[uint16]float64
 			continue
 		}
 
-		if len(line) != 4 {
-			return nil, colName, fmt.Errorf("Expected 4 columns, got %d", len(line))
+		if len(line) < 4 {
+			return nil, colName, fmt.Errorf("Expected >= 4 columns, got %d", len(line))
 		}
 
 		samp := SeriesSample{
