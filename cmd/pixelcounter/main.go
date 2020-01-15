@@ -26,12 +26,14 @@ func init() {
 }
 
 func main() {
+	var threshold int
 	var overlayPath, jsonConfig, manifest, suffix string
 
 	flag.StringVar(&overlayPath, "overlay", "", "Path to folder with encoded overlay images")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
 	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
 	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
+	flag.IntVar(&threshold, "threshold", 5, "(Optional) Number of pixels below which to ignore a connected component for the thresholded subcount.")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -47,27 +49,27 @@ func main() {
 
 	if manifest != "" {
 
-		if err := runSlice(config, overlayPath, suffix, manifest); err != nil {
+		if err := runSlice(config, overlayPath, suffix, manifest, threshold); err != nil {
 			log.Fatalln(err)
 		}
 
 		return
 	}
 
-	if err := runFolder(config, overlayPath); err != nil {
+	if err := runFolder(config, overlayPath, threshold); err != nil {
 		log.Fatalln(err)
 	}
 
 }
 
-func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) error {
+func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, threshold int) error {
 
 	dicoms, err := getDicomSlice(manifest)
 	if err != nil {
 		return err
 	}
 
-	printHeader(config)
+	printHeader(config, threshold)
 
 	concurrency := 4 * runtime.NumCPU()
 	sem := make(chan bool, concurrency)
@@ -76,7 +78,7 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) e
 	for i, file := range dicoms {
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file+suffix, file, config); err != nil {
+			if err := processOneImage(overlayPath+"/"+file+suffix, file, config, threshold); err != nil {
 				log.Println(err)
 			}
 			<-sem
@@ -94,14 +96,14 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string) e
 	return nil
 }
 
-func runFolder(config overlay.JSONConfig, overlayPath string) error {
+func runFolder(config overlay.JSONConfig, overlayPath string, threshold int) error {
 
 	files, err := scanFolder(overlayPath)
 	if err != nil {
 		return err
 	}
 
-	printHeader(config)
+	printHeader(config, threshold)
 
 	concurrency := 4 * runtime.NumCPU()
 	sem := make(chan bool, concurrency)
@@ -114,7 +116,7 @@ func runFolder(config overlay.JSONConfig, overlayPath string) error {
 
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file, file, config); err != nil {
+			if err := processOneImage(overlayPath+"/"+file, file, config, threshold); err != nil {
 				log.Println(err)
 			}
 			<-sem
@@ -132,21 +134,23 @@ func runFolder(config overlay.JSONConfig, overlayPath string) error {
 	return nil
 }
 
-func printHeader(config overlay.JSONConfig) {
+func printHeader(config overlay.JSONConfig, threshold int) {
 	header := []string{"dicom", "width", "height", "pixels"}
 	for _, v := range config.Labels.Sorted() {
 		formatted := fmt.Sprintf("ID%d_%s", v.ID, strings.ReplaceAll(v.Label, " ", "_"))
 
 		header = append(header, formatted)
 		header = append(header, fmt.Sprintf("%s_components", formatted))
+		header = append(header, fmt.Sprintf("%s_%d_thresholded_components", formatted, threshold))
 	}
 
 	header = append(header, "total_connected_components")
+	header = append(header, fmt.Sprintf("total_%d_thresholded_connected_components", threshold))
 
 	fmt.Println(strings.Join(header, "\t"))
 }
 
-func processOneImage(filePath, filename string, config overlay.JSONConfig) error {
+func processOneImage(filePath, filename string, config overlay.JSONConfig, threshold int) error {
 	// Heuristic: get dicom name
 	dicom := strings.ReplaceAll(filename, ".png.mask.png", "")
 	dicom = strings.ReplaceAll(dicom, ".mask.png", "")
@@ -174,7 +178,7 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 		return err
 	}
 
-	connectedCounts, err := connected.Count(config.Labels)
+	connectedCounts, thresholdedConnectedCounts, err := connected.Count(config.Labels, threshold)
 	if err != nil {
 		return err
 	}
@@ -182,13 +186,15 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 	for _, v := range config.Labels.Sorted() {
 
 		if _, exists := countMap[v]; !exists {
-			entry = append(entry, "0")
-			entry = append(entry, "0") // connected components
+			entry = append(entry, "0") // Pixels
+			entry = append(entry, "0") // Connected components
+			entry = append(entry, "0") // Thresholded connected components
 			continue
 		}
 
-		entry = append(entry, strconv.Itoa(countMap[v]))
-		entry = append(entry, strconv.Itoa(connectedCounts[v]))
+		entry = append(entry, strconv.Itoa(countMap[v]))                   // Pixels
+		entry = append(entry, strconv.Itoa(connectedCounts[v]))            // Connected components
+		entry = append(entry, strconv.Itoa(thresholdedConnectedCounts[v])) // Thresholded connected components
 	}
 
 	totalComponents := 0
@@ -196,6 +202,12 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig) error
 		totalComponents += v
 	}
 	entry = append(entry, strconv.Itoa(totalComponents))
+
+	totalThresholdedComponents := 0
+	for _, v := range thresholdedConnectedCounts {
+		totalThresholdedComponents += v
+	}
+	entry = append(entry, strconv.Itoa(totalThresholdedComponents))
 
 	fmt.Println(strings.Join(entry, "\t"))
 
