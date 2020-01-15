@@ -20,6 +20,7 @@ type Global struct {
 	Project      string
 	ManifestPath string
 	DicomRoot    string
+	ImageSuffix  string
 
 	m        sync.RWMutex
 	manifest *AnnotationTracker

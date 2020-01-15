@@ -1,4 +1,4 @@
-package main
+package bulkprocess
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/carbocation/pfx"
 )
 
 func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCloser, int64, error) {
@@ -35,7 +36,7 @@ func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCl
 		// Make a hard call to get the filesize
 		attrs, err := wrappedHandle.ObjectHandle.Attrs(wrappedHandle.Context)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, pfx.Err(fmt.Errorf("%s: %s", path, err))
 		}
 
 		return wrappedHandle, attrs.Size, nil // wrappedHandle.storageReader.Attrs.Size, nil

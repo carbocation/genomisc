@@ -11,10 +11,27 @@ import (
 	"math"
 	"os"
 
+	"cloud.google.com/go/storage"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/dicomtag"
 	"github.com/suyashkumar/dicom/element"
 )
+
+// ExtractDicomFromGoogleStorage fetches a dicom from within a zipped file in
+// Google Storage and returns it as a native go image.Image, optionally with the
+// overlay displayed on top.
+func ExtractDicomFromGoogleStorage(zipPath, dicomName string, includeOverlay bool, storageClient *storage.Client) (image.Image, error) {
+	// Read the zip file into memory still compressed - either from a local
+	// file, or from Google storage, depending on the prefix you provide.
+	f, nbytes, err := MaybeOpenFromGoogleStorage(zipPath, storageClient)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now we have our compressed zip data in an io.ReaderAt, regardless of its
+	// origin. The zip library can now consume it.
+	return ExtractDicomFromReaderAt(f, nbytes, dicomName, includeOverlay)
+}
 
 // ExtractDicomFromLocalFile constructs a native go Image type from the dicom image with the
 // given name in the given zip file.
