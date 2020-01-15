@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/ring"
+	"math"
 	"sort"
 )
 
@@ -34,6 +35,7 @@ func (l *List) Extrema(adjacentN, discardN int) (Result, error) {
 
 	synthetic := make([]synthEntry, 0, l.Len())
 
+	lastPixelArea := 0.0
 	for i := 0; i < l.Len(); i++ {
 		thisEntry := entryValue(l.Value)
 
@@ -45,6 +47,13 @@ func (l *List) Extrema(adjacentN, discardN int) (Result, error) {
 
 		synthEntry := synthEntry{InstanceNumber: thisEntry.InstanceNumber, Metric: median(mapped), TrueMetric: thisEntry.Metric}
 		synthetic = append(synthetic, synthEntry)
+
+		if i > 0 {
+			if x := math.Abs(thisEntry.Metric - lastPixelArea); x > out.MaxOneStepShift {
+				out.MaxOneStepShift = x
+			}
+		}
+		lastPixelArea = thisEntry.Metric
 
 		l.Ring = l.Next()
 	}

@@ -17,6 +17,7 @@ type Result struct {
 	SampleID            string
 	SeriesNumber        string
 	Column              string
+	MaxOneStepShift     float64 // Biggest change in pixel area between two adjacent steps
 	InstanceNumberAtMin uint16
 	Min                 float64
 	SmoothedMin         float64
@@ -85,6 +86,7 @@ func run(input string) error {
 		"sample_id",
 		"series_number",
 		"column",
+		"max_one_step_shift",
 		"instance_number_at_min",
 		"min",
 		"smoothed_min",
@@ -96,10 +98,11 @@ func run(input string) error {
 		"\t"))
 
 	for _, v := range results {
-		fmt.Printf("%s\t%s\t%s\t%d\t%f\t%f\t%d\t%f\t%f\t%d\t%d\n",
+		fmt.Printf("%s\t%s\t%s\t%f\t%d\t%f\t%f\t%d\t%f\t%f\t%d\t%d\n",
 			v.SampleID,
 			v.SeriesNumber,
 			v.Column,
+			v.MaxOneStepShift,
 			v.InstanceNumberAtMin,
 			v.Min,
 			v.SmoothedMin,
