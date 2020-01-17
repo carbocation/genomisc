@@ -140,12 +140,15 @@ func printHeader(config overlay.JSONConfig, threshold int) {
 		formatted := fmt.Sprintf("ID%d_%s", v.ID, strings.ReplaceAll(v.Label, " ", "_"))
 
 		header = append(header, formatted)
+		header = append(header, fmt.Sprintf("%s_%d_thresholded", formatted, threshold))
 		header = append(header, fmt.Sprintf("%s_components", formatted))
 		header = append(header, fmt.Sprintf("%s_%d_thresholded_components", formatted, threshold))
 	}
 
 	header = append(header, "total_connected_components")
 	header = append(header, fmt.Sprintf("total_%d_thresholded_connected_components", threshold))
+
+	header = append(header, fmt.Sprintf("total_%d_thresholded_pixels", threshold))
 
 	fmt.Println(strings.Join(header, "\t"))
 }
@@ -167,34 +170,36 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 	entry = append(entry, strconv.Itoa(rawOverlayImg.Bounds().Dy()))
 	entry = append(entry, strconv.Itoa(rawOverlayImg.Bounds().Dx()*rawOverlayImg.Bounds().Dy()))
 
-	countMap, err := config.Labels.CountEncodedPixels(rawOverlayImg)
-	if err != nil {
-		return err
-	}
-
 	// Count connected components
 	connected, err := overlay.NewConnected(rawOverlayImg)
 	if err != nil {
 		return err
 	}
 
-	connectedCounts, thresholdedConnectedCounts, err := connected.Count(config.Labels, threshold)
+	pixelCountMap, connectedCounts, thresholdedPixelCountMap, thresholdedConnectedCounts, err := connected.Count(config.Labels, threshold)
 	if err != nil {
 		return err
 	}
 
+	totalThresholdedPixels := 0
 	for _, v := range config.Labels.Sorted() {
 
-		if _, exists := countMap[v]; !exists {
+		if _, exists := pixelCountMap[v]; !exists {
 			entry = append(entry, "0") // Pixels
+			entry = append(entry, "0") // Thresholded pixels
 			entry = append(entry, "0") // Connected components
 			entry = append(entry, "0") // Thresholded connected components
 			continue
 		}
 
-		entry = append(entry, strconv.Itoa(countMap[v]))                   // Pixels
+		entry = append(entry, strconv.Itoa(pixelCountMap[v]))              // Pixels
+		entry = append(entry, strconv.Itoa(thresholdedPixelCountMap[v]))   // Thresholded pixels
 		entry = append(entry, strconv.Itoa(connectedCounts[v]))            // Connected components
 		entry = append(entry, strconv.Itoa(thresholdedConnectedCounts[v])) // Thresholded connected components
+
+		// Since thresholding will change the total number of pixels, need to
+		// track it
+		totalThresholdedPixels += thresholdedPixelCountMap[v]
 	}
 
 	totalComponents := 0
@@ -208,6 +213,7 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 		totalThresholdedComponents += v
 	}
 	entry = append(entry, strconv.Itoa(totalThresholdedComponents))
+	entry = append(entry, strconv.Itoa(totalThresholdedPixels))
 
 	fmt.Println(strings.Join(entry, "\t"))
 

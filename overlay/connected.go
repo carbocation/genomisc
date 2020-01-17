@@ -45,7 +45,13 @@ func NewConnected(img image.Image) (Connected, error) {
 	return out, nil
 }
 
-func (c Connected) Count(l LabelMap, threshold int) (rawCounts map[Label]int, thresholdedCounts map[Label]int, err error) {
+// Count evaluates the number of pixels for each label, the number of components
+// for each label, and then also performs the same operations on a subset of the
+// data that requires that a threshold be met (in terms of number of pixels
+// within a contiguous component) in order to be counted. This permits you to,
+// e.g., ignore single-pixel noisy blips that appear and which shouldn't be
+// counted towards area measurements.
+func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thresholdedPixels, thresholdedCounts map[Label]int, err error) {
 	uf := unionfind.NewThreadSafeUnionFind(25000)
 
 	var nextLabel uint32 = 1
@@ -133,7 +139,9 @@ func (c Connected) Count(l LabelMap, threshold int) (rawCounts map[Label]int, th
 
 	// Iterate over the full list of possible labels so we can be sure that each
 	// one has a representation in our output
+	rawPixels = make(map[Label]int)
 	rawCounts = make(map[Label]int)
+	thresholdedPixels = make(map[Label]int)
 	thresholdedCounts = make(map[Label]int)
 	for _, label := range l.Sorted() {
 
@@ -144,19 +152,27 @@ func (c Connected) Count(l LabelMap, threshold int) (rawCounts map[Label]int, th
 		// encompass.
 		rawCounts[label] = len(subcomponents)
 
-		// For the thresholded count, only increment if the number of pixels of
-		// a subcomponent is greater than the defined threshold. The idea is
-		// that blips of noise can be ignored.
+		// For pixel counts and the thresholded component count, only increment if the
+		// number of pixels of a subcomponent is greater than the defined
+		// threshold. The idea is that blips of noise can be ignored.
 		for _, subcount := range subcomponents {
+
+			// Always increment the raw pixel count
+			rawPixels[label] += subcount
+
+			// Only increment the thresholded pixel count and thresholded
+			// component count if this component surpasses the threshold
 			if subcount < threshold {
 				continue
 			}
+
+			thresholdedPixels[label] += subcount
 
 			thresholdedCounts[label]++
 		}
 	}
 
-	return rawCounts, thresholdedCounts, nil
+	return rawPixels, rawCounts, thresholdedPixels, thresholdedCounts, nil
 }
 
 func (c Connected) LabelAbove(x, y int) (bool, uint32) {
