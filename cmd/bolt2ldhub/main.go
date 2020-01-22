@@ -24,15 +24,6 @@ const (
 	P       = 15
 )
 
-type output struct {
-	snpid  string
-	A1     string
-	A2     string
-	Zscore float64
-	N      int
-	Pvalue float64
-}
-
 func main() {
 	var filename string
 	var sampleSize int
