@@ -250,8 +250,8 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 			}
 			// log.Printf("%+v\n", x)
 			entry = append(entry, strconv.FormatFloat(moments.LongAxisOrientationRadians, 'g', 4, 64)) // LongAxisAngle
-			entry = append(entry, strconv.FormatFloat(moments.LongAxisPixels, 'g', 2, 64))             // LongAxisPixels
-			entry = append(entry, strconv.FormatFloat(moments.ShortAxisPixels, 'g', 2, 64))            // ShortAxisPixels
+			entry = append(entry, strconv.FormatFloat(moments.LongAxisPixels, 'g', 4, 64))             // LongAxisPixels
+			entry = append(entry, strconv.FormatFloat(moments.ShortAxisPixels, 'g', 4, 64))            // ShortAxisPixels
 			entry = append(entry, strconv.FormatFloat(moments.Eccentricity, 'g', 4, 64))               // Eccentricity
 		}
 
