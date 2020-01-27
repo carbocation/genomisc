@@ -10,12 +10,18 @@ import (
 // http://aishack.in/tutorials/connected-component-labelling/
 
 type Connected struct {
-	imgData [][]uint8
-	labels  [][]uint32
+	// Each point represents a label ID
+	PixelLabelIDs [][]uint8
+
+	// Each point represents a connected component ID
+	PixelConnectedComponentIDs [][]uint32
+
+	// Each component of each label is tracked, including bounding box and pixel count
+	LabeledConnectedComponents map[uint8]map[uint32]ConnectedComponent
 }
 
-func NewConnected(img image.Image) (Connected, error) {
-	out := Connected{}
+func NewConnected(img image.Image) (*Connected, error) {
+	out := &Connected{}
 
 	imgData := make([][]uint8, 0, img.Bounds().Max.Y)
 	labels := make([][]uint32, 0, img.Bounds().Max.Y)
@@ -39,8 +45,8 @@ func NewConnected(img image.Image) (Connected, error) {
 		labels = append(labels, labelData)
 	}
 
-	out.imgData = imgData
-	out.labels = labels
+	out.PixelLabelIDs = imgData
+	out.PixelConnectedComponentIDs = labels
 
 	return out, nil
 }
@@ -51,11 +57,11 @@ func NewConnected(img image.Image) (Connected, error) {
 // within a contiguous component) in order to be counted. This permits you to,
 // e.g., ignore single-pixel noisy blips that appear and which shouldn't be
 // counted towards area measurements.
-func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thresholdedPixels, thresholdedCounts map[Label]int, err error) {
+func (c *Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thresholdedPixels, thresholdedCounts map[Label]int, err error) {
 	uf := unionfind.NewThreadSafeUnionFind(25000)
 
 	var nextLabel uint32 = 1
-	for y, row := range c.imgData {
+	for y, row := range c.PixelLabelIDs {
 		for x := range row {
 
 			// See if we already labeled an adjacent pixel with a connected component ID.
@@ -63,7 +69,7 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 			foundUp, valUp := c.LabelAbove(x, y)
 			if foundUp {
 				found = true
-				c.labels[y][x] = valUp
+				c.PixelConnectedComponentIDs[y][x] = valUp
 			}
 
 			foundLeft, val := c.LabelLeft(x, y)
@@ -72,7 +78,7 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 				// This overrides the pixel if it was set by foundUp, but since
 				// we will find their shared root in the second pass, there is
 				// no reason to check or abort this override step.
-				c.labels[y][x] = val
+				c.PixelConnectedComponentIDs[y][x] = val
 
 				if foundUp {
 					// If the left pixel's label differs from that of the top
@@ -90,13 +96,13 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 
 			// If neither neighbor is a candidate root label, then this pixel
 			// gets its own label.
-			c.labels[y][x] = nextLabel
+			c.PixelConnectedComponentIDs[y][x] = nextLabel
 			nextLabel++
 		}
 	}
 
 	// Now reconcile the adjacent connected component labels
-	for y, row := range c.labels {
+	for y, row := range c.PixelConnectedComponentIDs {
 		for x, v := range row {
 
 			root := uf.Root(int(v))
@@ -109,7 +115,7 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 			// root connected component label. The root isn't guaranteed to be
 			// numerically the smallest entry in its tree, so no value checks
 			// are done here.
-			c.labels[y][x] = uint32(root)
+			c.PixelConnectedComponentIDs[y][x] = uint32(root)
 		}
 	}
 
@@ -118,22 +124,48 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 	// For each truth label, give it a map that lists all of the connected
 	// component labels that are assigned to it. Each separate connected
 	// component label will also get a pixel count.
-	labels := make(map[uint8]map[uint32]int) //map[labelID] => map[(label, connected component)]pixelCount
+	c.LabeledConnectedComponents = make(map[uint8]map[uint32]ConnectedComponent) //map[labelID] => map[(label, connected component)]ConnectedComponent
 	for _, v := range l.Sorted() {
-		labels[uint8(v.ID)] = make(map[uint32]int)
+		c.LabeledConnectedComponents[uint8(v.ID)] = make(map[uint32]ConnectedComponent)
 	}
 
 	// Each pixel is now marked with its corresponding [label, connected]
 	// component tuple.
-	for y, row := range c.labels {
-		for x, v := range row {
+	for y, row := range c.PixelConnectedComponentIDs {
+		for x, connectedComponentID := range row {
 			// Original label ID:
-			id := c.imgData[y][x]
+			id := c.PixelLabelIDs[y][x]
 
 			// Connected component ID:
-			m := labels[id]
-			m[v]++
-			labels[id] = m
+			m := c.LabeledConnectedComponents[id]
+			component, exists := m[connectedComponentID]
+
+			// Update our bounding box for this component
+			if !exists {
+				// This is the first we have seen of the component
+				component.LabelID = id
+				component.ComponentID = connectedComponentID
+				component.Bounds.TopLeft = Coord{X: x, Y: y}
+				component.Bounds.BottomRight = Coord{X: x, Y: y}
+			} else {
+				// Since we are scanning y = 0 on up, no need to check for
+				// TopLeft Y
+				if x < component.Bounds.TopLeft.X {
+					component.Bounds.TopLeft.X = x
+				}
+				if x > component.Bounds.BottomRight.X {
+					component.Bounds.BottomRight.X = x
+				}
+				if y > component.Bounds.BottomRight.Y {
+					component.Bounds.BottomRight.Y = y
+				}
+			}
+
+			component.PixelCount++
+			m[connectedComponentID] = component
+			c.LabeledConnectedComponents[id] = m
+			// m[v]++
+			// labels[id] = m
 		}
 	}
 
@@ -145,7 +177,7 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 	thresholdedCounts = make(map[Label]int)
 	for _, label := range l.Sorted() {
 
-		subcomponents := labels[uint8(label.ID)]
+		subcomponents := c.LabeledConnectedComponents[uint8(label.ID)]
 
 		// The main connected components output just tallies the number of
 		// components seen for each labelID, regardless of how many pixels they
@@ -158,15 +190,15 @@ func (c Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thres
 		for _, subcount := range subcomponents {
 
 			// Always increment the raw pixel count
-			rawPixels[label] += subcount
+			rawPixels[label] += subcount.PixelCount
 
 			// Only increment the thresholded pixel count and thresholded
 			// component count if this component surpasses the threshold
-			if subcount < threshold {
+			if subcount.PixelCount < threshold {
 				continue
 			}
 
-			thresholdedPixels[label] += subcount
+			thresholdedPixels[label] += subcount.PixelCount
 
 			thresholdedCounts[label]++
 		}
@@ -180,11 +212,11 @@ func (c Connected) LabelAbove(x, y int) (bool, uint32) {
 		return false, 0
 	}
 
-	if c.imgData[y][x] != c.imgData[y-1][x] {
+	if c.PixelLabelIDs[y][x] != c.PixelLabelIDs[y-1][x] {
 		return false, 0
 	}
 
-	return true, c.labels[y-1][x]
+	return true, c.PixelConnectedComponentIDs[y-1][x]
 }
 
 func (c Connected) LabelLeft(x, y int) (bool, uint32) {
@@ -192,9 +224,9 @@ func (c Connected) LabelLeft(x, y int) (bool, uint32) {
 		return false, 0
 	}
 
-	if c.imgData[y][x] != c.imgData[y][x-1] {
+	if c.PixelLabelIDs[y][x] != c.PixelLabelIDs[y][x-1] {
 		return false, 0
 	}
 
-	return true, c.labels[y][x-1]
+	return true, c.PixelConnectedComponentIDs[y][x-1]
 }
