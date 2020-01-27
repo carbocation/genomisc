@@ -52,6 +52,14 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	if labelsNeedMoments != nil {
+		fmt.Fprintln(os.Stderr, "Will compute moment information for the following fields:")
+		for name, label := range config.Labels {
+			if _, exists := labelsNeedMoments[uint8(label.ID)]; exists {
+				fmt.Fprintf(os.Stderr, "%s (#%d)\n", name, label.ID)
+			}
+		}
+	}
 
 	if manifest != "" {
 
