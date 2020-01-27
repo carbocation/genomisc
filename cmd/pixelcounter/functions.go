@@ -4,7 +4,31 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
+
+func parseMomentLabelIDs(s string) (map[uint8]struct{}, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	chunks := strings.Split(s, ",")
+
+	out := make(map[uint8]struct{})
+	for _, v := range chunks {
+		v = strings.TrimSpace(v)
+
+		bigUint, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return nil, err
+		}
+
+		out[uint8(bigUint)] = struct{}{}
+	}
+
+	return out, nil
+}
 
 // Via https://flaviocopes.com/go-list-files/
 func scanFolder(dirname string) ([]os.FileInfo, error) {

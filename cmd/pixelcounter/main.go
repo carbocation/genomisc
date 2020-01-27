@@ -27,13 +27,14 @@ func init() {
 
 func main() {
 	var threshold int
-	var overlayPath, jsonConfig, manifest, suffix string
+	var overlayPath, jsonConfig, manifest, suffix, momentLabels string
 
 	flag.StringVar(&overlayPath, "overlay", "", "Path to folder with encoded overlay images")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
 	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
 	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
 	flag.IntVar(&threshold, "threshold", 5, "(Optional) Number of pixels below which to ignore a connected component for the thresholded subcount.")
+	flag.StringVar(&momentLabels, "moment-labels", "", "(Optional) Comma-delimited list of LabelIDs for which you want to compute image moment values.")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -47,29 +48,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	labelsNeedMoments, err := parseMomentLabelIDs(momentLabels)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	if manifest != "" {
 
-		if err := runSlice(config, overlayPath, suffix, manifest, threshold); err != nil {
+		if err := runSlice(config, overlayPath, suffix, manifest, threshold, labelsNeedMoments); err != nil {
 			log.Fatalln(err)
 		}
 
 		return
 	}
 
-	if err := runFolder(config, overlayPath, threshold); err != nil {
+	if err := runFolder(config, overlayPath, threshold, labelsNeedMoments); err != nil {
 		log.Fatalln(err)
 	}
 
 }
 
-func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, threshold int) error {
+func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, threshold int, labelsNeedMoments map[uint8]struct{}) error {
 
 	dicoms, err := getDicomSlice(manifest)
 	if err != nil {
 		return err
 	}
 
-	printHeader(config, threshold)
+	printHeader(config, threshold, labelsNeedMoments)
 
 	concurrency := 4 * runtime.NumCPU()
 	sem := make(chan bool, concurrency)
@@ -78,7 +84,7 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, t
 	for i, file := range dicoms {
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file+suffix, file, config, threshold); err != nil {
+			if err := processOneImage(overlayPath+"/"+file+suffix, file, config, threshold, labelsNeedMoments); err != nil {
 				log.Println(err)
 			}
 			<-sem
@@ -96,14 +102,14 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, t
 	return nil
 }
 
-func runFolder(config overlay.JSONConfig, overlayPath string, threshold int) error {
+func runFolder(config overlay.JSONConfig, overlayPath string, threshold int, labelsNeedMoments map[uint8]struct{}) error {
 
 	files, err := scanFolder(overlayPath)
 	if err != nil {
 		return err
 	}
 
-	printHeader(config, threshold)
+	printHeader(config, threshold, labelsNeedMoments)
 
 	concurrency := 4 * runtime.NumCPU()
 	sem := make(chan bool, concurrency)
@@ -116,7 +122,7 @@ func runFolder(config overlay.JSONConfig, overlayPath string, threshold int) err
 
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file, file, config, threshold); err != nil {
+			if err := processOneImage(overlayPath+"/"+file, file, config, threshold, labelsNeedMoments); err != nil {
 				log.Println(err)
 			}
 			<-sem
@@ -134,8 +140,9 @@ func runFolder(config overlay.JSONConfig, overlayPath string, threshold int) err
 	return nil
 }
 
-func printHeader(config overlay.JSONConfig, threshold int) {
+func printHeader(config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) {
 	header := []string{"dicom", "width", "height", "pixels"}
+
 	for _, v := range config.Labels.Sorted() {
 		formatted := fmt.Sprintf("ID%d_%s", v.ID, strings.ReplaceAll(v.Label, " ", "_"))
 
@@ -143,6 +150,13 @@ func printHeader(config overlay.JSONConfig, threshold int) {
 		header = append(header, fmt.Sprintf("%s_%d_thresholded", formatted, threshold))
 		header = append(header, fmt.Sprintf("%s_components", formatted))
 		header = append(header, fmt.Sprintf("%s_%d_thresholded_components", formatted, threshold))
+
+		if _, needsMoment := labelsNeedMoments[uint8(v.ID)]; needsMoment {
+			header = append(header, fmt.Sprintf("%s_LongAxisAngle", formatted))   // LongAxisAngle
+			header = append(header, fmt.Sprintf("%s_LongAxisPixels", formatted))  // LongAxisPixels
+			header = append(header, fmt.Sprintf("%s_ShortAxisPixels", formatted)) // ShortAxisPixels
+			header = append(header, fmt.Sprintf("%s_Eccentricity", formatted))    // Eccentricity
+		}
 	}
 
 	header = append(header, "total_connected_components")
@@ -153,7 +167,7 @@ func printHeader(config overlay.JSONConfig, threshold int) {
 	fmt.Println(strings.Join(header, "\t"))
 }
 
-func processOneImage(filePath, filename string, config overlay.JSONConfig, threshold int) error {
+func processOneImage(filePath, filename string, config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) error {
 	// Heuristic: get dicom name
 	dicom := strings.ReplaceAll(filename, ".png.mask.png", "")
 	dicom = strings.ReplaceAll(dicom, ".mask.png", "")
@@ -183,12 +197,21 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 
 	totalThresholdedPixels := 0
 	for _, v := range config.Labels.Sorted() {
+		_, needsMoment := labelsNeedMoments[uint8(v.ID)]
 
 		if _, exists := pixelCountMap[v]; !exists {
 			entry = append(entry, "0") // Pixels
 			entry = append(entry, "0") // Thresholded pixels
 			entry = append(entry, "0") // Connected components
 			entry = append(entry, "0") // Thresholded connected components
+
+			if needsMoment {
+				entry = append(entry, "0") // LongAxisAngle
+				entry = append(entry, "0") // LongAxisPixels
+				entry = append(entry, "0") // ShortAxisPixels
+				entry = append(entry, "0") // Eccentricity
+			}
+
 			continue
 		}
 
@@ -196,6 +219,33 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 		entry = append(entry, strconv.Itoa(thresholdedPixelCountMap[v]))   // Thresholded pixels
 		entry = append(entry, strconv.Itoa(connectedCounts[v]))            // Connected components
 		entry = append(entry, strconv.Itoa(thresholdedConnectedCounts[v])) // Thresholded connected components
+
+		if needsMoment {
+			momentComponents := connected.LabeledConnectedComponents[uint8(v.ID)]
+
+			var mergedLabeled overlay.ConnectedComponent
+			initialized := false
+			for _, v := range momentComponents {
+				if v.PixelCount > threshold {
+					if !initialized {
+						mergedLabeled = v
+						initialized = true
+					} else {
+						mergedLabeled = overlay.MergeConnectedComponentsSameLabel(mergedLabeled, v)
+					}
+				}
+			}
+			// log.Printf("%+v\n", aorticLabeled)
+			moments, err := connected.ComputeMoments(mergedLabeled, overlay.MomentMethodLabel)
+			if err != nil {
+				return err
+			}
+			// log.Printf("%+v\n", x)
+			entry = append(entry, strconv.FormatFloat(moments.LongAxisOrientationRadians, 'g', 4, 64)) // LongAxisAngle
+			entry = append(entry, strconv.FormatFloat(moments.LongAxisPixels, 'g', 2, 64))             // LongAxisPixels
+			entry = append(entry, strconv.FormatFloat(moments.ShortAxisPixels, 'g', 2, 64))            // ShortAxisPixels
+			entry = append(entry, strconv.FormatFloat(moments.Eccentricity, 'g', 4, 64))               // Eccentricity
+		}
 
 		// Since thresholding will change the total number of pixels, need to
 		// track it
