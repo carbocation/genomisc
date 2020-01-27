@@ -121,7 +121,7 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 			X: meanX,
 			Y: meanY,
 		},
-		LongAxisOrientationRadians: 0.5 * math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2)),
+		LongAxisOrientationRadians: math.Mod(0.5*math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2))+2*math.Pi, 2*math.Pi), // Wrap to [0, 2*Pi), avoiding negatives
 		LongAxisPixels:             math.Max(eigen1, eigen2),
 		ShortAxisPixels:            math.Min(eigen1, eigen2),
 		Eccentricity:               math.Sqrt(1 - math.Min(eigen1, eigen2)/math.Max(eigen1, eigen2)),
