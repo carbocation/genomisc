@@ -5,6 +5,13 @@ import (
 	"math"
 )
 
+type MomentMethod uint8
+
+const (
+	MomentMethodConnected MomentMethod = iota
+	MomentMethodLabel
+)
+
 type CentralMoments struct {
 	Bounds struct {
 		TopLeft     Coord
@@ -20,7 +27,7 @@ type CentralMoments struct {
 	Eccentricity               float64
 }
 
-func (c *Connected) ComputeMoments(component ConnectedComponent) (CentralMoments, error) {
+func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMethod) (CentralMoments, error) {
 	if c.LabeledConnectedComponents == nil {
 		return CentralMoments{}, fmt.Errorf("Please run &Connected.Count before calling &Connected.Eigen")
 	}
@@ -60,8 +67,14 @@ func (c *Connected) ComputeMoments(component ConnectedComponent) (CentralMoments
 			// x and y now start at 0,0
 
 			// Only add if this pixel belongs to our component of interest
-			if c.PixelConnectedComponentIDs[yImg][xImg] != component.ComponentID {
-				continue
+			if method == MomentMethodLabel {
+				if c.PixelLabelIDs[yImg][xImg] != component.LabelID {
+					continue
+				}
+			} else {
+				if c.PixelConnectedComponentIDs[yImg][xImg] != component.ComponentID {
+					continue
+				}
 			}
 
 			MX0Y0++
