@@ -42,7 +42,7 @@ func init() {
 func main() {
 	defer STDOUT.Flush()
 
-	fmt.Fprintf(os.Stderr, "This ukbb2disease binary was built at: %s\n", builddate)
+	fmt.Fprintf(os.Stderr, "This printdisease binary was built at: %s\n", builddate)
 
 	var tabfile string
 	var diseaseName string
