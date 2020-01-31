@@ -71,7 +71,7 @@ func run(input string) error {
 	results := make([]Result, 0, len(ringMap))
 
 	for sampleID, v := range ringMap {
-		res, err := v.Extrema(2, 1)
+		res, err := v.Extrema(2, 0)
 		if err != nil {
 			return err
 		}
