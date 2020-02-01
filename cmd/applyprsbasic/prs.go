@@ -9,6 +9,7 @@ import (
 
 	"github.com/carbocation/genomisc"
 	"github.com/carbocation/genomisc/prsparser"
+	"github.com/carbocation/pfx"
 )
 
 var currentVariantScoreLookup map[ChrPos]prsparser.PRS
@@ -28,13 +29,13 @@ func LoadPRS(prsPath, layout string) error {
 	// Open PRS file
 	f, err := os.Open(prsPath)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 	defer f.Close()
 
 	fd, err := genomisc.MaybeDecompressReadCloserFromFile(f)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 	defer fd.Close()
 
@@ -50,7 +51,7 @@ func LoadPRS(prsPath, layout string) error {
 		if err != nil && err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			return pfx.Err(err)
 		}
 
 		val, err := parser.ParseRow(row)
@@ -58,7 +59,7 @@ func LoadPRS(prsPath, layout string) error {
 			// Permit a header and skip it
 			continue
 		} else if err != nil {
-			return err
+			return pfx.Err(err)
 		}
 
 		p := prsparser.PRS{

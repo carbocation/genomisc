@@ -12,6 +12,7 @@ import (
 
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/prsparser"
+	"github.com/carbocation/pfx"
 )
 
 func init() {
@@ -85,14 +86,14 @@ func main() {
 		parseRule := func(layout *prsparser.Layout, row []string) (prsparser.PRS, error) {
 			p, err := prsparser.DefaultParseRow(layout, row)
 			if err != nil {
-				return p, err
+				return p, pfx.Err(err)
 			}
 
 			// ... remove common prefixes from the chomosome column
 			p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chrom_")
 			p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chr")
 
-			return p, err
+			return p, pfx.Err(err)
 		}
 
 		udf := prsparser.Layout{
