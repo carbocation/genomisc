@@ -168,7 +168,8 @@ func main() {
 			// Find the site in the BGEN index file
 			sites, err := FindPRSSiteInBGI(bgi, oneSite)
 			if err != nil {
-				log.Fatalln(err)
+				fmt.Fprintf(os.Stderr, "Skipping %v\n:", oneSite)
+				log.Println(err)
 			}
 
 			// Multiple variants may be present at each chromosomal position
