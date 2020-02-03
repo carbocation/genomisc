@@ -49,7 +49,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tAC\tMAF\tAA\tAa\taa\tHWE_Exact_P\n")
+	fmt.Printf("SNP\tCHR\tBP\tA1\tA2\tAC\tMAF\tHomA1\tHet\tHomA2\tHWE_Exact_P\n")
 
 	if snpfile != "" {
 		if !strings.Contains(bgenPath, "%s") {
