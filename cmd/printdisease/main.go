@@ -137,7 +137,7 @@ func main() {
 		codingEntry, exists := coding[dictEntry.Coding.String()]
 		if exists {
 			for _, entryValue := range v.FormattedValues() {
-				fmt.Fprintf(os.Stderr, "\t\t%s", codingEntry[entryValue])
+				fmt.Fprintf(os.Stderr, "\t\t%s\n", codingEntry[entryValue])
 			}
 		} else {
 			fmt.Fprintf(os.Stderr, "\t\t")
