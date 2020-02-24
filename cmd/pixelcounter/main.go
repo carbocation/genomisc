@@ -34,7 +34,7 @@ func main() {
 	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
 	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
 	flag.IntVar(&threshold, "threshold", 5, "(Optional) Number of pixels below which to ignore a connected component for the thresholded subcount.")
-	flag.StringVar(&momentLabels, "moment-labels", "", "(Optional) Comma-delimited list of LabelIDs for which you want to compute image moment values.")
+	flag.StringVar(&momentLabels, "moment-labels", "", "(Optional) Comma-delimited list of LabelIDs for which you want to compute image moment values and bounding boxes.")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -164,6 +164,10 @@ func printHeader(config overlay.JSONConfig, threshold int, labelsNeedMoments map
 			header = append(header, fmt.Sprintf("%s_LongAxisPixels", formatted))  // LongAxisPixels
 			header = append(header, fmt.Sprintf("%s_ShortAxisPixels", formatted)) // ShortAxisPixels
 			header = append(header, fmt.Sprintf("%s_Eccentricity", formatted))    // Eccentricity
+			header = append(header, fmt.Sprintf("%s_TopLeftX", formatted))
+			header = append(header, fmt.Sprintf("%s_TopLeftY", formatted))
+			header = append(header, fmt.Sprintf("%s_BottomRightX", formatted))
+			header = append(header, fmt.Sprintf("%s_BottomRightY", formatted))
 		}
 	}
 
@@ -218,6 +222,10 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 				entry = append(entry, "0") // LongAxisPixels
 				entry = append(entry, "0") // ShortAxisPixels
 				entry = append(entry, "0") // Eccentricity
+				entry = append(entry, "0") // TopLeft.X
+				entry = append(entry, "0") // TopLeft.Y
+				entry = append(entry, "0") // BottomRight.X
+				entry = append(entry, "0") // BottomRight.Y
 			}
 
 			continue
@@ -253,6 +261,10 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 			entry = append(entry, strconv.FormatFloat(moments.LongAxisPixels, 'g', 4, 64))             // LongAxisPixels
 			entry = append(entry, strconv.FormatFloat(moments.ShortAxisPixels, 'g', 4, 64))            // ShortAxisPixels
 			entry = append(entry, strconv.FormatFloat(moments.Eccentricity, 'g', 4, 64))               // Eccentricity
+			entry = append(entry, strconv.Itoa(moments.Bounds.TopLeft.X))
+			entry = append(entry, strconv.Itoa(moments.Bounds.TopLeft.Y))
+			entry = append(entry, strconv.Itoa(moments.Bounds.BottomRight.X))
+			entry = append(entry, strconv.Itoa(moments.Bounds.BottomRight.Y))
 		}
 
 		// Since thresholding will change the total number of pixels, need to
