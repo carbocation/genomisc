@@ -2,10 +2,13 @@ package overlay
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	"github.com/carbocation/pfx"
 )
 
 type JSONConfig struct {
@@ -16,6 +19,7 @@ type JSONConfig struct {
 	Labels       LabelMap `json:"labels"`
 	ImagePath    string   `json:"image_path"`
 	ImageSuffix  string   `json:"image_suffix"`
+	DefaultBrush string   `json:"default_brush"`
 
 	// Determined by whether ImagePath is set
 	PreParsed bool `json:"-"`
@@ -26,10 +30,18 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
-		return out, err
+		return out, pfx.Err(err)
 	}
 
 	err = json.NewDecoder(f).Decode(&out)
+	if err != nil {
+		if e, ok := err.(*json.SyntaxError); ok {
+			log.Printf("syntax error at byte offset %d", e.Offset)
+			return out, pfx.Err(err)
+		}
+
+		return out, pfx.Err(err)
+	}
 
 	if out.ImagePath != "" {
 		out.PreParsed = true
@@ -48,7 +60,7 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 	out.ManifestPath = expandHomeDir(out.ManifestPath)
 	out.Project = expandHomeDir(out.Project)
 
-	return out, err
+	return out, pfx.Err(err)
 }
 
 // Via https://stackoverflow.com/a/17617721/199475
