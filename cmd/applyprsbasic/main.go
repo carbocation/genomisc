@@ -149,6 +149,10 @@ func main() {
 
 		// Load the BGEN Index for this chromosome
 		bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
+		if !strings.Contains(bgenTemplatePath, "%s") {
+			// Permit explicit paths (e.g., when all data is in one BGEN)
+			bgenPath = bgenTemplatePath
+		}
 		bgi, err := bgen.OpenBGI(bgenPath + ".bgi?mode=ro")
 		if err != nil {
 			log.Fatalln(err)
