@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 
@@ -48,10 +49,15 @@ func LoadPRS(prsPath, layout string) error {
 	currentVariantScoreLookup = make(map[ChrPos]prsparser.PRS)
 	for i := 0; ; i++ {
 		row, err := reader.Read()
-		if err != nil && err == io.EOF {
-			break
-		} else if err != nil {
-			return pfx.Err(err)
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else if err, ok := err.(*csv.ParseError); ok && err.Err == csv.ErrFieldCount {
+				// We actually permit this
+				log.Printf("Recovering from parsing error which may be caused by jagged files with missing entries and proceeding with this variant. Error: %s", err.Error())
+			} else {
+				return pfx.Err(err)
+			}
 		}
 
 		val, err := parser.ParseRow(row)
