@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/carbocation/bgen"
 	_ "github.com/mattn/go-sqlite3"
@@ -34,11 +35,12 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var bgenTemplatePath, assembly, snpfile string
+	var bgenTemplatePath, assembly, snpfile, samplePath string
 
-	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated full path to bgens, with %s in place of its chromosome number. Index file is assumed to be .bgi at the same path.")
+	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated full path to bgens, with %s in place of its chromosome number. If all SNPs are on the same chromosome, an explicit full path without %s is permissible. Index file is assumed to be .bgi at the same path.")
 	flag.StringVar(&snpfile, "snps", "", "Tab-delimited SNP file containing rsid and chromosome")
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
+	flag.StringVar(&samplePath, "sample", "", "(Optional): Path to the BGEN .sample file. If not provided, sample_row ids will be provided instead of sample_id")
 	flag.Parse()
 
 	if bgenTemplatePath == "" {
@@ -69,7 +71,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Fprintf(STDOUT, "chr\tpos_%s\trsid\tref\talt\tsample_row_id\talt_allele_dosage\n", assembly)
+	sampleOrRow := "sample_row_id"
+	if samplePath != "" {
+		sampleOrRow = "sample_id"
+	}
+	fmt.Fprintf(STDOUT, "chr\tpos_%s\trsid\tref\talt\t%s\talt_allele_dosage\n", assembly, sampleOrRow)
 
 	for i, row := range allSites {
 		if len(row) != 2 {
@@ -79,15 +85,34 @@ func main() {
 
 		rsID := row[SNP]
 		bgenPath := fmt.Sprintf(bgenTemplatePath, row[CHR])
+		if !strings.Contains(bgenTemplatePath, "%s") {
+			// Permit explicit paths (e.g., when all data is in one BGEN)
+			bgenPath = bgenTemplatePath
+		}
 		bgiPath := bgenPath + ".bgi"
 
-		if err := PrintOneVariant(rsID, bgenPath, bgiPath); err != nil {
+		// Load sample data if provided
+		var sampleFileContents [][]string
+		if samplePath != "" {
+			sf, err := os.Open(samplePath)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			sfCSV := csv.NewReader(sf)
+			sfCSV.Comma = ' '
+			sampleFileContents, err = sfCSV.ReadAll()
+			if err != nil {
+				log.Fatalln(err)
+			}
+		}
+
+		if err := PrintOneVariant(rsID, bgenPath, bgiPath, sampleFileContents); err != nil {
 			log.Println(err)
 		}
 	}
 }
 
-func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
+func PrintOneVariant(rsID string, bgenPath, bgiPath string, sampleFileContents [][]string) error {
 	// Open the BGEN
 	bg, err := bgen.Open(bgenPath)
 	if err != nil {
@@ -96,11 +121,24 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 	defer bg.Close()
 
 	// Open the BGI
-	bgi, err := bgen.OpenBGI(bgiPath)
+	var bgi *bgen.BGIIndex
+	if strings.HasPrefix(bgiPath, "gs://") {
+		filePath, err := ImportBGIFromGoogleStorage(bgiPath)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Copied file from %s to %s\n", bgiPath, filePath)
+
+		bgiPath = filePath
+	}
+
+	bgi, err = bgen.OpenBGI(bgiPath)
 	if err != nil {
 		return err
 	}
 	defer bgi.Close()
+
 	bgi.Metadata.FirstThousandBytes = nil
 	log.Printf("%+v\n", *bgi.Metadata)
 
@@ -142,7 +180,21 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string) error {
 			aacText = fmt.Sprintf("%f", aac)
 		}
 
-		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%d\t%s\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], sampleFileRow, aacText)
+		rowOrID := sampleFileRow
+
+		// +2 because the sample file contains a header of 2 rows: (1) the true
+		// header, and (2) a second header indicating the value type of the
+		// column
+		if sampleFileContents != nil {
+			sampleID := sampleFileContents[sampleFileRow+2][0]
+			intSampleID, err := strconv.Atoi(sampleID)
+			if err != nil {
+				return err
+			}
+			rowOrID = intSampleID
+		}
+
+		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%d\t%s\n", fixedChromosome, variant.Position, variant.RSID, variant.Alleles[0], variant.Alleles[1], rowOrID, aacText)
 	}
 
 	return nil
