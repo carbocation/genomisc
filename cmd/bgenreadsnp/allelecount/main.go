@@ -47,6 +47,9 @@ func main() {
 
 	rdr := bg.NewVariantReader()
 	variant := rdr.ReadAt(int64(idx.FileStartPosition))
+	if err := rdr.Error(); err != nil {
+		log.Fatalf("'%s' error: %v\n", rsID, err)
+	}
 
 	// fmt.Println(rsID)
 	// fmt.Println(variant.Alleles)
