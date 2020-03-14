@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/brentp/vcfgo"
+	"github.com/carbocation/vcfgo"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -22,14 +22,16 @@ type Work struct {
 
 func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyLimit <-chan struct{}, pool *sync.WaitGroup, sampleFields []string) {
 	if err := variant.Header.ParseSamples(variant); err != nil {
-		// if err := variant.Header.ParseSamples(variant); err != nil {
-		log.Println("Sample parsing error:", err)
-		// panic("hmm")
+		if variant == nil {
+			log.Printf("Sample parsing error: %v\n", err)
+		} else {
+			log.Printf("Sample parsing error for variant %+v: %v\n", *variant, err)
+		}
 	}
 
 	// VCF, for an alt like A,C, stores genotypes like 0/1, 0/2. The first
-	// person is het for A, the second is het for C. In other words, for the Nth
-	// alt allele, the genotype representing that is 1+N.
+	// person is het for A, the second is het for C. In other words, for the
+	// 0-based Nth alt allele, the genotype representing that is 1+N.
 	currentAltAlleleValue := 1 + alleleID
 
 	var altAlleles int
@@ -54,13 +56,16 @@ func worker(variant *vcfgo.Variant, alleleID int, work chan<- Work, concurrencyL
 				} else if gt == currentAltAlleleValue {
 					altAlleles++
 				} else {
-					// Now we know that you have a non-ref, non-missing genotype
-					// that is also not the current alt allele. This implies
-					// that you have a different alt allele. However, we will
-					// treat this as a ref allele for now. Note that if you are
-					// on alt allele 2 and someone is 0/1, they will count once
-					// for the ref, but they will not count towards either the
-					// alt OR the missing unless you do this.
+					// This sample has a non-ref, non-missing genotype that is
+					// also not the current alt allele. This implies that it has
+					// two different alt alleles. This person has no "ref"
+					// allele and the two observed alleles are two different
+					// non-refs at this site. This does happen. Currently, we
+					// treat the other alt as a ref allele, which is
+					// *inaccurate*. Note that if you are on alt allele 2 and
+					// someone is 0/1, they will count once for the ref, but
+					// they will not count towards either the alt OR the missing
+					// unless you do this.
 				}
 			}
 		}

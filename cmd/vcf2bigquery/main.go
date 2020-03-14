@@ -15,7 +15,7 @@ import (
 
 	"github.com/brentp/bix"
 	"github.com/brentp/irelate/interfaces"
-	"github.com/brentp/vcfgo"
+	"github.com/carbocation/vcfgo"
 )
 
 // Special value that is to be set using ldflags
@@ -24,15 +24,16 @@ import (
 var builddate string
 
 var (
-	BufferSize = 4096 * 8
+	BufferSize = 4096 * 32
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 )
 
 var (
 	// Because globals are the signature of really great, not-lazy-at-all
 	// programming
-	keepMissing bool
-	keepAlt     bool
+	keepMissing    bool
+	keepAlt        bool
+	passFilterOnly bool
 )
 
 func main() {
@@ -53,6 +54,7 @@ func main() {
 	flag.BoolVar(&keepMissing, "missing", false, "Print missing genotypes? (Will disable printing of ref alleles)")
 	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
 	flag.Var(&sampleFields, "field", "Fields to keep (other than GT, which is automatically included). Pass once per additional field, e.g., --field DP --field TLOD. Note that you can force a look at the INFO field by prefixing with `INFO_` - useful in cases such as 'DP' which can exist per sample and across the study in the INFO field.")
+	flag.BoolVar(&passFilterOnly, "passonly", false, "If true, will not print variants at sites that have values other than PASS or '.' in the FILTER field.")
 
 	flag.Parse()
 
@@ -97,6 +99,12 @@ func main() {
 		log.Println("Missing alleles will be printed.")
 	}
 
+	if passFilterOnly {
+		log.Println("Will NOT print variants with FILTER values other than PASS or '.'")
+	} else {
+		log.Println("Will print variants regardless of FILTER field")
+	}
+
 	if len(sampleFields) > 0 {
 		sort.StringSlice(sampleFields).Sort()
 		log.Printf("In addition to genotype, will also fetch these sample fields: %s\n", strings.Join(sampleFields, ","))
@@ -119,7 +127,7 @@ func main() {
 	var f io.Reader
 	f, err = gzip.NewReader(fraw)
 	if err != nil {
-		f, _ = os.Open(vcfFile)
+		f = fraw
 	}
 
 	// Buffered reader
@@ -149,8 +157,13 @@ func main() {
 
 	go printer(completedWork, &pool, sampleFields)
 
-	log.Println("Limiting concurrent goroutines to", runtime.NumCPU()*2)
-	concurrencyLimit := make(chan struct{}, runtime.NumCPU()*2)
+	// Current structure is not safe for concurrent use because a vcfgo.Reader
+	// is not safe for concurrent use. One approach to fix this would be to
+	// launch N concurrent goroutines, each of which open the file and which are
+	// assigned a modulus and then only process lines of that modulus. Whether
+	// that is faster than one process isn't immediately obvious to me.
+	log.Println("Limiting concurrent goroutines to 1")
+	concurrencyLimit := make(chan struct{}, 1)
 
 	log.Println("Linearizing", vcfFile)
 
@@ -232,11 +245,23 @@ func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []TabixLocus, concurre
 
 				log.Println(len(snp.Samples), "samples found in the VCF")
 
+				if len(snp.Header.SampleFormats) > 0 {
+					log.Println("SampleFormats for this file:")
+					for _, v := range snp.Header.SampleFormats {
+						log.Println(v.String())
+					}
+				}
+
 				summarized = true
 			}
 
 			if i%1000 == 0 {
 				log.Printf("Processed %d variants. Last %s:%d\n", i, snp.Chrom(), snp.Pos)
+			}
+
+			if passFilterOnly && (snp.Filter != "PASS" && snp.Filter != ".") {
+				// Skip non-pass filter variants if toggled
+				continue
 			}
 
 			ProcessVariant(snp, concurrencyLimit, pool, completedWork, sampleFields)
@@ -267,10 +292,22 @@ func ReadAllVCF(rdr *vcfgo.Reader, concurrencyLimit chan struct{}, pool *sync.Wa
 			variant.Header.ParseSamples(variant)
 
 			log.Println(len(variant.Samples), "samples found in the VCF")
+
+			if len(variant.Header.SampleFormats) > 0 {
+				log.Println("SampleFormats for this file:")
+				for _, v := range variant.Header.SampleFormats {
+					log.Println(v.String())
+				}
+			}
 		}
 
 		if i%1000 == 0 {
 			log.Printf("Processed %d variants. Last %s:%d\n", i, variant.Chrom(), variant.Pos)
+		}
+
+		if passFilterOnly && (variant.Filter != "PASS" && variant.Filter != ".") {
+			// Skip non-pass filter variants if toggled
+			continue
 		}
 
 		ProcessVariant(variant, concurrencyLimit, pool, completedWork, sampleFields)
