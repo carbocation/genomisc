@@ -22,7 +22,12 @@ func printer(work <-chan Work, pool *sync.WaitGroup, sampleFields []string) {
 					sb = append(sb, NullStringFormatter(v))
 				}
 
-				fmt.Fprintf(STDOUT, "%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n", w.SampleID, w.Chrom, w.Pos, w.Ref, w.Alt, w.SNP, NullIntFormatter(w.Genotype), strings.Join(sb, "\t"))
+				siteIDstring := ""
+				if siteID {
+					siteIDstring = fmt.Sprintf("\t%s:%d:%s:%s", w.Chrom, w.Pos, w.Ref, w.Alt)
+				}
+
+				fmt.Fprintf(STDOUT, "%s\t%s\t%d\t%s\t%s%s\t%s\t%s\t%s\n", w.SampleID, w.Chrom, w.Pos, w.Ref, w.Alt, siteIDstring, w.SNP, NullIntFormatter(w.Genotype), strings.Join(sb, "\t"))
 				pool.Done()
 			}
 		}
@@ -30,7 +35,13 @@ func printer(work <-chan Work, pool *sync.WaitGroup, sampleFields []string) {
 		for {
 			select {
 			case w := <-work:
-				fmt.Fprintf(STDOUT, "%s\t%s\t%d\t%s\t%s\t%s\t%s\n", w.SampleID, w.Chrom, w.Pos, w.Ref, w.Alt, w.SNP, NullIntFormatter(w.Genotype))
+
+				siteIDstring := ""
+				if siteID {
+					siteIDstring = fmt.Sprintf("\t%s:%d:%s:%s", w.Chrom, w.Pos, w.Ref, w.Alt)
+				}
+
+				fmt.Fprintf(STDOUT, "%s\t%s\t%d\t%s\t%s%s\t%s\t%s\n", w.SampleID, w.Chrom, w.Pos, w.Ref, w.Alt, siteIDstring, w.SNP, NullIntFormatter(w.Genotype))
 				pool.Done()
 			}
 		}

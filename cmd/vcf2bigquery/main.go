@@ -34,6 +34,7 @@ var (
 	keepMissing    bool
 	keepAlt        bool
 	passFilterOnly bool
+	siteID         bool
 )
 
 func main() {
@@ -55,6 +56,7 @@ func main() {
 	flag.BoolVar(&keepAlt, "alt", false, "Print genotypes with at least one non-reference allele? (Will disable printing of ref alleles)")
 	flag.Var(&sampleFields, "field", "Fields to keep (other than GT, which is automatically included). Pass once per additional field, e.g., --field DP --field TLOD. Note that you can force a look at the INFO field by prefixing with `INFO_` - useful in cases such as 'DP' which can exist per sample and across the study in the INFO field.")
 	flag.BoolVar(&passFilterOnly, "passonly", false, "If true, will not print variants at sites that have values other than PASS or '.' in the FILTER field.")
+	flag.BoolVar(&siteID, "siteid", false, "If true, will create a 'siteid' field which is 'CHR:POS:REF:ALT' and which should be a unique identifier for joins.")
 
 	flag.Parse()
 
@@ -103,6 +105,10 @@ func main() {
 		log.Println("Will NOT print variants with FILTER values other than PASS or '.'")
 	} else {
 		log.Println("Will print variants regardless of FILTER field")
+	}
+
+	if siteID {
+		log.Println("Will also create a 'siteid' field to uniquely identify this variant for joins")
 	}
 
 	if len(sampleFields) > 0 {
@@ -167,10 +173,15 @@ func main() {
 
 	log.Println("Linearizing", vcfFile)
 
+	siteIDstring := ""
+	if siteID {
+		siteIDstring = "\tsiteid"
+	}
+
 	if len(sampleFields) > 0 {
-		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\t%s\n", assembly, strings.Join(sampleFields, "\t"))
+		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt%s\trsid\tgenotype\t%s\n", assembly, siteIDstring, strings.Join(sampleFields, "\t"))
 	} else {
-		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt\trsid\tgenotype\n", assembly)
+		fmt.Fprintf(STDOUT, "sample_id\tchromosome\tposition_%s\tref\talt%s\trsid\tgenotype\n", assembly, siteIDstring)
 	}
 
 	if chunksize == 0 {
