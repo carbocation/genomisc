@@ -105,13 +105,14 @@ func LookupPRS(chromosome string, position uint32) *prsparser.PRS {
 	return nil
 }
 
+// ChromosomalPRS creates a map containing each chromosome and the PRS variants
+// on that chromosome.
 func ChromosomalPRS(currentVariantScoreLookup map[ChrPos]prsparser.PRS) map[string][]prsparser.PRS {
 	output := make(map[string][]prsparser.PRS)
 
 	for _, v := range currentVariantScoreLookup {
 		if _, exists := output[v.Chromosome]; !exists {
 			output[v.Chromosome] = make([]prsparser.PRS, 0)
-
 		}
 
 		output[v.Chromosome] = append(output[v.Chromosome], v)
