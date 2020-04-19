@@ -66,9 +66,10 @@ var (
 		41205: struct{}{},
 		// 40013 Cancer Registry ICD9 is intentionally excluded, since asking
 		// the user to include the cancer registry when they are not including
-		// cancer codes would be counterproductive. TODO: recognize specific ICD
-		// codes and make the prompt if the user includes cancer-specific codes
-		// but not the cancer registry.
+		// cancer codes would be counterproductive.
+		//
+		// TODO: recognize specific ICD codes and make the prompt if the user
+		// includes cancer-specific codes but not the cancer registry.
 	}
 
 	ICD10 = map[int]struct{}{
@@ -78,9 +79,13 @@ var (
 		40002: struct{}{},
 		// 40006 Cancer Registry ICD10 is intentionally excluded, since asking
 		// the user to include the cancer registry when they are not including
-		// cancer codes would be counterproductive. TODO: recognize specific ICD
-		// codes and make the prompt if the user includes cancer-specific codes
-		// but not the cancer registry.
+		// cancer codes would be counterproductive.
+		//
+		// TODO: recognize specific ICD codes and make the prompt if the user
+		// includes cancer-specific codes but not the cancer registry.
+		//
+		// TODO: Add FieldID 41270 - perhaps optionally? The date for this
+		// FieldID is given in 41280
 	}
 
 	OPCS = map[int]struct{}{
