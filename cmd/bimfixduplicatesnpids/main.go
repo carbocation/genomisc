@@ -13,6 +13,33 @@ import (
 	"github.com/carbocation/pfx"
 )
 
+const (
+	CHR = iota
+	SNP
+	Morgans
+	Position
+	Allele1
+	Allele2
+)
+
+// Since BIM files can be whitespace delimited but golang's CSV Reader only
+// accepts a single delimiter character, use this to replace all tabs with
+// spaces on-the-fly.
+type tabToSpaceReader struct {
+	r io.Reader
+}
+
+func (t tabToSpaceReader) Read(p []byte) (n int, err error) {
+	n, err = t.r.Read(p)
+	for i := 0; i < n; i++ {
+		if p[i] == '\t' {
+			p[i] = ' '
+		}
+	}
+
+	return
+}
+
 func main() {
 	var file string
 	flag.StringVar(&file, "file", "", "BIM file path")
@@ -35,10 +62,13 @@ func run(file string) error {
 	}
 	defer x.Close()
 
-	r := csv.NewReader(x)
+	sr := tabToSpaceReader{x}
+
+	r := csv.NewReader(sr)
 	r.Comma = ' '
 
 	seen := make(map[string]struct{})
+	saw := 0
 	fixed := 0
 
 	for {
@@ -49,17 +79,42 @@ func run(file string) error {
 			return pfx.Err(err)
 		}
 
-		if _, exists := seen[line[1]]; exists {
+		if len(line) < 6 {
+			continue
+		}
+
+		saw++
+
+		if _, exists := seen[line[SNP]]; exists {
 			fixed++
-			line[1] += "_" + RandHeteroglyphs(3)
-			seen[line[1]] = struct{}{}
+
+			// Add positional information
+			line[SNP] += "_" + line[CHR] + "_" + line[Position] + "_" + line[Allele1] + "_" + line[Allele2]
+
+			// Iteratively add random suffix until the entry is unique
+			for {
+				// Once we have achieved uniqueness, we are done
+				if _, exists := seen[line[SNP]]; !exists {
+					break
+				}
+
+				// Add random suffix
+				if _, exists := seen[line[SNP]]; exists {
+					line[SNP] += "_" + RandHeteroglyphs(3)
+				}
+			}
+
+			// Mark the modified SNP as seen only after the loop
+			seen[line[SNP]] = struct{}{}
+
 		} else {
-			seen[line[1]] = struct{}{}
+			seen[line[SNP]] = struct{}{}
 		}
 
 		fmt.Println(strings.Join(line, " "))
 	}
 
+	log.Println("Saw", saw, "total SNP IDs")
 	log.Println("Fixed", fixed, "duplicate SNP IDs")
 
 	return nil
