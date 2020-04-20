@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/prsparser"
@@ -153,27 +154,72 @@ func main() {
 			// Permit explicit paths (e.g., when all data is in one BGEN)
 			bgenPath = bgenTemplatePath
 		}
-		bgi, err := bgen.OpenBGI(bgenPath + ".bgi?mode=ro")
-		if err != nil {
-			log.Fatalln(err)
-		}
-		bgi.Metadata.FirstThousandBytes = nil
-		log.Printf("BGI Metadata: %+v\n", bgi.Metadata)
 
-		// Load the BGEN for the chromosome
-		b, err := bgen.Open(bgenPath)
-		if err != nil {
-			panic(err.Error())
+		var bgi *bgen.BGIIndex
+		var b *bgen.BGEN
+
+		for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+			bgi, err = bgen.OpenBGI(bgenPath + ".bgi?mode=ro")
+			if err != nil && loadAttempts == maxLoadAttempts {
+				// Ongoing failure at maxLoadAttempts is a terminal error
+				log.Fatalln(err)
+			} else if err != nil {
+				// If we had an error, often due to an unreliable underlying
+				// filesystem, wait for a substantial amount of time before
+				// retrying.
+				log.Println("Sleeping 5s to recover from", err.Error())
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			bgi.Metadata.FirstThousandBytes = nil
+			log.Printf("BGI Metadata: %+v\n", bgi.Metadata)
+
+			// Load the BGEN for the chromosome
+			b, err = bgen.Open(bgenPath)
+			if err != nil && loadAttempts == maxLoadAttempts {
+				// Ongoing failure at maxLoadAttempts is a terminal error
+				log.Fatalln(err)
+			} else if err != nil {
+				// If we had an error, often due to an unreliable underlying
+				// filesystem, wait for a substantial amount of time before retrying.
+				log.Println("Sleeping 5s to recover from", err.Error())
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			// If loading the bgen was error-free, no additional attempts
+			// are required.
+			break
 		}
 
 		// Iterate over each chromosomal position on this current chromosome
 		for _, oneSite := range chomosomalSites {
 
-			// Find the site in the BGEN index file
-			sites, err := FindPRSSiteInBGI(bgi, oneSite)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Skipping %v\n:", oneSite)
-				log.Println(err)
+			var sites []bgen.VariantIndex
+
+			// Find the site in the BGEN index file. Here we also handle a
+			// specific filesystem error (input/output error) and retry in that
+			// case. Namely, exiting early is superior to producing incorrect
+			// output in the face of i/o errors. But, since we expect other
+			// "error" messages, we permit those to just be printed and ignored.
+			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+				sites, err = FindPRSSiteInBGI(bgi, oneSite)
+				if err != nil && loadAttempts == maxLoadAttempts {
+					// Ongoing failure at maxLoadAttempts is a terminal error
+					log.Fatalln(err)
+				} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+					// If we had an error, often due to an unreliable underlying
+					// filesystem, wait for a substantial amount of time before retrying.
+					log.Println("Sleeping 5s to recover from", err.Error())
+					time.Sleep(5 * time.Second)
+					continue
+				} else if err != nil {
+					fmt.Fprintf(os.Stderr, "Skipping %v\n:", oneSite)
+					log.Println(err)
+				}
+
+				// No errors? Don't retry.
+				break
 			}
 
 			// Multiple variants may be present at each chromosomal position
