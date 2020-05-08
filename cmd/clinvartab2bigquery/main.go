@@ -31,6 +31,8 @@ var (
 )
 
 func main() {
+	defer STDOUT.Flush()
+
 	var tabFile, assembly string
 	flag.StringVar(&tabFile, "result", "", "A ClinVar release file in tab format, e.g., https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz")
 	flag.StringVar(&assembly, "assembly", "", "Human genome assembly. Currently must be one of 'GRCh37' or 'GRCh38'")
@@ -116,7 +118,7 @@ func main() {
 				hid[v] = k
 			}
 
-			fmt.Println(strings.Join(header, "\t"))
+			fmt.Fprintln(STDOUT, strings.Join(header, "\t"))
 			continue
 		}
 
@@ -187,7 +189,7 @@ func main() {
 			cols...,
 		)
 
-		fmt.Println(strings.Join(line, "\t"))
+		fmt.Fprintln(STDOUT, strings.Join(line, "\t"))
 
 	}
 
