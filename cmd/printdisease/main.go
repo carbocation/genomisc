@@ -119,6 +119,7 @@ func main() {
 			for _, entryValue := range v.FormattedValues() {
 				fmt.Fprintf(os.Stderr, "\t\t%s\n", codingEntry[entryValue])
 			}
+			fmt.Fprintf(os.Stderr, "\n")
 		} else {
 			fmt.Fprintf(os.Stderr, "\t\t")
 			fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
