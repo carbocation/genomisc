@@ -168,6 +168,8 @@ func NA(input interface{}) interface{} {
 func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquery.Query, error) {
 	params := []bigquery.QueryParameter{}
 
+	// By default, if there is no undated query, pull no data (the query will be
+	// `AND TRUE AND FALSE`)
 	standardPart := "AND FALSE"
 	if len(tabs.Include.Standard)+len(tabs.Exclude.Standard) > 0 {
 		standardPart = "AND p.FieldID IN UNNEST(@StandardFieldIDs)"
