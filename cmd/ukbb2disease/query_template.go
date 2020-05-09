@@ -48,6 +48,10 @@ WITH undated_fields AS (
 	  MIN(c.missing_fields) missing_fields
 	FROM ` + "`{{.database}}.censor`" + ` c
 	LEFT OUTER JOIN (
+		{{if .use_gp}}
+		SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_gp_dates`" + `
+		UNION DISTINCT
+		{{end}}
 		SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_hesin_dates`" + `
 		UNION DISTINCT
 		SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `
@@ -93,6 +97,10 @@ WITH undated_fields AS (
 		MIN(c.missing_fields) missing_fields
 	  FROM ` + "`{{.database}}.censor`" + ` c
 	  LEFT OUTER JOIN (
+		  {{if .use_gp}}
+		  SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_gp_dates`" + `
+		  UNION DISTINCT
+		  {{end}}
 		  SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_hesin_dates`" + `
 		  UNION DISTINCT
 		  SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `

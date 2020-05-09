@@ -19,6 +19,7 @@ type WrappedBigQuery struct {
 	Project        string
 	Database       string
 	MaterializedDB string
+	UseGP          bool
 }
 
 // Special value that is to be set using ldflags
@@ -60,6 +61,7 @@ func main() {
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
+	flag.BoolVar(&BQ.UseGP, "usegp", false, "")
 	flag.Parse()
 
 	if BQ.Project == "" {
