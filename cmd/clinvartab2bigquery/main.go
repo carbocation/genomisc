@@ -1,11 +1,11 @@
 // clinvar2bigquery is designed to take clinvar data, filter it using criteria
 // that are useful to my line of work, and then format it so that it can be
 // ingested in bigquery. Specifically, this ingests the file located at
-// https://ftp.ncbi.nlm.nih.gov/pub/clinvar/xml/ClinVarFullRelease_00-latest.xml.gz
+// https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz
 //
 // See
-// https://ftp.ncbi.nih.gov/pub/clinvar/vcf_GRCh38/archive_2.0/2018/README_VCF.txt
-// for info on interpreting the VCF fields.
+// https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/README
+// for info on interpreting the fields.
 package main
 
 import (
