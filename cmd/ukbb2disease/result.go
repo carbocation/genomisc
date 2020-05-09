@@ -206,7 +206,7 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 	queryParts := map[string]interface{}{
 		// True variables
 		"database":             BQ.Database,
-		"materializedDatabase": materializedDB,
+		"materializedDatabase": BQ.MaterializedDB,
 
 		// Composed chunks of query
 		"standardPart": standardPart,

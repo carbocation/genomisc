@@ -14,10 +14,11 @@ import (
 )
 
 type WrappedBigQuery struct {
-	Context  context.Context
-	Client   *bigquery.Client
-	Project  string
-	Database string
+	Context        context.Context
+	Client         *bigquery.Client
+	Project        string
+	Database       string
+	MaterializedDB string
 }
 
 // Special value that is to be set using ldflags
@@ -29,8 +30,6 @@ var (
 	BufferSize = 4096 * 8
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 )
-
-var materializedDB string
 
 func init() {
 	flag.Usage = func() {
@@ -56,7 +55,7 @@ func main() {
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
 	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
-	flag.StringVar(&materializedDB, "materialized", "", "project.database storing materialized view tables, e.g., ukbb-analyses.ukbb7089_201904")
+	flag.StringVar(&BQ.MaterializedDB, "materialized", "", "project.database storing materialized view tables, e.g., ukbb-analyses.ukbb7089_201904")
 	flag.BoolVar(&displayQuery, "display-query", false, "Display the constructed query and exit?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
@@ -81,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if materializedDB == "" {
+	if BQ.MaterializedDB == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --materialized")
 		flag.Usage()
 		os.Exit(1)
