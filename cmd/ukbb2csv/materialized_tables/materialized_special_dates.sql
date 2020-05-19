@@ -111,10 +111,57 @@ self_reported_undated_fields AS (
     FALSE
     OR (p.FieldID=3079 AND p.value='1') -- Pacemaker
   )
+),
+-- The following are used to construct values for the "First dates" precomputed
+-- fields provided by UK Biobank
+first_dates AS (
+  -- Date
+  SELECT 
+    p.sample_id, 
+    p.FieldID, 
+    -- Caution: brittle, expects disease code to always be in 0-based position 1
+    SPLIT(Field, ' ')[OFFSET(1)] value,
+    p.value first_date
+  FROM `ukbb-analyses.ukbb7089_201910.phenotype` p
+  JOIN `ukbb-analyses.ukbb7089_201910.dictionary` d USING(FieldID, coding_file_id)
+  WHERE TRUE
+    AND Path LIKE '%First occurrences%'
+    AND Field LIKE 'Date%'
+), first_sources AS (
+  -- Source
+  SELECT 
+    p.sample_id, 
+    p.FieldID, 
+    -- Caution: brittle, expects disease code to always be in 0-based position 4
+    SPLIT(Field, ' ')[OFFSET(4)] value,
+    p.value code
+  FROM `ukbb-analyses.ukbb7089_201910.phenotype` p
+  JOIN `ukbb-analyses.ukbb7089_201910.dictionary` d USING(FieldID, coding_file_id)
+  WHERE TRUE
+    AND Path LIKE '%First occurrences%'
+    AND Field LIKE 'Source%'
+), linked AS (
+  -- Link them both
+  SELECT 
+    fs.sample_id ,
+    fs.FieldID source_FieldID,
+    fd.FieldID date_FieldID,
+    fs.code,
+    SAFE.PARSE_DATE("%E4Y-%m-%d", fd.first_date) first_date
+  FROM first_dates fd
+  JOIN first_sources fs ON fd.sample_id = fs.sample_id AND fd.value = fs.value 
+), first_dates_summary_fields AS (
+  -- Allow people to use the FieldID of the date or of the source:
+  SELECT source_FieldID FieldID, sample_id eid, code, '' meaning, first_date vdate FROM linked 
+  UNION ALL
+  SELECT date_FieldID FieldID, sample_id eid, code, '' meaning, first_date vdate FROM linked 
 )
 
 SELECT 
-  diagnostics.eid sample_id, diagnostics.FieldID, diagnostics.code value, MIN(vdate) first_date
+  diagnostics.eid sample_id, 
+  diagnostics.FieldID, 
+  diagnostics.code value, 
+  MIN(vdate) first_date
 FROM (
   SELECT * FROM dated_fields
   UNION DISTINCT
@@ -123,6 +170,8 @@ FROM (
   SELECT * FROM self_reported_aged_subfields
   UNION DISTINCT 
   SELECT * FROM self_reported_undated_fields
+  UNION DISTINCT
+  SELECT * FROM first_dates_summary_fields
 ) diagnostics
 WHERE TRUE
   AND vdate IS NOT NULL
