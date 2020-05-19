@@ -10,7 +10,7 @@ Field	Coding	exclude
 
 *Coding* is the UK Biobank value (e.g., `phenotype.value` or `coding.coding`)
 
-*Exclude* is whether the row is an exclusion criterion (1) or not (0)
+*Exclude* is whether the row is an exclusion criterion (1) or an inclusion criterion (0)
 
 # Install updated dependencies
 `go get -u`
@@ -21,4 +21,4 @@ Field	Coding	exclude
 `GOOS=linux go build -o ukbb2disease.linux *.go`
 
 # Database dependencies
-This requires the materialized tables (defined in the SQL files in this directory) to exist in tables with the same name as their filename (except the suffix).
+This requires the materialized tables (defined in the SQL files in the `ukbb2csv` directory) to exist in tables with the same name as their filename (except the suffix).
