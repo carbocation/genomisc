@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	DictionaryFieldIDCol      = 2
-	DictionaryCodingFileIDCol = 14
+// DictionaryFieldIDCol      = 2
+// DictionaryCodingFileIDCol = 14
 )
 
 func RunAllBackendCSV(phenoPaths []string, dictionaryCSV string) error {
@@ -198,7 +198,28 @@ func parseHeadersCSV(dictionaryCSV string, row []string, headers map[int]Column)
 	// Get the FieldID => coding_file_id map
 	codinglookup := []CodingFileLookup{}
 
-	for _, rec := range dictRecords {
+	var DictionaryCodingFileIDCol, DictionaryFieldIDCol int = -1, -1
+
+	for i, rec := range dictRecords {
+
+		// Determine the FieldID and coding_file_id column numbers
+		if i == 0 {
+			for colNum, field := range rec {
+				if field == "coding_file_id" {
+					log.Printf("Dictionary coding_file_id column is %d\n", colNum)
+					DictionaryCodingFileIDCol = colNum
+				} else if field == "FieldID" {
+					log.Printf("Dictionary FieldID column is %d\n", colNum)
+					DictionaryFieldIDCol = colNum
+				}
+			}
+
+			if DictionaryFieldIDCol < 0 || DictionaryCodingFileIDCol < 0 {
+				return pfx.Err(fmt.Errorf("Thought dictionary FieldID was column %d and coding_file_id was %d", DictionaryFieldIDCol, DictionaryCodingFileIDCol))
+			}
+
+			continue
+		}
 		FieldID, err := strconv.ParseInt(rec[DictionaryFieldIDCol], 10, 64)
 		if err != nil {
 			continue
@@ -210,8 +231,11 @@ func parseHeadersCSV(dictionaryCSV string, row []string, headers map[int]Column)
 		}
 
 		codinglookup = append(codinglookup, CodingFileLookup{
-			FieldID:      FieldID,
-			CodingFileID: bigquery.NullInt64{Int64: CodingFileID},
+			FieldID: FieldID,
+
+			// Invalid CodingFileIDs are skipped above, so we know that any
+			// CodingFileID here is valid
+			CodingFileID: bigquery.NullInt64{Int64: CodingFileID, Valid: true},
 		})
 	}
 
