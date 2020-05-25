@@ -112,6 +112,21 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Fatalln(err)
 	}
 
+	N, err = BQ.AddSexEthnicity(out)
+	log.Println("Found", N, "sex/ethnicity results")
+	if N == 0 {
+		for k := range out {
+			entry := out[k]
+			entry.Missing = append(entry.Missing, "sex[31]")
+			entry.Missing = append(entry.Missing, "ethnicity[21000]")
+			out[k] = entry
+		}
+		log.Println("Warning: sex or ethnicity not found. Are you missing FieldID 31 or 21000?")
+	}
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	N, err = BQ.AddPrimaryCareFlag(out)
 	log.Println("Found", N, "primary care results")
 	if N == 0 {
@@ -127,7 +142,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	}
 
 	// Print
-	fmt.Printf("sample_id\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tlost_to_followup_date\tlost_to_followup_age\tcomputed_date\tmissing_fields\thas_gp_data\n")
+	fmt.Printf("sample_id\tsex\tethnicity\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tlost_to_followup_date\tlost_to_followup_age\tcomputed_date\tmissing_fields\thas_gp_data\n")
 	for _, v := range out {
 
 		// Some samples have been removed
@@ -135,8 +150,10 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			continue
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n",
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n",
 			v.SampleID,
+			v.Sex,
+			v.Ethnicity,
 			TimeToUKBDate(v.Born()),
 			TimeToUKBDate(v.enrolled),
 			TimesToFractionalYears(v.Born(), v.enrolled),
@@ -155,6 +172,23 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	}
 
 	return nil
+}
+
+func (BQ *WrappedBigQuery) AddSexEthnicity(out map[int64]CensorResult) (int, error) {
+	res, err := BigQuerySexEthnicity(BQ)
+	if err != nil {
+		return 0, err
+	}
+	N := len(res)
+
+	for k, v := range res {
+		entry := out[k]
+		entry.Sex = v.Sex
+		entry.Ethnicity = v.Ethnicity
+		out[k] = entry
+	}
+
+	return N, nil
 }
 
 func (BQ *WrappedBigQuery) AddBirthYear(out map[int64]CensorResult) (int, error) {

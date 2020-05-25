@@ -11,6 +11,10 @@ import (
 type CensorResult struct {
 	SampleID int64
 
+	Sex string
+
+	Ethnicity string
+
 	// In the database, populate with a list of fields that we would like to
 	// have (e.g., month of birth, lost to followup) but which were not present,
 	// so we know if the table was constructed from incomplete data
