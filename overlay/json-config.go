@@ -14,9 +14,9 @@ import (
 type JSONConfig struct {
 	ConfigPath   string
 	ManifestPath string   `json:"manifest"`
-	Project      string   `json:"project"`
 	Port         int      `json:"port"`
 	Labels       LabelMap `json:"labels"`
+	LabelPath    string   `json:"label_path"`
 	ImagePath    string   `json:"image_path"`
 	ImageSuffix  string   `json:"image_suffix"`
 	DefaultBrush string   `json:"default_brush"`
@@ -52,7 +52,7 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 	out.ConfigPath = expandHomeDir(out.ConfigPath)
 	out.ImagePath = expandHomeDir(out.ImagePath)
 	out.ManifestPath = expandHomeDir(out.ManifestPath)
-	out.Project = expandHomeDir(out.Project)
+	out.LabelPath = expandHomeDir(out.LabelPath)
 
 	return out, pfx.Err(err)
 }
