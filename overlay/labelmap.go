@@ -277,8 +277,9 @@ func (l LabelMap) DecodeImageFromRLE(rleBytes []byte, maxX, maxY int) (image.Ima
 	return img, nil
 }
 
-// Valid ensures that the LabelMap is valid by testing that it is bijective,
-// starts with 0, and has no gaps. If not, it's invalid.
+// Valid ensures that the LabelMap is valid by testing that it is bijective. If
+// not, it's invalid. (Previously checked to make sure that IDs started at 0 and
+// had no gaps, but that requirement has since been relaxed.)
 func (l LabelMap) Valid() bool {
 	inverse := make(map[uint]string)
 	for k, v := range l {
@@ -290,12 +291,12 @@ func (l LabelMap) Valid() bool {
 		return false
 	}
 
-	// Starts with 0 and has consecutive integers?
-	for i := 0; i < len(inverse); i++ {
-		if _, exists := inverse[uint(i)]; !exists {
-			return false
-		}
-	}
+	// No longer checking that it starts with 0 and has consecutive integers
+	// for i := 0; i < len(inverse); i++ {
+	// 	if _, exists := inverse[uint(i)]; !exists {
+	// 		return false
+	// 	}
+	// }
 
 	return true
 }
