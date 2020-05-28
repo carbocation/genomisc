@@ -20,9 +20,7 @@ type JSONConfig struct {
 	ImagePath    string   `json:"image_path"`
 	ImageSuffix  string   `json:"image_suffix"`
 	DefaultBrush string   `json:"default_brush"`
-
-	// Determined by whether ImagePath is set
-	PreParsed bool `json:"-"`
+	PreParsed    bool     `json:"preparsed"`
 }
 
 func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
@@ -41,10 +39,6 @@ func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
 		}
 
 		return out, pfx.Err(err)
-	}
-
-	if out.ImagePath != "" {
-		out.PreParsed = true
 	}
 
 	// Internally, go uses lower case for all colors, so we will too (while
