@@ -15,9 +15,10 @@ import (
 // A Label tracks the segmentation ID with the human-identifiable Label and
 // human-interpretable color (in RGB hex, e.g., #FF0000 for red).
 type Label struct {
-	Label string
-	ID    uint   `json:"id"`
-	Color string `json:"color"`
+	Label     string
+	ID        uint   `json:"id"`
+	Color     string `json:"color"`
+	SortOrder int    `json:"sort_order,omitempty"`
 }
 
 // LabelMap ([string label name]Label) keeps track of the relationship between
@@ -308,7 +309,15 @@ func (l LabelMap) Sorted() []Label {
 	}
 
 	sort.Slice(out, func(i, j int) bool {
-		return out[j].ID > out[i].ID
+		// If SortOrder is defined and different, use it:
+		if out[i].SortOrder != out[j].SortOrder {
+			return out[i].SortOrder < out[j].SortOrder
+		}
+
+		// If SortOrder is not defined, or is the same for two values, drop down
+		// to the ID field for sorting
+		return out[i].ID < out[j].ID
+
 	})
 
 	return out
