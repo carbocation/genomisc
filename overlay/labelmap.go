@@ -301,6 +301,10 @@ func (l LabelMap) Valid() bool {
 	return true
 }
 
+// Sorted permits sorting by arbitrary criteria - may be useful for reordering
+// labels for different blocks of segmentation. Internally, all mapping is done
+// based on the explicitly set ID, so the sort order does not matter (except
+// perhaps for performance in for loops).
 func (l LabelMap) Sorted() []Label {
 	out := make([]Label, 0, len(l))
 
