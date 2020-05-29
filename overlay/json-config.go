@@ -21,6 +21,7 @@ type JSONConfig struct {
 	ImageSuffix  string   `json:"image_suffix"`
 	DefaultBrush string   `json:"default_brush"`
 	PreParsed    bool     `json:"preparsed"`
+	BrushSize    int      `json:"brush_size,omitempty"`
 }
 
 func ParseJSONConfigFromPath(path string) (JSONConfig, error) {
