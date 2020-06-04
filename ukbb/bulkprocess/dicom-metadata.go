@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"strconv"
 
 	"github.com/suyashkumar/dicom"
@@ -91,6 +92,19 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 
 		if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x0011}) == 0 {
 			output.OverlayCols = int(elem.Value[0].(uint16))
+		}
+
+		if elem.Tag == dicomtag.VelocityEncodingAcquisitionSequence ||
+			elem.Tag == dicomtag.VelocityEncodingDirection {
+
+			log.Println("VENC")
+			log.Println(elem.Value)
+		}
+
+		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0019, Element: 0x10cc}) == 0 {
+			log.Println("VENC")
+			log.Println("%+V\n", elem.Value)
+			// output.OverlayCols = int(elem.Value[0].(uint16))
 		}
 
 		if elem.Tag == dicomtag.InstanceNumber {
