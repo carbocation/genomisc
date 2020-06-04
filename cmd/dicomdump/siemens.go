@@ -4,12 +4,33 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 )
 
+// The instructions for parsing the Siemens header are given in pseudocode here:
+// https://scion.duhs.duke.edu/vespa/project/raw-attachment/wiki/SiemensCsaHeaderParsing/csa.html
+// or cached version
+// https://webcache.googleusercontent.com/search?q=cache:EbsOluxWNWIJ:https://scion.duhs.duke.edu/vespa/project/raw-attachment/wiki/SiemensCsaHeaderParsing/csa.html+&cd=4&hl=en&ct=clnk&gl=us
+
+type SiemensChunk struct {
+	Name           string
+	VM             uint32
+	VR             string
+	SyngoDT        uint32
+	Subelements    uint32
+	SubElementData []string
+	Order          int
+}
+
+// SiemensDelimiter is defined and used, but we don't actually need to be aware
+// of it to parse correctly
 var SiemensDelimiter = []byte{0x4d, 00, 00, 00}
+
+// SiemensDelimiter2 is defined and used, but we don't actually need to be aware
+// of it to parse correctly
 var SiemensDelimiter2 = []byte{0xcd, 00, 00, 00}
 
+// ParseSiemensHeader consumes the element corresponding to the Siemens header
+// and parses it fully.
 func ParseSiemensHeader(v interface{}) (map[string]SiemensChunk, error) {
 
 	sData := make(map[string]SiemensChunk)
@@ -51,28 +72,19 @@ func ParseSiemensHeader(v interface{}) (map[string]SiemensChunk, error) {
 	// Read the first named chunk
 	var sc SiemensChunk
 
+	i := 0
 	for offset < int64(len(bs)) {
 		sc, offset = ReadChunk(bread, offset)
+		sc.Order = i
 		sData[sc.Name] = sc
-		// fmt.Printf("%d | %+v\n", offset, sc)
-	}
 
-	for _, v := range sData["FlowVenc"].SubElementData {
-		fmt.Println("FlowVenc", v)
+		i++
 	}
 
 	return sData, nil
 }
 
-type SiemensChunk struct {
-	Name           string
-	VM             uint32
-	VR             string
-	SyngoDT        uint32
-	Subelements    uint32
-	SubElementData []string
-}
-
+// ReadChunk reads a named element and any subelements from the Siemens header.
 func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 	out := SiemensChunk{}
 
@@ -122,9 +134,11 @@ func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 	}
 
 	for i := 0; i < int(out.Subelements); i++ {
-		// 16 bytes, first 4, second 4, and fourth 4 are equal to one another,
-		// and third are always a delimiter(!). So, read the first 4, but
-		// increment the offset by 16.
+		// Always 16 bytes. The first 4, second 4, and fourth 4 are equal to one
+		// another, and signify the number of bytes that correspond to the data
+		// in this subelement. The third 4 bytes are always a delimiter(!). So,
+		// read the first 4 bytes, treat them as a 32-bit little-endian integer,
+		// and increment the offset by 16.
 		bread.ReadAt(word, offset)
 		offset += 16
 
@@ -135,40 +149,22 @@ func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 		bread.ReadAt(dword, offset)
 		offset += int64(len(dword))
 
-		// The data fields are always padded out to a 4-byte boundary. So, if we
-		// have 9 bytes of data, we will read out 3 more bytes so we are padded
-		// out to 12 bytes.
+		// The data fields are always padded out to the nearest 4-byte boundary.
+		// So, e.g., if we have 9 bytes of data, we will read out 3 more bytes
+		// so we are padded out to 12 bytes. (Don't actually need to read out
+		// the bytes - just need to advance the offset)
 		if modulus := dataLen % 4; modulus != 0 {
 			fixOffset := 4 - modulus
-			bread.ReadAt(make([]byte, fixOffset), offset)
+			// bread.ReadAt(make([]byte, fixOffset), offset)
 			offset += int64(fixOffset)
 		}
 
 		if dataLen > 0 {
 			out.SubElementData = append(out.SubElementData, string(dword))
-
-			// fmt.Println("Length", dataLen, "Data:", string(dword))
+			// noNullDword := bytes.Split(dword, []byte{0x00})
+			// out.SubElementData = append(out.SubElementData, string(noNullDword[0]))
 		}
 	}
 
 	return out, offset
-}
-
-func ReadUntilDelimiter(bs []byte, offset int64) ([]byte, int64) {
-
-	rest, _ := ioutil.ReadAll(bytes.NewReader(bs[offset:]))
-
-	chunks := bytes.Split(rest, SiemensDelimiter)
-
-	return chunks[0], int64(len(SiemensDelimiter) + len(chunks[0]))
-}
-
-func ReadNBytesAtOffsetDiscardingNul(bread *bytes.Reader, nBytes, offset int64) []byte {
-	word := make([]byte, nBytes)
-
-	bread.ReadAt(word, offset)
-
-	wp := bytes.Split(word, []byte{0x00})
-
-	return wp[0]
 }
