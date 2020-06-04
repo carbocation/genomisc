@@ -104,7 +104,8 @@ func ProcessDicom(dicomReader io.Reader) error {
 				if err != nil {
 					return err
 				}
-				for _, v := range sc {
+				fmt.Printf("%v %v %s NElements: %+v\n", elem.Tag, tagName.Name, "SiemensHeader", sc.NElements)
+				for _, v := range sc.Slice() {
 					fmt.Printf("%v %v %s %+v\n", elem.Tag, tagName.Name, "SiemensHeader", v)
 				}
 			}

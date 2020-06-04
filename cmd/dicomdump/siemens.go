@@ -4,12 +4,38 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"sort"
 )
 
 // The instructions for parsing the Siemens header are given in pseudocode here:
 // https://scion.duhs.duke.edu/vespa/project/raw-attachment/wiki/SiemensCsaHeaderParsing/csa.html
 // or cached version
 // https://webcache.googleusercontent.com/search?q=cache:EbsOluxWNWIJ:https://scion.duhs.duke.edu/vespa/project/raw-attachment/wiki/SiemensCsaHeaderParsing/csa.html+&cd=4&hl=en&ct=clnk&gl=us
+
+type SiemensHeader struct {
+	NElements int
+	Elements  map[string]SiemensChunk
+}
+
+func (s SiemensHeader) Slice() []SiemensChunk {
+	orderedSlice := make([]SiemensChunk, 0, len(s.Elements))
+
+	for _, v := range s.Elements {
+		orderedSlice = append(orderedSlice, v)
+	}
+
+	sort.Slice(orderedSlice, func(i, j int) bool {
+		return orderedSlice[i].Order < orderedSlice[j].Order
+	})
+
+	return orderedSlice
+}
+
+func (s SiemensHeader) String() string {
+	orderedSlice := s.Slice()
+
+	return fmt.Sprintf("NElements: %d Elements: %+v", s.NElements, orderedSlice)
+}
 
 type SiemensChunk struct {
 	Name           string
@@ -31,9 +57,10 @@ var SiemensDelimiter2 = []byte{0xcd, 00, 00, 00}
 
 // ParseSiemensHeader consumes the element corresponding to the Siemens header
 // and parses it fully.
-func ParseSiemensHeader(v interface{}) (map[string]SiemensChunk, error) {
-
-	sData := make(map[string]SiemensChunk)
+func ParseSiemensHeader(v interface{}) (SiemensHeader, error) {
+	sData := SiemensHeader{
+		Elements: make(map[string]SiemensChunk),
+	}
 
 	// The data is a byte stream that is encoded into 4-byte words.
 	// Specifically, they are encoded as little-endian 32-bit words.
@@ -45,25 +72,25 @@ func ParseSiemensHeader(v interface{}) (map[string]SiemensChunk, error) {
 
 	// Confirmed the SV10 header
 	if _, err := bread.ReadAt(word, offset); err != nil {
-		return nil, err
+		return sData, err
 	}
 	offset += int64(len(word))
 
 	if string(word) != "SV10" {
-		return nil, fmt.Errorf("Siemens data didn't start with SV10")
+		return sData, fmt.Errorf("Siemens data didn't start with SV10")
 	}
 
 	// Check for the 04030201 constant
 	bread.ReadAt(word, offset)
 	offset += int64(len(word))
 	if cslc := []byte{04, 03, 02, 01}; !bytes.Equal(cslc, word) {
-		return nil, fmt.Errorf("Didn't find constant %v", cslc)
+		return sData, fmt.Errorf("Didn't find constant %v", cslc)
 	}
 
 	bread.ReadAt(word, offset)
 	offset += int64(len(word))
 	nElements := binary.LittleEndian.Uint32(word)
-	fmt.Println("There are", nElements, "elements in the Siemens header")
+	sData.NElements = int(nElements)
 
 	// Read the delimiter
 	bread.ReadAt(word, offset)
@@ -73,10 +100,13 @@ func ParseSiemensHeader(v interface{}) (map[string]SiemensChunk, error) {
 	var sc SiemensChunk
 
 	i := 0
-	for offset < int64(len(bs)) {
+
+	// Since each Name field is 64 bytes, if the remaining data wouldn't be
+	// enough for a Name field, we know we are done.
+	for offset < (int64(len(bs)) - 64) {
 		sc, offset = ReadChunk(bread, offset)
 		sc.Order = i
-		sData[sc.Name] = sc
+		sData.Elements[sc.Name] = sc
 
 		i++
 	}
@@ -121,18 +151,20 @@ func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 	offset += 4
 	out.SyngoDT = binary.LittleEndian.Uint32(word)
 
-	// subelements
+	// subelement count
 	bread.ReadAt(word, offset)
 	offset += 4
 	out.Subelements = binary.LittleEndian.Uint32(word)
 
-	// delim?
-	bread.ReadAt(word, offset)
-	offset += 4
-	if bytes.Equal(word, SiemensDelimiter) || bytes.Equal(word, SiemensDelimiter2) {
-		// log.Println("Done with element")
-	}
+	// Next is another delim. No need to read since we don't use it, but do need
+	// to increment the offset.
 
+	// bread.ReadAt(word, offset)
+	// if bytes.Equal(word, SiemensDelimiter) || bytes.Equal(word, SiemensDelimiter2) {
+	// }
+	offset += 4
+
+	// Iterate over the subelements
 	for i := 0; i < int(out.Subelements); i++ {
 		// Always 16 bytes. The first 4, second 4, and fourth 4 are equal to one
 		// another, and signify the number of bytes that correspond to the data
