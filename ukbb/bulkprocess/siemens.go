@@ -1,4 +1,4 @@
-package main
+package bulkprocess
 
 import (
 	"bytes"

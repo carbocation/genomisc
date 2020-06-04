@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/dicomtag"
@@ -100,7 +101,7 @@ func ProcessDicom(dicomReader io.Reader) error {
 
 		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0029, Element: 0x1010}) == 0 {
 			for _, v := range elem.Value {
-				sc, err := ParseSiemensHeader(v)
+				sc, err := bulkprocess.ParseSiemensHeader(v)
 				if err != nil {
 					return err
 				}
