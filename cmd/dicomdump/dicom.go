@@ -99,6 +99,29 @@ func ProcessDicom(dicomReader io.Reader) error {
 			tagName.Name = "____"
 		}
 
+		// We don't want to flood the screen with pixel data. Note that as long
+		// as we have set DropPixelData: true above in dicom.ParseOptions, these
+		// checks are redundant.
+
+		if elem.Tag == dicomtag.PixelData {
+			// Don't print the main image as text
+			fmt.Println(elem.Tag, tagName.Name, "~~skipping pixel data~~")
+			continue
+		}
+
+		if elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
+			// Don't print the overlay as text
+			fmt.Println(elem.Tag, tagName.Name, "~~skipping overlay pixel data~~")
+			continue
+		}
+
+		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0029, Element: 0x1020}) == 0 {
+			// Don't print the secondary Siemens data.
+			fmt.Println(elem.Tag, tagName.Name, "~~skipping secondary Siemens data~~")
+			continue
+		}
+
+		// Siemens header data requires special treatment
 		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0029, Element: 0x1010}) == 0 {
 			for _, v := range elem.Value {
 				sc, err := bulkprocess.ParseSiemensHeader(v)
@@ -111,11 +134,6 @@ func ProcessDicom(dicomReader io.Reader) error {
 				}
 			}
 
-			continue
-		}
-
-		if elem.Tag.Compare(dicomtag.Tag{Group: 0x0029, Element: 0x1020}) == 0 {
-			fmt.Println(elem.Tag, tagName.Name, "~~skipping value~~")
 			continue
 		}
 
