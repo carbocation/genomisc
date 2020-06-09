@@ -144,7 +144,7 @@ func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 	// VR
 	bread.ReadAt(word, offset)
 	offset += 4
-	out.VR = string(word)
+	out.VR = string(bytes.Split(word, []byte{0x00})[0])
 
 	// syngo dt
 	bread.ReadAt(word, offset)
@@ -192,7 +192,7 @@ func ReadChunk(bread *bytes.Reader, offset int64) (SiemensChunk, int64) {
 		}
 
 		if dataLen > 0 {
-			out.SubElementData = append(out.SubElementData, string(dword))
+			out.SubElementData = append(out.SubElementData, string(bytes.Split(dword, []byte{0x00})[0]))
 			// noNullDword := bytes.Split(dword, []byte{0x00})
 			// out.SubElementData = append(out.SubElementData, string(noNullDword[0]))
 		}
