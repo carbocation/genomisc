@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
 
 	"cloud.google.com/go/storage"
 	"github.com/suyashkumar/dicom"
@@ -108,6 +109,9 @@ func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.I
 		return nil, fmt.Errorf("Error reading zip: %v", err)
 	}
 
+	var rescaleSlope, rescaleIntercept, windowWidth, windowCenter float64
+	_, _, _, _ = rescaleSlope, rescaleIntercept, windowWidth, windowCenter
+
 	var bitsAllocated, bitsStored, highBit uint16
 	_, _, _ = bitsAllocated, bitsStored, highBit
 
@@ -141,6 +145,31 @@ func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.I
 			imgRows = int(elem.Value[0].(uint16))
 		} else if elem.Tag == dicomtag.Columns {
 			imgCols = int(elem.Value[0].(uint16))
+		}
+
+		if elem.Tag == dicomtag.RescaleSlope {
+			rescaleSlope, err = strconv.ParseFloat(elem.Value[0].(string), 64)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+		if elem.Tag == dicomtag.RescaleIntercept {
+			rescaleIntercept, err = strconv.ParseFloat(elem.Value[0].(string), 64)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+		if elem.Tag == dicomtag.WindowWidth {
+			windowWidth, err = strconv.ParseFloat(elem.Value[0].(string), 64)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+		if elem.Tag == dicomtag.WindowCenter {
+			windowCenter, err = strconv.ParseFloat(elem.Value[0].(string), 64)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 
 		if false {
@@ -237,7 +266,11 @@ func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.I
 		leVal := imgPixels[j]
 
 		// Should be %cols and /cols -- row count is not necessary here
-		img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyPythonicWindowScaling(leVal, maxIntensity)})
+		if false { //j > 3000 {
+			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyOfficialWindowScaling(leVal, rescaleSlope, rescaleIntercept, windowWidth, windowCenter, bitsAllocated)})
+		} else {
+			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyPythonicWindowScaling(leVal, maxIntensity)})
+		}
 	}
 
 	// Draw the overlay
@@ -255,6 +288,35 @@ func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.I
 	}
 
 	return img, err
+}
+
+// See 'Grayscale Image Display' under
+// https://dgobbi.github.io/vtk-dicom/doc/api/image_display.html
+func ApplyOfficialWindowScaling(storedValue int, rescaleSlope, rescaleIntercept, windowWidth, windowCenter float64, bitsAllocated uint16) uint16 {
+
+	// 1: StoredValue to ModalityValue
+
+	modalityValue := float64(storedValue)*rescaleSlope + rescaleIntercept
+
+	// 2: ModalityValue to WindowedValue
+
+	// The key here is that we're using bitsAllocated (e.g., 16 bits) instead of
+	// bitsStored (e.g., 11 bits)
+	grayLevels := math.Pow(2, float64(bitsAllocated))
+
+	w := windowWidth - 1.0
+	c := windowCenter - 0.5
+
+	if modalityValue <= c-0.5*w {
+		return 0
+	}
+
+	if modalityValue > c+0.5*w {
+		return uint16(grayLevels - 1.0)
+	}
+
+	return uint16(((modalityValue-c)/w + 0.5) * (grayLevels - 1.0))
+
 }
 
 func ApplyPythonicWindowScaling(intensity, maxIntensity int) uint16 {
