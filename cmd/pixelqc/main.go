@@ -89,6 +89,11 @@ func main() {
 
 func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth string) error {
 
+	// The primary output is one row per sample, with the greatest and smallest
+	// pixel value encountered for that sample during the series, with
+	// information on which samples seem to have bad data.
+	samplesWithFlags := SampleFlags{}
+
 	// Start by populating the entries from the pixelcount file; i.e., the file
 	// that actually has computed pixel values
 	entries, err := parsePixelcountFile(pixelcountFile, imageID, pixels, connectedComponents)
@@ -104,62 +109,59 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	}
 	log.Println("Loaded", covarFile)
 
-	for file, entry := range entries {
-		log.Printf("%s | %+v\n", file, entry)
-		break
-	}
-
 	// Find the timepoint and values for the min and max in the cardiac cycle.
 	// When doing so, look at the adjacent 2 values and discard 0 extremes.
 	cycle, err := cardiacCycle(entries, 2, 0)
-
-	for _, v := range cycle {
-		if v.Identifier != "5690295_2_23" {
-			continue
-		}
-
-		log.Printf("%+v\n", v)
-		break
+	if err != nil {
+		return err
 	}
+	log.Println("Processed cyclic data across", len(cycle), "samples")
 
-	// Flag values that have 0 at any point in the cycle -- this should be optional
+	// Flag entries that have 0 at any point in the cycle -- this should be
+	// optional
 	flagZeroes(entries)
-
-	for file, entry := range entries {
-		if entry.Pixels >= math.SmallestNonzeroFloat64 {
-			continue
-		}
-		log.Printf("%s | %+v\n", file, entry)
-		break
-	}
+	log.Println("Flagged entries with 0 pixels")
 
 	// Flag entries that are above or below N-SD above or below the mean for
 	// connected components
-	flagConnectedComponents(entries, 5)
+	SD := 5.0
+	flagConnectedComponents(entries, SD)
+	log.Println("Flagged entries beyond", SD, "standard deviations above or below the mean connected components")
 
 	// Flag samples that are above or below N-SD above or below the mean for
 	// onestep shifts in the pixel area between each timepoint
-	samplesWithFlags := make(map[string]struct{})
-	flagOnestepShifts(samplesWithFlags, cycle, 5)
+	SD = 5.0
+	flagOnestepShifts(samplesWithFlags, cycle, SD)
+	log.Println("Flagged entries beyond", SD, "standard deviations above or below the mean onstep pixel shift")
 
 	// Flag samples that don't have the modal number of images
 	flagAbnormalImageCounts(samplesWithFlags, entries)
+	log.Println("Flagged entries that didn't have the modal number of images")
 
 	// Consolidate counts
 	seenSamples := make(map[string]struct{})
 	for _, v := range entries {
 		seenSamples[v.SampleID] = struct{}{}
-		if len(v.BadWhy) > 0 {
-			samplesWithFlags[v.SampleID] = struct{}{}
+		for _, bad := range v.BadWhy {
+			samplesWithFlags.AddFlag(v.SampleID, bad)
+		}
+	}
+
+	// Number of samples with each flag:
+	flagCounts := make(map[string]int)
+	for _, flags := range samplesWithFlags {
+		for v := range flags {
+			flagCounts[v]++
 		}
 	}
 
 	log.Println(len(samplesWithFlags), "samples out of", len(seenSamples), "have been flagged as potentially having invalid data")
+	log.Printf("Number of samples with each flag: %+v\n", flagCounts)
 
 	return nil
 }
 
-func flagAbnormalImageCounts(out map[string]struct{}, entries map[string]File) {
+func flagAbnormalImageCounts(out SampleFlags, entries map[string]File) {
 	sampleCounts := make(map[string]int)
 	countCounts := make(map[int]int)
 
@@ -185,12 +187,12 @@ func flagAbnormalImageCounts(out map[string]struct{}, entries map[string]File) {
 	// Flag samples that don't have the modal image count
 	for k, count := range sampleCounts {
 		if count != modalCount {
-			out[k] = struct{}{}
+			out.AddFlag(k, "AbnormalImageCount")
 		}
 	}
 }
 
-func flagOnestepShifts(out map[string]struct{}, cycle []cardiaccycle.Result, nStandardDeviations float64) {
+func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDeviations float64) {
 
 	value := make([]float64, 0, len(cycle))
 
@@ -204,7 +206,7 @@ func flagOnestepShifts(out map[string]struct{}, cycle []cardiaccycle.Result, nSt
 	// Pass 2: flag entries that exceed the bounds:
 	for _, entry := range cycle {
 		if entry.MaxOneStepShift < m-nStandardDeviations*s || entry.MaxOneStepShift > m+nStandardDeviations*s {
-			out[entry.Identifier] = struct{}{}
+			out.AddFlag(entry.Identifier, "OnestepShift")
 		}
 	}
 }
@@ -234,7 +236,7 @@ func flagZeroes(entries map[string]File) {
 	// Identify the samples which have *any* frames with 0 pixels
 	for k, entry := range entries {
 		if entry.CM2() < math.SmallestNonzeroFloat64 {
-			entry.BadWhy = append(entry.BadWhy, "Zero_pixels")
+			entry.BadWhy = append(entry.BadWhy, "ZeroPixels")
 			entries[k] = entry
 		}
 	}
