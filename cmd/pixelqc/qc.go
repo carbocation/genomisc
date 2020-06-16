@@ -18,7 +18,7 @@ func runQC(samplesWithFlags SampleFlags, entries map[string]File, cycle []cardia
 	// Flag entries that are above or below N-SD above or below the mean for
 	// connected components
 	SD := 5.0
-	flagConnectedComponents(entries, SD)
+	flagConnectedComponents(samplesWithFlags, entries, SD)
 	log.Println("Flagged entries beyond", SD, "standard deviations above or below the mean connected components")
 
 	// Flag samples that are above or below N-SD above or below the mean for
@@ -89,6 +89,12 @@ func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDe
 
 	// Pass 1: populate the slice
 	for _, entry := range cycle {
+		// Do not include entries from flagged-bad samples in our set of
+		// potentially valid values
+		if len(out[entry.Identifier]) > 0 {
+			continue
+		}
+
 		value = append(value, entry.MaxOneStepShift)
 	}
 
@@ -102,12 +108,19 @@ func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDe
 	}
 }
 
-func flagConnectedComponents(entries map[string]File, nStandardDeviations float64) {
+func flagConnectedComponents(samplesWithFlags SampleFlags, entries map[string]File, nStandardDeviations float64) {
 
 	value := make([]float64, 0, len(entries))
 
 	// Pass 1: populate the slice
 	for _, entry := range entries {
+
+		// Do not include entries from flagged-bad samples in our set of
+		// potentially valid values
+		if len(samplesWithFlags[entry.SampleID]) > 0 {
+			continue
+		}
+
 		value = append(value, entry.ConnectedComponents)
 	}
 

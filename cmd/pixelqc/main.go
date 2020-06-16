@@ -115,7 +115,25 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	}
 	log.Println("Processed cyclic data across", len(cycle), "samples")
 
-	runQC(samplesWithFlags, entries, cycle)
+	// Run all QC
+
+	log.Println("Will run QC iteratively until no additional samples are flagged in an iteration.")
+
+	flagged := samplesWithFlags.CountFlagged()
+	for i := 1; ; i++ {
+
+		log.Println("QC iteration", i)
+
+		runQC(samplesWithFlags, entries, cycle)
+
+		newFlagged := samplesWithFlags.CountFlagged()
+		if newFlagged == flagged {
+			break
+		}
+
+		log.Printf("Flagged %d new bad samples this QC iteration; iterating again.\n", newFlagged-flagged)
+		flagged = newFlagged
+	}
 
 	return nil
 }

@@ -17,6 +17,17 @@ func (s SampleFlags) AddFlag(sample, flag string) {
 	s[sample] = samp
 }
 
+func (s SampleFlags) CountFlagged() int {
+	i := 0
+	for _, v := range s {
+		if len(v) > 0 {
+			i++
+		}
+	}
+
+	return i
+}
+
 type flagSet map[string]struct{}
 
 func (fs flagSet) String() string {
