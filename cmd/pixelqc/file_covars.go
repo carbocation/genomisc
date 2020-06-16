@@ -52,14 +52,20 @@ func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, p
 			return err
 		}
 
-		pxHeight, err := strconv.ParseFloat(cols[colPxHeight], 64)
-		if err != nil {
-			return err
+		pxHeightF := 1.0
+		if pxHeight != "" {
+			pxHeightF, err = strconv.ParseFloat(cols[colPxHeight], 64)
+			if err != nil {
+				return err
+			}
 		}
 
-		pxWidth, err := strconv.ParseFloat(cols[colPxWidth], 64)
-		if err != nil {
-			return err
+		pxWidthF := 1.0
+		if pxWidth != "" {
+			pxWidthF, err = strconv.ParseFloat(cols[colPxWidth], 64)
+			if err != nil {
+				return err
+			}
 		}
 
 		entry, exists := out[cols[colImageID]]
@@ -78,8 +84,8 @@ func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, p
 		entry.BadWhy = []string{}
 		entry.SampleID = cols[colsSampleID]
 		entry.TimeID = timeID
-		entry.PxHeight = pxHeight
-		entry.PxWidth = pxWidth
+		entry.PxHeight = pxHeightF
+		entry.PxWidth = pxWidthF
 
 		out[cols[colImageID]] = entry
 
@@ -117,7 +123,17 @@ func readCovarHeader(cols []string, sampleID, imageID, timeID, pxHeight, pxWidth
 		}
 	}
 
-	if expected := 5; found != expected {
+	expected := 5
+
+	if pxWidth == "" {
+		expected--
+	}
+
+	if pxHeight == "" {
+		expected--
+	}
+
+	if found != expected {
 		return colSampleID, colImageID, colTimeID, colPxHeight, colPxWidth, fmt.Errorf("Expected to find %d header columns, but found %d (%v)", expected, found, foundCols)
 	}
 

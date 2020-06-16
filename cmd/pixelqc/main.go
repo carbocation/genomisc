@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -74,11 +75,11 @@ func main() {
 	}
 
 	if pxHeight == "" {
-		log.Fatalln("Please provide -pxheight")
+		log.Println("pxHeight not provided; assuming that pxHeight == 1")
 	}
 
 	if pxWidth == "" {
-		log.Fatalln("Please provide -pxwidth")
+		log.Println("pxWidth not provided; assuming that pxWidth == 1")
 	}
 
 	log.Println("Launched pixelqc")
@@ -151,6 +152,8 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 		"timeid_max",
 		"bad",
 	}, "\t"))
+
+	sort.Slice(cycle, func(i, j int) bool { return cycle[i].Identifier < cycle[j].Identifier })
 
 	for _, v := range cycle {
 		out := []string{
