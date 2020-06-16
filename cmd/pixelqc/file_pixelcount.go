@@ -49,7 +49,7 @@ func parsePixelcountFile(pixelcountFile, imageID, pixels, connectedComponents st
 		}
 
 		out[cols[colImageID]] = File{
-			BadWhy:              "No_covariates",
+			BadWhy:              []string{"No_covariates"},
 			Pixels:              pixelCount,
 			ConnectedComponents: connectedComponentCount,
 		}

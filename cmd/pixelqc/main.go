@@ -3,16 +3,17 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
+	"math"
 
 	"github.com/carbocation/genomisc/cardiaccycle"
+	"github.com/gonum/stat"
 )
 
 type File struct {
 	Pixels              float64
 	ConnectedComponents float64
-	BadWhy              string
+	BadWhy              []string
 	SampleID            string
 	TimeID              float64
 	PxHeight            float64
@@ -101,7 +102,7 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	log.Println("Loaded", covarFile)
 
 	for file, entry := range entries {
-		fmt.Printf("%s | %+v\n", file, entry)
+		log.Printf("%s | %+v\n", file, entry)
 		break
 	}
 
@@ -115,21 +116,100 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 			continue
 		}
 
-		fmt.Printf("%+v\n", v)
+		log.Printf("%+v\n", v)
 		break
 	}
 
 	// Flag values that have 0 at any point in the cycle -- this should be optional
+	flagZeroes(entries)
+
+	for file, entry := range entries {
+		if entry.Pixels >= math.SmallestNonzeroFloat64 {
+			continue
+		}
+		log.Printf("%s | %+v\n", file, entry)
+		break
+	}
 
 	// Mean+SD of connected components
+	flagConnectedComponents(entries, 5)
 
 	// Mean+SD of onestep shifts within each sample (as a function of max-min) between each timepoint
+	samplesWithFlags := flagOnestepShifts(cycle, 10)
+
+	// Consolidate counts
+	seenSamples := make(map[string]struct{})
+	for _, v := range entries {
+		seenSamples[v.SampleID] = struct{}{}
+		if len(v.BadWhy) > 0 {
+			samplesWithFlags[v.SampleID] = struct{}{}
+		}
+	}
+
+	log.Println(len(samplesWithFlags), "samples out of", len(seenSamples), "have been flagged as potentially having invalid data")
 
 	return nil
 }
 
+func flagOnestepShifts(cycle []cardiaccycle.Result, nStandardDeviations float64) map[string]struct{} {
+	out := make(map[string]struct{})
+
+	value := make([]float64, 0, len(cycle))
+
+	// Pass 1: populate the slice
+	for _, entry := range cycle {
+		value = append(value, entry.MaxOneStepShift)
+	}
+
+	m, s := stat.MeanStdDev(value, nil)
+
+	// Pass 2: flag entries that exceed the bounds:
+	for _, entry := range cycle {
+		if entry.MaxOneStepShift < m-nStandardDeviations*s || entry.MaxOneStepShift > m+nStandardDeviations*s {
+			out[entry.Identifier] = struct{}{}
+		}
+	}
+
+	return out
+}
+
+func flagConnectedComponents(entries map[string]File, nStandardDeviations float64) {
+
+	value := make([]float64, 0, len(entries))
+
+	// Pass 1: populate the slice
+	for _, entry := range entries {
+		value = append(value, entry.ConnectedComponents)
+	}
+
+	m, s := stat.MeanStdDev(value, nil)
+
+	// Pass 2: flag entries that exceed the bounds:
+	for k, entry := range entries {
+		if entry.ConnectedComponents < m-nStandardDeviations*s || entry.ConnectedComponents > m+nStandardDeviations*s {
+			entry.BadWhy = append(entry.BadWhy, "ConnectedComponents")
+			entries[k] = entry
+		}
+	}
+}
+
+func flagZeroes(entries map[string]File) {
+
+	// Identify the samples which have *any* frames with 0 pixels
+	for k, entry := range entries {
+		if entry.CM2() < math.SmallestNonzeroFloat64 {
+			entry.BadWhy = append(entry.BadWhy, "Zero_pixels")
+			entries[k] = entry
+		}
+	}
+
+}
+
 func cardiacCycle(entries map[string]File, adjacentN, discardN int) ([]cardiaccycle.Result, error) {
+
+	// Prep the inputs
 	var sampleIDs, instances, metrics = []string{}, []uint16{}, []float64{}
+
 	for _, v := range entries {
 		sampleIDs = append(sampleIDs, v.SampleID)
 		instances = append(instances, uint16(v.TimeID))

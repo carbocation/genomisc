@@ -53,7 +53,7 @@ func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, p
 
 		entry := out[cols[colImageID]]
 
-		entry.BadWhy = ""
+		entry.BadWhy = []string{}
 		entry.SampleID = cols[colsSampleID]
 		entry.TimeID = timeID
 		entry.PxHeight = pxHeight
