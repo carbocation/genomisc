@@ -1,11 +1,13 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func parsePixelcountFile(pixelcountFile, imageID, pixels, connectedComponents string) (map[string]File, error) {
@@ -18,7 +20,16 @@ func parsePixelcountFile(pixelcountFile, imageID, pixels, connectedComponents st
 	}
 	defer f.Close()
 
-	r := csv.NewReader(f)
+	var rc io.ReadCloser = f
+	if strings.HasSuffix(pixelcountFile, ".gz") {
+		rc, err = gzip.NewReader(f)
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+	}
+
+	r := csv.NewReader(rc)
 	r.Comma = '\t'
 
 	var colImageID, colPixels, colConnectedComponents int

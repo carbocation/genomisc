@@ -1,11 +1,13 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, pxHeight, pxWidth string) error {
@@ -16,7 +18,16 @@ func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, p
 	}
 	defer f.Close()
 
-	r := csv.NewReader(f)
+	var rc io.ReadCloser = f
+	if strings.HasSuffix(covarFile, ".gz") {
+		rc, err = gzip.NewReader(f)
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+	}
+
+	r := csv.NewReader(rc)
 	r.Comma = ','
 
 	var colsSampleID, colImageID, colTimeID, colPxHeight, colPxWidth int
