@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+
+	"github.com/carbocation/genomisc/cardiaccycle"
 )
 
 type File struct {
@@ -15,6 +17,10 @@ type File struct {
 	TimeID              float64
 	PxHeight            float64
 	PxWidth             float64
+}
+
+func (f File) CM2() float64 {
+	return f.Pixels * f.PxHeight * f.PxWidth / 100.0
 }
 
 func main() {
@@ -99,5 +105,36 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 		break
 	}
 
+	// Pixels to area
+
+	// Timepoint of min and max in cardiac cycle
+	cycle, err := cardiacCycle(entries, 2, 0)
+
+	for _, v := range cycle {
+		if v.Identifier != "5690295_2_23" {
+			continue
+		}
+
+		fmt.Printf("%+v\n", v)
+		break
+	}
+
+	// Flag values that have 0 at any point in the cycle -- this should be optional
+
+	// Mean+SD of connected components
+
+	// Mean+SD of onestep shifts within each sample (as a function of max-min) between each timepoint
+
 	return nil
+}
+
+func cardiacCycle(entries map[string]File, adjacentN, discardN int) ([]cardiaccycle.Result, error) {
+	var sampleIDs, instances, metrics = []string{}, []uint16{}, []float64{}
+	for _, v := range entries {
+		sampleIDs = append(sampleIDs, v.SampleID)
+		instances = append(instances, uint16(v.TimeID))
+		metrics = append(metrics, v.CM2())
+	}
+
+	return cardiaccycle.RunFromSlices(sampleIDs, instances, metrics, adjacentN, discardN)
 }
