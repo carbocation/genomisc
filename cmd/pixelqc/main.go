@@ -3,7 +3,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/carbocation/genomisc/cardiaccycle"
 )
@@ -98,14 +101,14 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	if err != nil {
 		return err
 	}
-	log.Println("Loaded", pixelcountFile)
+	log.Println("Loaded pixel data from", pixelcountFile)
 
 	// Next, add in covariate metadata.
 	err = parseCovarFile(entries, covarFile, sampleID, imageID, timeID, pxHeight, pxWidth)
 	if err != nil {
 		return err
 	}
-	log.Println("Loaded", covarFile)
+	log.Println("Loaded covariate data from", covarFile)
 
 	// Find the timepoint and values for the min and max in the cardiac cycle.
 	// When doing so, look at the adjacent 2 values and discard 0 extremes.
@@ -133,6 +136,36 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 
 		log.Printf("Flagged %d new bad samples this QC iteration; iterating again.\n", newFlagged-flagged)
 		flagged = newFlagged
+	}
+
+	// Finally, print the results
+
+	fmt.Println(strings.Join([]string{
+		"sampleid",
+		"metric",
+		"connectedcomponents",
+		"min",
+		"max",
+		"onestepshift",
+		"timeid_min",
+		"timeid_max",
+		"bad",
+	}, "\t"))
+
+	for _, v := range cycle {
+		out := []string{
+			v.Identifier,
+			pixels,
+			connectedComponents,
+			strconv.FormatFloat(v.Min, 'g', 4, 64),
+			strconv.FormatFloat(v.Max, 'g', 4, 64),
+			strconv.FormatFloat(v.MaxOneStepShift, 'g', 4, 64),
+			strconv.FormatUint(uint64(v.InstanceNumberAtMin), 10),
+			strconv.FormatUint(uint64(v.InstanceNumberAtMax), 10),
+			samplesWithFlags[v.Identifier].String(),
+		}
+
+		fmt.Println(strings.Join(out, "\t"))
 	}
 
 	return nil
