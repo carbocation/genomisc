@@ -51,7 +51,18 @@ func parseCovarFile(out map[string]File, covarFile, sampleID, imageID, timeID, p
 			return err
 		}
 
-		entry := out[cols[colImageID]]
+		entry, exists := out[cols[colImageID]]
+
+		if !exists {
+			// If the covariate entry doesn't have a corresponding pixel count
+			// entry, then we will ignore it. Note that an alternative
+			// perspective is that this blank entry should in fact be added,
+			// because it will show that there is missing pixel data which will
+			// appropriately be flagged in downstream analysis. The benefit in
+			// excluding it is that we can create one single large covariate
+			// entry and use it across all images. So, there are tradeoffs.
+			continue
+		}
 
 		entry.BadWhy = []string{}
 		entry.SampleID = cols[colsSampleID]

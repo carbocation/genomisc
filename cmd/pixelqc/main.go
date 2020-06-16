@@ -89,12 +89,15 @@ func main() {
 
 func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth string) error {
 
+	// Start by populating the entries from the pixelcount file; i.e., the file
+	// that actually has computed pixel values
 	entries, err := parsePixelcountFile(pixelcountFile, imageID, pixels, connectedComponents)
 	if err != nil {
 		return err
 	}
 	log.Println("Loaded", pixelcountFile)
 
+	// Next, add in covariate metadata.
 	err = parseCovarFile(entries, covarFile, sampleID, imageID, timeID, pxHeight, pxWidth)
 	if err != nil {
 		return err
@@ -106,9 +109,8 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 		break
 	}
 
-	// Pixels to area
-
-	// Timepoint of min and max in cardiac cycle
+	// Find the timepoint and values for the min and max in the cardiac cycle.
+	// When doing so, look at the adjacent 2 values and discard 0 extremes.
 	cycle, err := cardiacCycle(entries, 2, 0)
 
 	for _, v := range cycle {
@@ -131,11 +133,17 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 		break
 	}
 
-	// Mean+SD of connected components
+	// Flag entries that are above or below N-SD above or below the mean for
+	// connected components
 	flagConnectedComponents(entries, 5)
 
-	// Mean+SD of onestep shifts within each sample (as a function of max-min) between each timepoint
-	samplesWithFlags := flagOnestepShifts(cycle, 10)
+	// Flag samples that are above or below N-SD above or below the mean for
+	// onestep shifts in the pixel area between each timepoint
+	samplesWithFlags := make(map[string]struct{})
+	flagOnestepShifts(samplesWithFlags, cycle, 5)
+
+	// Flag samples that don't have the modal number of images
+	flagAbnormalImageCounts(samplesWithFlags, entries)
 
 	// Consolidate counts
 	seenSamples := make(map[string]struct{})
@@ -151,8 +159,38 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	return nil
 }
 
-func flagOnestepShifts(cycle []cardiaccycle.Result, nStandardDeviations float64) map[string]struct{} {
-	out := make(map[string]struct{})
+func flagAbnormalImageCounts(out map[string]struct{}, entries map[string]File) {
+	sampleCounts := make(map[string]int)
+	countCounts := make(map[int]int)
+
+	// Tally up the number of images for each sample
+	for _, entry := range entries {
+		sampleCounts[entry.SampleID]++
+	}
+
+	// Count the number of samples with each discrete number of images
+	for _, sampleCount := range sampleCounts {
+		countCounts[sampleCount]++
+	}
+
+	// Find the modal number of images per sample
+	var modalCount, maxCount = -1, -1
+	for imagesPerSample, samplesWithThisImageCount := range countCounts {
+		if samplesWithThisImageCount > maxCount {
+			modalCount = imagesPerSample
+			maxCount = samplesWithThisImageCount
+		}
+	}
+
+	// Flag samples that don't have the modal image count
+	for k, count := range sampleCounts {
+		if count != modalCount {
+			out[k] = struct{}{}
+		}
+	}
+}
+
+func flagOnestepShifts(out map[string]struct{}, cycle []cardiaccycle.Result, nStandardDeviations float64) {
 
 	value := make([]float64, 0, len(cycle))
 
@@ -169,8 +207,6 @@ func flagOnestepShifts(cycle []cardiaccycle.Result, nStandardDeviations float64)
 			out[entry.Identifier] = struct{}{}
 		}
 	}
-
-	return out
 }
 
 func flagConnectedComponents(entries map[string]File, nStandardDeviations float64) {
