@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
@@ -131,23 +133,51 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
 	for _, dicomName := range dicomList {
-		err := func(dicom string) error {
-			// TODO: Can consider optimizing further. This is an o(n^2)
-			// operation - but if you printed the Dicom image to PNG within this
-			// function, you could make it accept a map and then only iterate in
-			// o(n) time. Not sure this is a bottleneck yet.
-			img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
-			if err != nil {
-				return err
+
+		// Handle a specific filesystem error (input/output error) and retry in
+		// that case.
+		for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+
+			err := func(dicom string) error {
+				// TODO: Can consider optimizing further. This is an o(n^2)
+				// operation - but if you printed the Dicom image to PNG within this
+				// function, you could make it accept a map and then only iterate in
+				// o(n) time. Not sure this is a bottleneck yet.
+				img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+				if err != nil {
+					return err
+				}
+
+				return imgToPNG(img, outputPath, dicomName)
+			}(dicomName)
+
+			// Since we want to continue processing the zip even if one of its
+			// dicoms was bad, simply log the error. However, if the underlying
+			// file system is unreliable, we should then exit.
+			if err != nil && loadAttempts == maxLoadAttempts {
+
+				// Ongoing failure at maxLoadAttempts is a terminal error
+				log.Fatalln(err)
+
+			} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+
+				// If we had an error, due to an unreliable filesystem, wait for
+				// a substantial amount of time, but then retry.
+				log.Println("ProcessOneZipFile: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
+				time.Sleep(5 * time.Second)
+
+			} else if err != nil {
+
+				// Non i/o errors usually indicate that this is just a bad
+				// internal file that will never be readable, in which case we
+				// should move on rather than quitting.
+				log.Printf("%v: skipping dicom %s in zip %s", err, dicomName, zipName)
+				break
+
 			}
 
-			return imgToPNG(img, outputPath, dicomName)
-		}(dicomName)
-
-		// Since we want to continue processing the zip even if one of its
-		// dicoms was bad, simply log the error.
-		if err != nil {
-			log.Printf("%v: skipping dicom %s in zip %s", err, dicomName, zipName)
+			// No errors? Don't retry.
+			break
 		}
 	}
 }
