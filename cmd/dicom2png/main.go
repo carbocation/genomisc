@@ -114,20 +114,21 @@ func getZipMap(manifest string) (map[string][]string, error) {
 	return zipMap, nil
 }
 
+// ProcessOneZipFile prints out PNGs for all DICOM images within a zip file that
+// are found in dicomList. TODO: handle errors more thoughtfully, e.g., with an
+// error channel.
 func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) {
 
 	f, err := os.Open(filepath.Join(inputPath, zipName))
 	if err != nil {
-		log.Printf("Skipping zip %s due to err: %s", zipName, err)
-		return
+		log.Fatalf("ProcessOneZipFile fatal error (terminating on zip %s): %v \n", zipName, err)
 	}
 	defer f.Close()
 
 	// the zip reader wants to know the # of bytes in advance
 	nBytes, err := f.Stat()
 	if err != nil {
-		log.Printf("Skipping zip %s due to err: %s", zipName, err)
-		return
+		log.Fatalf("ProcessOneZipFile fatal error (terminating on zip %s): %v \n", zipName, err)
 	}
 
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
