@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
@@ -59,8 +60,28 @@ func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
 	for zipFile, dicomList := range zipMap {
 		sem <- true
 		go func(zipFile string, dicoms []string) {
-			ProcessOneZipFile(inputPath, outputPath, zipFile, dicoms, includeOverlay)
+
+			// The main purpose of this loop is to handle a specific filesystem
+			// error (input/output error) that largely happens with GCSFuse, and
+			// retry a few times before giving up.
+			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+
+				err := ProcessOneZipFile(inputPath, outputPath, zipFile, dicoms, includeOverlay)
+
+				if err != nil && loadAttempts == maxLoadAttempts {
+					// We've exhausted our retries. Fail hard.
+					log.Fatalln(err)
+				} else if err != nil {
+					log.Println("Sleeping 5s to recover from", err.Error(), ". Attempt #", loadAttempts)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				// If no error, we're done
+				break
+			}
 			<-sem
+
 		}(zipFile, dicomList)
 	}
 
@@ -117,18 +138,18 @@ func getZipMap(manifest string) (map[string][]string, error) {
 // ProcessOneZipFile prints out PNGs for all DICOM images within a zip file that
 // are found in dicomList. TODO: handle errors more thoughtfully, e.g., with an
 // error channel.
-func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) {
+func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) error {
 
 	f, err := os.Open(filepath.Join(inputPath, zipName))
 	if err != nil {
-		log.Fatalf("ProcessOneZipFile fatal error (terminating on zip %s): %v \n", zipName, err)
+		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipName, err)
 	}
 	defer f.Close()
 
 	// the zip reader wants to know the # of bytes in advance
 	nBytes, err := f.Stat()
 	if err != nil {
-		log.Fatalf("ProcessOneZipFile fatal error (terminating on zip %s): %v \n", zipName, err)
+		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipName, err)
 	}
 
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
@@ -156,7 +177,7 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			// If we had an error due to an unreliable filesystem, we need to
 			// fail the whole job or we will end up with unreliable or missing
 			// data.
-			log.Fatalf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v \n", dicomName, zipName, err)
+			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomName, zipName, err)
 
 		} else if err != nil {
 
@@ -167,6 +188,8 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 
 		}
 	}
+
+	return nil
 }
 
 func imgToPNG(img image.Image, outputPath, dicomName string) error {
