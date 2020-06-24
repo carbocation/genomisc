@@ -35,7 +35,7 @@ var (
 func init() {
 	flag.Usage = func() {
 		flag.PrintDefaults()
-		describeDateFields()
+		describeDateFields(false)
 	}
 }
 
@@ -52,6 +52,7 @@ func main() {
 	var override bool
 	var allowUndated bool
 	var diseaseName string
+	var verbose bool
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
 	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
@@ -60,9 +61,15 @@ func main() {
 	flag.BoolVar(&displayQuery, "display-query", false, "Display the constructed query and exit?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
+	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
 	flag.BoolVar(&BQ.UseGP, "usegp", false, "")
 	flag.Parse()
+
+	flag.Usage = func() {
+		flag.PrintDefaults()
+		describeDateFields(verbose)
+	}
 
 	// Deprecating BQ.MaterializedDB - adds unnecessary complexity; reasonable
 	// to assume that all data is in the same database
