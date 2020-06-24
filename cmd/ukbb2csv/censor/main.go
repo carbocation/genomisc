@@ -31,12 +31,14 @@ func main() {
 	var (
 		phenoCensorDateString string
 		deathCensorDateString string
+		usePhenoTableDeath    bool
 		BQ                    = &WrappedBigQuery{}
 	)
 
 	flag.StringVar(&phenoCensorDateString, "pheno_censor", "", "With format YYYY-MM-DD, please provide the Hospital Data censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
 	flag.StringVar(&deathCensorDateString, "death_censor", "", "With format YYYY-MM-DD, please provide the Death censor date from https://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=Data_providers_and_dates")
 	flag.StringVar(&BQ.Project, "project", "", "Name of the Google Cloud project that hosts your BigQuery database instance")
+	flag.BoolVar(&usePhenoTableDeath, "phenodeath", false, "Use phenotype table instead of the downloaded death table to define death? (Optional; default: use death table.)")
 	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery source database name")
 	flag.Parse()
 
@@ -49,7 +51,7 @@ func main() {
 	log.Println("Output uses", NullMarker, "in place of null values. Please specify this when loading data into bigquery.")
 
 	log.Println("Producing censoring table")
-	if err := Censor(BQ, deathCensorDateString, phenoCensorDateString); err != nil {
+	if err := Censor(BQ, deathCensorDateString, phenoCensorDateString, usePhenoTableDeath); err != nil {
 		log.Fatalln(err)
 	}
 }

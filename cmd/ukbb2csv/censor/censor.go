@@ -10,7 +10,7 @@ import (
 	"cloud.google.com/go/bigquery"
 )
 
-func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString string) error {
+func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString string, usePhenoTableDeath bool) error {
 	var err error
 	var res map[int64]string
 	var out = make(map[int64]CensorResult)
@@ -98,18 +98,34 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Fatalln(err)
 	}
 
-	N, err = BQ.AddDiedDate(out)
-	log.Println("Found", N, "died results")
-	if N == 0 {
-		for k := range out {
-			entry := out[k]
-			entry.Missing = append(entry.Missing, "died[40000]")
-			out[k] = entry
+	if usePhenoTableDeath {
+		N, err = BQ.AddDiedDatePhenoTable(out)
+		log.Println("Found", N, "died results")
+		if N == 0 {
+			for k := range out {
+				entry := out[k]
+				entry.Missing = append(entry.Missing, "died[40000]")
+				out[k] = entry
+			}
+			log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
 		}
-		log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
-	}
-	if err != nil {
-		log.Fatalln(err)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	} else {
+		N, err = BQ.AddDiedDate(out)
+		log.Println("Found", N, "died results")
+		if N == 0 {
+			for k := range out {
+				entry := out[k]
+				entry.Missing = append(entry.Missing, "died[40000]")
+				out[k] = entry
+			}
+			log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
+		}
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	N, err = BQ.AddSexEthnicity(out)
@@ -243,32 +259,6 @@ func (BQ *WrappedBigQuery) AddLostDate(out map[int64]CensorResult) (int, error) 
 		}
 		if err := entry.lost.Scan(lostDate); err != nil {
 			log.Println("Lost to followup date parsing issue for", entry)
-		}
-
-		out[k] = entry
-	}
-
-	return N, nil
-}
-
-func (BQ *WrappedBigQuery) AddDiedDate(out map[int64]CensorResult) (int, error) {
-
-	// Died
-	res, err := BigQuerySingleFieldFirst(BQ, 40000)
-	if err != nil {
-		return 0, err
-	}
-	N := len(res)
-
-	for k, v := range res {
-		entry := out[k]
-
-		diedDate, err := time.Parse("2006-01-02", v)
-		if err != nil {
-			log.Println("Died date parsing issue for", entry)
-		}
-		if err := entry.died.Scan(diedDate); err != nil {
-			log.Println("Died date parsing issue for", entry)
 		}
 
 		out[k] = entry
