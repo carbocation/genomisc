@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"strconv"
@@ -164,6 +165,8 @@ func printHeader(config overlay.JSONConfig, threshold int, labelsNeedMoments map
 			header = append(header, fmt.Sprintf("%s_LongAxisPixels", formatted))  // LongAxisPixels
 			header = append(header, fmt.Sprintf("%s_ShortAxisPixels", formatted)) // ShortAxisPixels
 			header = append(header, fmt.Sprintf("%s_Eccentricity", formatted))    // Eccentricity
+			header = append(header, fmt.Sprintf("%s_CentroidX", formatted))
+			header = append(header, fmt.Sprintf("%s_CentroidY", formatted))
 			header = append(header, fmt.Sprintf("%s_TopLeftX", formatted))
 			header = append(header, fmt.Sprintf("%s_TopLeftY", formatted))
 			header = append(header, fmt.Sprintf("%s_BottomRightX", formatted))
@@ -222,6 +225,8 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 				entry = append(entry, "0") // LongAxisPixels
 				entry = append(entry, "0") // ShortAxisPixels
 				entry = append(entry, "0") // Eccentricity
+				entry = append(entry, "0") // Centroid.X
+				entry = append(entry, "0") // Centroid.Y
 				entry = append(entry, "0") // TopLeft.X
 				entry = append(entry, "0") // TopLeft.Y
 				entry = append(entry, "0") // BottomRight.X
@@ -261,6 +266,8 @@ func processOneImage(filePath, filename string, config overlay.JSONConfig, thres
 			entry = append(entry, strconv.FormatFloat(moments.LongAxisPixels, 'g', 4, 64))             // LongAxisPixels
 			entry = append(entry, strconv.FormatFloat(moments.ShortAxisPixels, 'g', 4, 64))            // ShortAxisPixels
 			entry = append(entry, strconv.FormatFloat(moments.Eccentricity, 'g', 4, 64))               // Eccentricity
+			entry = append(entry, strconv.Itoa(int(math.Floor(moments.Centroid.X))))
+			entry = append(entry, strconv.Itoa(int(math.Floor(moments.Centroid.Y))))
 			entry = append(entry, strconv.Itoa(moments.Bounds.TopLeft.X))
 			entry = append(entry, strconv.Itoa(moments.Bounds.TopLeft.Y))
 			entry = append(entry, strconv.Itoa(moments.Bounds.BottomRight.X))
