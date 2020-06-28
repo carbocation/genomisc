@@ -16,9 +16,9 @@ import (
 // human-interpretable color (in RGB hex, e.g., #FF0000 for red).
 type Label struct {
 	Label     string
-	ID        uint   `json:"id"`
-	Color     string `json:"color"`
-	SortOrder int    `json:"sort_order,omitempty"`
+	ID        uint    `json:"id"`
+	Color     string  `json:"color"`
+	SortOrder float64 `json:"sort_order,omitempty"`
 }
 
 // LabelMap ([string label name]Label) keeps track of the relationship between
@@ -314,15 +314,19 @@ func (l LabelMap) Sorted() []Label {
 	}
 
 	sort.Slice(out, func(i, j int) bool {
-		// If SortOrder is defined and different, use it:
-		if out[i].SortOrder != out[j].SortOrder {
-			return out[i].SortOrder < out[j].SortOrder
+		// By default we will sort by ID
+		x, y := float64(out[i].ID), float64(out[j].ID)
+
+		// If a column has a sort order, use that instead of its ID.
+		if xprime := out[i].SortOrder; xprime != 0 {
+			x = xprime
 		}
 
-		// If SortOrder is not defined, or is the same for two values, drop down
-		// to the ID field for sorting
-		return out[i].ID < out[j].ID
+		if yprime := out[j].SortOrder; yprime != 0 {
+			y = yprime
+		}
 
+		return x < y
 	})
 
 	return out
