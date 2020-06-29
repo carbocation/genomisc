@@ -66,6 +66,7 @@ func main() {
 		"abs_flow_cm3_sec",
 		"min_venc_cm_sec",
 		"max_venc_cm_sec",
+		"venc",
 	}, "\t"))
 
 	// Do the work
@@ -187,7 +188,7 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 		absSum *= pxHeightCM * pxWidthCM
 		sum *= pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
 			filepath.Base(inputPath),
 			label.ID,
 			label.Label,
@@ -195,7 +196,9 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 			sum,
 			absSum,
 			minPix,
-			maxPix)
+			maxPix,
+			flowVenc.FlowVenc,
+		)
 	}
 
 	return nil
