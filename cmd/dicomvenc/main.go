@@ -3,12 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -29,12 +27,11 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, maskPath, configPath, outputPath string
+	var inputPath, maskPath, configPath string
 
-	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file. If this points to a folder, all .dcm files in the folder will be converted")
+	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file.")
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
-	flag.StringVar(&outputPath, "out", "", "XXX Path to the local folder where the extracted PNGs will go")
 
 	flag.Parse()
 
@@ -51,11 +48,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fileInfo, err := os.Stat(inputPath)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	// Print the header
 	fmt.Println(strings.Join([]string{
 		"dicom",
@@ -70,11 +62,7 @@ func main() {
 	}, "\t"))
 
 	// Do the work
-	if fileInfo.IsDir() {
-		err = runDir(inputPath, outputPath, false)
-	} else {
-		err = run(inputPath, maskPath, outputPath, config)
-	}
+	err = run(inputPath, maskPath, config)
 
 	if err != nil {
 		log.Fatalln(err)
@@ -87,7 +75,7 @@ type vencPixel struct {
 	FlowVenc    float64
 }
 
-func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) error {
+func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 
 	// Load the overlay mask
 	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
@@ -276,32 +264,4 @@ func fetchFlowVenc(tagMap map[dicomtag.Tag][]interface{}) (*bulkprocess.VENC, er
 	out, err := bulkprocess.NewVENC(venc, bitsStored)
 
 	return &out, err
-}
-
-func runDir(inputPath, outputPath string, includeOverlay bool) error {
-	dir, err := ioutil.ReadDir(inputPath)
-	if err != nil {
-		return err
-	}
-
-	concurrency := runtime.NumCPU()
-	sem := make(chan bool, concurrency)
-
-	for _, file := range dir {
-		if !strings.HasSuffix(file.Name(), ".dcm") {
-			continue
-		}
-
-		sem <- true
-		go func(filename string) {
-			// run(filename, outputPath, includeOverlay)
-			<-sem
-		}(file.Name())
-	}
-
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
-	}
-
-	return nil
 }
