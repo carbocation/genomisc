@@ -58,6 +58,7 @@ func main() {
 		"pixels",
 		"area_cm2",
 		"flow_cm3_sec",
+		"volume_cm3",
 		"vti_mean_cm",
 		"vti_99pct_cm",
 		"vti_100pct_cm",
@@ -220,13 +221,14 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
 			filepath.Base(inputPath),
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
 			len(v),
 			float64(len(v))*pxHeightCM*pxWidthCM,
 			flow,
+			flow*dt,
 			vtimean,
 			vti99pct,
 			vtimax,
