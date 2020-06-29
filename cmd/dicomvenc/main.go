@@ -55,10 +55,13 @@ func main() {
 		"label_name",
 		"area_cm2",
 		"flow_cm3_sec",
+		"vti_cm",
 		"abs_flow_cm3_sec",
-		"min_venc_cm_sec",
-		"max_venc_cm_sec",
-		"venc",
+		"mean_velocity_cm_sec",
+		"min_velocity_cm_sec",
+		"max_velocity_cm_sec",
+		"venc_range",
+		"duration_sec",
 	}, "\t"))
 
 	// Do the work
@@ -118,6 +121,12 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		return err
 	}
 
+	// Get the duration of time for this frame. Needed to infer VTI.
+	dt, err := deltaT(tagMap)
+	if err != nil {
+		return err
+	}
+
 	// Iterate over the DICOM and find all pixels for each class and their VENC
 	// values
 	data := pixelElem[0].(element.PixelDataInfo)
@@ -172,24 +181,70 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			}
 		}
 
-		// Convert to units of "cc / sec"
-		absSum *= pxHeightCM * pxWidthCM
-		sum *= pxHeightCM * pxWidthCM
+		// Get VTI (units are cm/contraction; here, just unitless cm)
+		// This is the integral of venc (cm/sec) over the unit of time
+		// (portion of a second).
+		vti := dt * sum
 
-		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		// Convert to units of "cm^3 / sec"
+		absFlow := absSum * pxHeightCM * pxWidthCM
+		flow := sum * pxHeightCM * pxWidthCM
+
+		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
 			filepath.Base(inputPath),
 			label.ID,
 			label.Label,
 			float64(len(v))*pxHeightCM*pxWidthCM,
-			sum,
-			absSum,
+			flow,
+			vti,
+			absFlow,
+			sum/float64(len(v)),
 			minPix,
 			maxPix,
 			flowVenc.FlowVenc,
+			dt,
 		)
 	}
 
 	return nil
+}
+
+// deltaT returns the assumed amount of time (in seconds) belonging to each
+// image in a cycle. It is the entire duration that it takes to acquire all
+// images (N), divided by N. Here we assume it is the same for every image in a
+// sequence - in all inspected images, this seems to be true.
+func deltaT(tagMap map[dicomtag.Tag][]interface{}) (deltaTMS float64, err error) {
+
+	nominalInterval, cardiacNumberOfImages := 0.0, 0.0
+
+	// nominalInterval
+	val, exists := tagMap[dicomtag.NominalInterval]
+	if !exists {
+		return 0, pfx.Err(fmt.Errorf("NominalInterval not found"))
+	}
+	for _, v := range val {
+		nominalInterval, err = strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return 0, pfx.Err(err)
+		}
+		break
+	}
+
+	// cardiacNumberOfImages
+	val, exists = tagMap[dicomtag.CardiacNumberOfImages]
+	if !exists {
+		return 0, pfx.Err(fmt.Errorf("CardiacNumberOfImages not found"))
+	}
+	for _, v := range val {
+		cardiacNumberOfImages, err = strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return 0, pfx.Err(err)
+		}
+		break
+	}
+
+	// Convert milliseconds to seconds
+	return (1 / 1000.0) * nominalInterval / cardiacNumberOfImages, nil
 }
 
 func pixelHeightWidthCM(tagMap map[dicomtag.Tag][]interface{}) (pxHeightCM, pxWidthCM float64, err error) {
