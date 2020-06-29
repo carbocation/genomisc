@@ -3,9 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
 	"io/ioutil"
 	"log"
 	"math"
@@ -15,6 +12,7 @@ import (
 
 	"github.com/carbocation/pfx"
 
+	"github.com/carbocation/genomisc/overlay"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/suyashkumar/dicom/dicomtag"
 	"github.com/suyashkumar/dicom/element"
@@ -29,18 +27,25 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, outputPath string
-	var includeOverlay bool
+	var inputPath, maskPath, configPath, outputPath string
+
 	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file. If this points to a folder, all .dcm files in the folder will be converted")
+	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
+	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
 	flag.StringVar(&outputPath, "out", "", "XXX Path to the local folder where the extracted PNGs will go")
-	flag.BoolVar(&includeOverlay, "include-overlay", true, "XXX Print the overlay on top of the images?")
 
 	flag.Parse()
 
 	fmt.Fprintln(os.Stderr, strings.Join(os.Args, " "))
 
-	if inputPath == "" {
+	if inputPath == "" || maskPath == "" || configPath == "" {
 		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	config, err := overlay.ParseJSONConfigFromPath(configPath)
+	if err != nil {
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -50,9 +55,9 @@ func main() {
 	}
 
 	if fileInfo.IsDir() {
-		err = runDir(inputPath, outputPath, includeOverlay)
+		err = runDir(inputPath, outputPath, false)
 	} else {
-		err = run(inputPath, outputPath, includeOverlay)
+		err = run(inputPath, maskPath, outputPath, config)
 	}
 
 	if err != nil {
@@ -61,55 +66,114 @@ func main() {
 
 }
 
-func run(inputPath, outputPath string, includeOverlay bool) error {
+type vencPixel struct {
+	PixelNumber int
+	FlowVenc    float64
+}
 
+func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) error {
+
+	// Load the overlay mask
+	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
+	if err != nil {
+		return err
+	}
+	cols := rawOverlayImg.Bounds().Size().X
+	rows := rawOverlayImg.Bounds().Size().Y
+
+	// Will store pixels linked with each segmentation class
+	segmentPixels := make(map[uint][]vencPixel)
+
+	// Load the DICOM
 	f, err := os.Open(inputPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	// Make the DICOM fields addressable as a map
 	tagMap, err := bulkprocess.DicomToTagMap(f)
 	if err != nil {
 		return err
 	}
 
+	// Load VENC data
 	flowVenc, err := fetchFlowVenc(tagMap)
 	if err != nil {
 		return pfx.Err(err)
 	}
 
-	log.Printf("%+v\n", flowVenc)
-
+	// Load the DICOM pixel data
 	pixelElem, exists := tagMap[dicomtag.PixelData]
 	if !exists {
 		return fmt.Errorf("PixelData not found")
 	}
 
-	// Main image
-	// imgPixels := make([]int, 0)
-
+	// Iterate over the DICOM and find all pixels for each class and their VENC
+	// values
 	data := pixelElem[0].(element.PixelDataInfo)
-
 	for _, frame := range data.Frames {
 		if frame.IsEncapsulated {
 			return fmt.Errorf("Frame is encapsulated, which we did not expect")
 		}
 
+		// Ensure that the pixels from the DICOM are in agreement with the
+		// pixels from the mask.
+		if x, y := len(frame.NativeData.Data), rows*cols; x != y {
+			return fmt.Errorf("DICOM data has %d pixels but mask data has %d pixels (%d rows and %d cols)", x, y, rows, cols)
+		}
+
+		// Iterate over the DICOM pixels
 		for j := 0; j < len(frame.NativeData.Data); j++ {
-			if j%192 == 0 {
-				fmt.Println()
+
+			// Identify which segmentation class this pixel belongs to
+			idAtPixel, err := overlay.LabeledPixelToID(rawOverlayImg.At(j%cols, j/cols))
+			if err != nil {
+				return err
 			}
 
-			// imgPixels = append(imgPixels, frame.NativeData.Data[j][0])
-			vel := flowVenc.PixelIntensityToVelocity(float64(frame.NativeData.Data[j][0]))
-			fmt.Printf("%03.0f ", 250.0+math.Round(vel))
+			// Extract the pixel's VENC
+			seg := vencPixel{}
+			seg.PixelNumber = j
+			seg.FlowVenc = flowVenc.PixelIntensityToVelocity(float64(frame.NativeData.Data[j][0]))
+
+			// Save the pixel to the class's pixel map
+			segmentPixels[uint(idAtPixel)] = append(segmentPixels[uint(idAtPixel)], seg)
 		}
 	}
 
-	return nil
+	// Print out summary data for each segmentation class.
+	for _, label := range config.Labels.Sorted() {
+		v, exists := segmentPixels[label.ID]
+		if !exists {
+			continue
+		}
 
-	// return imgToPNG(img, outputPath, filepath.Base(inputPath))
+		sum := 0.0
+		absSum := 0.0
+		minPix, maxPix := 0.0, 0.0
+		for _, px := range v {
+			sum += px.FlowVenc
+			absSum += math.Abs(px.FlowVenc)
+			if px.FlowVenc < minPix {
+				minPix = px.FlowVenc
+			}
+			if px.FlowVenc > maxPix {
+				maxPix = px.FlowVenc
+			}
+		}
+		log.Printf("%s | Pixels %d | AbsSum VENC %.3f | Sum VENC %.3f (ratio %.3f) | Mean VENC %.3f | Min, Max VENC %.3f, %.3f\n",
+			label.Label,
+			len(v),
+			absSum,
+			sum,
+			sum/absSum,
+			sum/float64(len(v)),
+			minPix,
+			maxPix)
+	}
+
+	return nil
 }
 
 func fetchFlowVenc(tagMap map[dicomtag.Tag][]interface{}) (*bulkprocess.VENC, error) {
@@ -175,39 +239,13 @@ func runDir(inputPath, outputPath string, includeOverlay bool) error {
 
 		sem <- true
 		go func(filename string) {
-			run(filename, outputPath, includeOverlay)
+			// run(filename, outputPath, includeOverlay)
 			<-sem
 		}(file.Name())
 	}
 
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
-	}
-
-	return nil
-}
-
-func imgToPNG(img image.Image, outputPath, dicomName string) error {
-
-	// Will output an RGBA image since that's apparently easier for FastAI to work with
-	size := img.Bounds().Size()
-	rect := image.Rect(0, 0, size.X, size.Y)
-	colImg := image.NewRGBA(rect)
-	for x := 0; x < size.X; x++ {
-		for y := 0; y < size.Y; y++ {
-			pixel := img.At(x, y)
-
-			colImg.Set(x, y, color.RGBA64Model.Convert(pixel))
-		}
-	}
-
-	f, err := os.Create(outputPath + "/" + dicomName + ".png")
-	if err != nil {
-		return err
-	}
-
-	if err := png.Encode(f, colImg); err != nil {
-		return err
 	}
 
 	return nil
