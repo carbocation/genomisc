@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/carbocation/pfx"
+	"gonum.org/v1/gonum/stat"
 
 	"github.com/carbocation/genomisc/overlay"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
@@ -58,9 +59,10 @@ func main() {
 		"vti_cm",
 		"abs_flow_cm3_sec",
 		"mean_velocity_cm_sec",
+		"stdev_velocity_cm_sec",
 		"min_velocity_cm_sec",
 		"max_velocity_cm_sec",
-		"venc_range",
+		"venc_limit",
 		"duration_sec",
 	}, "\t"))
 
@@ -167,6 +169,13 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			continue
 		}
 
+		// Get a measure of dispersion of velocity estimates across the pixels
+		pixelVelocities := make([]float64, 0, len(v))
+		for _, px := range v {
+			pixelVelocities = append(pixelVelocities, px.FlowVenc)
+		}
+		velStDev := stat.StdDev(pixelVelocities, nil)
+
 		sum := 0.0
 		absSum := 0.0
 		minPix, maxPix := 0.0, 0.0
@@ -190,7 +199,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
 			filepath.Base(inputPath),
 			label.ID,
 			label.Label,
@@ -199,6 +208,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			vti,
 			absFlow,
 			sum/float64(len(v)),
+			velStDev,
 			minPix,
 			maxPix,
 			flowVenc.FlowVenc,
