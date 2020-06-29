@@ -61,7 +61,7 @@ func main() {
 		"vti_mean_cm",
 		"vti_99pct_cm",
 		"vti_100pct_cm",
-		"abs_flow_cm3_sec",
+		"flow_abs_cm3_sec",
 		"velocity_mean_cm_sec",
 		"velocity_stdev_cm_sec",
 		"velocity_min_cm_sec",
