@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -54,13 +55,18 @@ func main() {
 		"dicom",
 		"label_id",
 		"label_name",
+		"pixels",
 		"area_cm2",
 		"flow_cm3_sec",
-		"vti_cm",
+		"vti_mean_cm",
+		"vti_99pct_cm",
+		"vti_100pct_cm",
 		"abs_flow_cm3_sec",
 		"mean_velocity_cm_sec",
 		"stdev_velocity_cm_sec",
 		"min_velocity_cm_sec",
+		"velocity_01pct_cm_sec",
+		"velocity_99pct_cm_sec",
 		"max_velocity_cm_sec",
 		"venc_limit",
 		"duration_sec",
@@ -190,26 +196,46 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			}
 		}
 
-		// Get VTI (units are cm/contraction; here, just unitless cm)
-		// This is the integral of venc (cm/sec) over the unit of time
-		// (portion of a second).
-		vti := dt * sum
+		// Get VTI (units are cm/contraction; here, just unitless cm) This is
+		// the integral of venc (cm/sec) over the unit of time (portion of a
+		// second). Specifically, we want a peak velocity. To try to reduce
+		// error, will take 99% value rather than the very top pixel. Since this
+		// is directional, will assess the mean velocity first, and then take
+		// the extremum that is directionally consistent with the bulk flow.
+		sort.Float64Slice(pixelVelocities).Sort()
+		lowVel := stat.Quantile(0.01, stat.LinInterp, pixelVelocities, nil)
+		highVel := stat.Quantile(0.99, stat.LinInterp, pixelVelocities, nil)
+
+		vti99pct := dt * highVel
+		vtimax := dt * maxPix
+
+		if sum < 0 {
+			vti99pct = dt * lowVel
+			vtimax = dt * minPix
+		}
+
+		vtimean := dt * sum / float64(len(v))
 
 		// Convert to units of "cm^3 / sec"
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
 			filepath.Base(inputPath),
 			label.ID,
-			label.Label,
+			strings.ReplaceAll(label.Label, " ", "_"),
+			len(v),
 			float64(len(v))*pxHeightCM*pxWidthCM,
 			flow,
-			vti,
+			vtimean,
+			vti99pct,
+			vtimax,
 			absFlow,
 			sum/float64(len(v)),
 			velStDev,
 			minPix,
+			lowVel,
+			highVel,
 			maxPix,
 			flowVenc.FlowVenc,
 			dt,
