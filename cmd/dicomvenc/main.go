@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -55,6 +56,19 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Print the header
+	fmt.Println(strings.Join([]string{
+		"dicom",
+		"label_id",
+		"label_name",
+		"area_cm2",
+		"flow_cm3_sec",
+		"abs_flow_cm3_sec",
+		"min_venc_cm_sec",
+		"max_venc_cm_sec",
+	}, "\t"))
+
+	// Do the work
 	if fileInfo.IsDir() {
 		err = runDir(inputPath, outputPath, false)
 	} else {
@@ -173,13 +187,13 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 		absSum *= pxHeightCM * pxWidthCM
 		sum *= pxHeightCM * pxWidthCM
 
-		log.Printf("%s | Pixels %d | AbsSum VENC %.3g | Sum VENC %.3g (ratio %.3g) | Mean VENC %.3g | Min, Max VENC %.3g, %.3g\n",
+		fmt.Printf("%s\t%d\t%s\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+			filepath.Base(inputPath),
+			label.ID,
 			label.Label,
-			len(v),
-			absSum,
+			float64(len(v))*pxHeightCM*pxWidthCM,
 			sum,
-			sum/absSum,
-			sum/float64(len(v)),
+			absSum,
 			minPix,
 			maxPix)
 	}
@@ -206,6 +220,10 @@ func pixelHeightWidthCM(tagMap map[dicomtag.Tag][]interface{}) (pxHeightCM, pxWi
 			}
 		}
 	}
+
+	// They're in mm -- convert to cm
+	pxHeightCM *= 0.1
+	pxWidthCM *= 0.1
 
 	return
 }
