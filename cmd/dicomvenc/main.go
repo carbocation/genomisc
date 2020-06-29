@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/carbocation/pfx"
@@ -109,6 +110,11 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 		return fmt.Errorf("PixelData not found")
 	}
 
+	pxHeightCM, pxWidthCM, err := pixelHeightWidthCM(tagMap)
+	if err != nil {
+		return err
+	}
+
 	// Iterate over the DICOM and find all pixels for each class and their VENC
 	// values
 	data := pixelElem[0].(element.PixelDataInfo)
@@ -162,7 +168,12 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 				maxPix = px.FlowVenc
 			}
 		}
-		log.Printf("%s | Pixels %d | AbsSum VENC %.3f | Sum VENC %.3f (ratio %.3f) | Mean VENC %.3f | Min, Max VENC %.3f, %.3f\n",
+
+		// Convert to units of "cc / sec"
+		absSum *= pxHeightCM * pxWidthCM
+		sum *= pxHeightCM * pxWidthCM
+
+		log.Printf("%s | Pixels %d | AbsSum VENC %.3g | Sum VENC %.3g (ratio %.3g) | Mean VENC %.3g | Min, Max VENC %.3g, %.3g\n",
 			label.Label,
 			len(v),
 			absSum,
@@ -174,6 +185,29 @@ func run(inputPath, maskPath, outputPath string, config overlay.JSONConfig) erro
 	}
 
 	return nil
+}
+
+func pixelHeightWidthCM(tagMap map[dicomtag.Tag][]interface{}) (pxHeightCM, pxWidthCM float64, err error) {
+	val, exists := tagMap[dicomtag.PixelSpacing]
+	if !exists {
+		return 0, 0, pfx.Err(fmt.Errorf("PixelSpacing not found"))
+	}
+
+	for k, v := range val {
+		if k == 0 {
+			pxHeightCM, err = strconv.ParseFloat(v.(string), 32)
+			if err != nil {
+				continue
+			}
+		} else if k == 1 {
+			pxWidthCM, err = strconv.ParseFloat(v.(string), 32)
+			if err != nil {
+				continue
+			}
+		}
+	}
+
+	return
 }
 
 func fetchFlowVenc(tagMap map[dicomtag.Tag][]interface{}) (*bulkprocess.VENC, error) {
