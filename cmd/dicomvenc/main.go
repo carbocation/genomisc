@@ -72,6 +72,9 @@ func main() {
 		"venc_limit",
 		"duration_sec",
 		"instance_number",
+		"phase_contrast_n4",
+		"velocity_encoding_direction_n4",
+		"venc_z_axis_sign_flipped",
 	}, "\t"))
 
 	// Do the work
@@ -145,6 +148,50 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		return err
 	}
 
+	// Need Siemens header data, if it exists
+	phaseContrastN4 := "NO"
+	velocityEncodingDirectionN4 := 0.0
+	if elem, exists := tagMap[dicomtag.Tag{Group: 0x0029, Element: 0x1010}]; exists {
+		for _, headerRow := range elem {
+			sc, err := bulkprocess.ParseSiemensHeader(headerRow)
+			if err != nil {
+				return err
+			}
+			for _, v := range sc.Slice() {
+				if v.Name == "PhaseContrastN4" {
+					for _, subE := range v.SubElementData {
+						phaseContrastN4 = subE
+					}
+				}
+				if v.Name == "VelocityEncodingDirectionN4" && phaseContrastN4 == "YES" {
+					for axis, value := range v.SubElementData {
+						if axis != 2 {
+							continue
+						}
+						velocityEncodingDirectionN4, err = strconv.ParseFloat(value, 64)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Not 100% clear to me how to interpret the N4 fields, but they aren't
+	// always there, and they clearly define a +/- directional orientation. When
+	// the Z value (1-based 3rd value) from VelocityEncodingDirectionN4 is
+	// positive, it seems to indicate that the normal Z direction is reversed.
+	// In the normal orientation, positive X is toward the participant's left,
+	// positive Y is toward the participant's posterior, and positive Z is
+	// toward the participant's head. When VelocityEncodingDirectionN4 is
+	// positive, then a positive venc appears to be toward the feet rather than
+	// toward the head.
+	sign := 1
+	if phaseContrastN4 == "YES" && velocityEncodingDirectionN4 > 0 {
+		sign = -1
+	}
+
 	// Iterate over the DICOM and find all pixels for each class and their VENC
 	// values
 	data := pixelElem[0].(element.PixelDataInfo)
@@ -171,7 +218,9 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			// Extract the pixel's VENC
 			seg := vencPixel{}
 			seg.PixelNumber = j
-			seg.FlowVenc = flowVenc.PixelIntensityToVelocity(float64(frame.NativeData.Data[j][0]))
+
+			// Apply the "sign" immediately at the pixel level
+			seg.FlowVenc = float64(sign) * flowVenc.PixelIntensityToVelocity(float64(frame.NativeData.Data[j][0]))
 
 			// Save the pixel to the class's pixel map
 			segmentPixels[uint(idAtPixel)] = append(segmentPixels[uint(idAtPixel)], seg)
@@ -230,7 +279,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\n",
 			filepath.Base(inputPath),
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
@@ -251,6 +300,9 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			flowVenc.FlowVenc,
 			dt,
 			meta.InstanceNumber,
+			phaseContrastN4,
+			velocityEncodingDirectionN4,
+			sign < 0,
 		)
 	}
 
