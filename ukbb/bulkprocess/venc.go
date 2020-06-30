@@ -14,7 +14,7 @@ type VENC struct {
 
 // NewVENC consumes the raw string values for FlowVenc and BitsStored, returning
 // a VENC object that is ready to be used for calculating pixel velocities
-func NewVENC(FlowVenc, BitsStored string) (VENC, error) {
+func NewVENC(FlowVenc string, BitsStored uint16) (VENC, error) {
 	out := VENC{}
 
 	flowVenc, err := strconv.ParseFloat(FlowVenc, 64)
@@ -23,11 +23,7 @@ func NewVENC(FlowVenc, BitsStored string) (VENC, error) {
 	}
 	out.FlowVenc = flowVenc
 
-	bitsStored, err := strconv.ParseFloat(BitsStored, 64)
-	if err != nil {
-		return out, err
-	}
-	out.BitsStored = bitsStored
+	out.BitsStored = float64(BitsStored)
 
 	return out, nil
 }
