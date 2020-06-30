@@ -75,6 +75,7 @@ func main() {
 		"phase_contrast_n4",
 		"velocity_encoding_direction_n4",
 		"venc_z_axis_sign_flipped",
+		"aliasing_risk",
 	}, "\t"))
 
 	// Do the work
@@ -279,7 +280,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\n",
 			filepath.Base(inputPath),
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
@@ -303,6 +304,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			phaseContrastN4,
 			velocityEncodingDirectionN4,
 			sign < 0,
+			math.Abs(maxPix) > 0.99*flowVenc.FlowVenc || math.Abs(minPix) > 0.99*flowVenc.FlowVenc,
 		)
 	}
 
