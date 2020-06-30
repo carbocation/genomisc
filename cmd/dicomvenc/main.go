@@ -71,6 +71,7 @@ func main() {
 		"velocity_max_cm_sec",
 		"venc_limit",
 		"duration_sec",
+		"instance_number",
 	}, "\t"))
 
 	// Do the work
@@ -106,6 +107,14 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		return err
 	}
 	defer f.Close()
+
+	meta, err := bulkprocess.DicomToMetadata(f)
+	if err != nil {
+		return err
+	}
+
+	// Reset the DICOM reader
+	f.Seek(0, 0)
 
 	// Make the DICOM fields addressable as a map
 	tagMap, err := bulkprocess.DicomToTagMap(f)
@@ -221,7 +230,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		absFlow := absSum * pxHeightCM * pxWidthCM
 		flow := sum * pxHeightCM * pxWidthCM
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\n",
 			filepath.Base(inputPath),
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
@@ -241,6 +250,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			maxPix,
 			flowVenc.FlowVenc,
 			dt,
+			meta.InstanceNumber,
 		)
 	}
 
