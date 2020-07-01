@@ -41,7 +41,7 @@ func runFromManifest(manifest, zipPath, maskFolder, maskSuffix string, config ov
 			// retry a few times before giving up.
 			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
 
-				err := processOneZipFile(zipPath, zipFile, dicoms, maskFolder, maskSuffix, config)
+				out, err := processOneZipFile(zipPath, zipFile, dicoms, maskFolder, maskSuffix, config)
 
 				if err != nil && loadAttempts == maxLoadAttempts {
 					// We've exhausted our retries. Fail hard.
@@ -52,7 +52,13 @@ func runFromManifest(manifest, zipPath, maskFolder, maskSuffix string, config ov
 					continue
 				}
 
-				// If no error, we're done
+				// Only now that we know we completed this file without error
+				// can we print; printing before this moment will lead to
+				// duplicate output if there are retries after the first line is
+				// emitted.
+				fmt.Fprint(STDOUT, out)
+
+				// If no error, we don't need to retry
 				break
 			}
 			<-sem
@@ -67,22 +73,24 @@ func runFromManifest(manifest, zipPath, maskFolder, maskSuffix string, config ov
 	return nil
 }
 
-func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, maskSuffix string, config overlay.JSONConfig) error {
+func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, maskSuffix string, config overlay.JSONConfig) (string, error) {
 	f, err := os.Open(filepath.Join(zipPath, zipFile))
 	if err != nil {
-		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
+		return "", fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
 	}
 	defer f.Close()
 
 	// the zip reader wants to know the # of bytes in advance
 	nBytes, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
+		return "", fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
 	}
+
+	sb := strings.Builder{}
 
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
 	for _, dicomNames := range dicoms {
-		err := func(dicomPair maskMap) error {
+		out, err := func(dicomPair maskMap) (string, error) {
 
 			// TODO: Can consider optimizing further. This is an o(n^2)
 			// operation - but if you printed the Dicom image to PNG within this
@@ -90,7 +98,7 @@ func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, ma
 			// o(n) time. Not sure this is a bottleneck yet.
 			dcmReadSeeker, err := extractDicomReaderFromZip(f, nBytes.Size(), dicomPair.VencDicom)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			// Load the mask as an image. The mask comes from the cine dicom
@@ -98,15 +106,14 @@ func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, ma
 			maskPath := filepath.Join(maskFolder, dicomPair.CineDicom+maskSuffix)
 			rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			str, err := run(dcmReadSeeker, rawOverlayImg, dicomNames.VencDicom, config)
 			if err != nil {
-				return err
+				return "", err
 			}
-			fmt.Print(str)
-			return nil
+			return str, nil
 		}(dicomNames)
 
 		// Since we want to continue processing the zip even if one of its
@@ -117,7 +124,7 @@ func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, ma
 			// If we had an error due to an unreliable filesystem, we need to
 			// fail the whole job or we will end up with unreliable or missing
 			// data.
-			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomNames.VencDicom, zipFile, err)
+			return "", fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomNames.VencDicom, zipFile, err)
 
 		} else if err != nil {
 
@@ -127,9 +134,11 @@ func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, ma
 			log.Printf("ProcessOneZipFile error (skipping dicom %s in zip %s): %v\n", dicomNames.VencDicom, zipFile, err)
 
 		}
+
+		sb.WriteString(out)
 	}
 
-	return nil
+	return sb.String(), nil
 }
 
 func extractDicomReaderFromZip(zipReaderAt io.ReaderAt, zipNBytes int64, dicomName string) (*bytes.Reader, error) {
