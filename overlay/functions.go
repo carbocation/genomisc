@@ -1,9 +1,11 @@
 package overlay
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
+	"io/ioutil"
 	"math"
 	"os"
 	"strconv"
@@ -25,9 +27,21 @@ func OpenImageFromLocalFile(filePath string) (image.Image, error) {
 	}
 	defer f.Close()
 
+	// The image decoder swallows errors, so we won't see i/o errors if they
+	// happen during image decoding. To capture these, we read the full image
+	// into memory here, and pass a byte reader to the image decoder.
+
+	imgBytes, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+
+	imgReader := bytes.NewReader(imgBytes)
+
 	// Extract and decode the image. Must be PNG, GIF, BMP, or JPEG formatted
 	// (based on the decoders we have imported)
-	img, _, err := image.Decode(f)
+	img, _, err := image.Decode(imgReader)
 
 	return img, err
 }
