@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -78,13 +80,34 @@ func main() {
 		"was_unwrapped",
 	}, "\t"))
 
-	// Do the work
-	err = run(inputPath, maskPath, config)
-
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	if true {
+		if err := runFromFiles(inputPath, maskPath, config); err != nil {
+			log.Fatalln(err)
+		}
+	}
+
+}
+
+func runFromFiles(inputPath, maskPath string, config overlay.JSONConfig) error {
+	// Load the dicom as a reader
+	f, err := os.Open(inputPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Load the mask as an image
+	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
+	if err != nil {
+		return err
+	}
+
+	// Do the work
+	return run(f, rawOverlayImg, filepath.Base(inputPath), config)
 }
 
 type vencPixel struct {
@@ -92,25 +115,13 @@ type vencPixel struct {
 	FlowVenc    float64
 }
 
-func run(inputPath, maskPath string, config overlay.JSONConfig) error {
+func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config overlay.JSONConfig) error {
 
-	// Load the overlay mask
-	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
-	if err != nil {
-		return err
-	}
 	cols := rawOverlayImg.Bounds().Size().X
 	rows := rawOverlayImg.Bounds().Size().Y
 
 	// Will store pixels linked with each segmentation class
 	segmentPixels := make(map[uint][]vencPixel)
-
-	// Load the DICOM
-	f, err := os.Open(inputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 
 	meta, err := bulkprocess.DicomToMetadata(f)
 	if err != nil {
@@ -319,7 +330,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		}
 
 		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
-			filepath.Base(inputPath),
+			dicomName,
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
 			len(v),
