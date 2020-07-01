@@ -1,10 +1,14 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"image"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -12,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aybabtme/uniplot/histogram"
 	"github.com/carbocation/genomisc/overlay"
@@ -30,11 +35,12 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, maskPath, configPath, manifest, zipPath, masks string
+	var inputPath, maskPath, configPath, manifest, zipPath, maskFolder, maskSuffix string
 
-	flag.StringVar(&manifest, "manifest", "", "(Optional) Manifest file containing Zip names and Dicom names. If provided, --zips and --out are required and --file and --mask will be ignored.")
+	flag.StringVar(&manifest, "vencmanifest", "", "(Optional) VENC-style mapped manifest file containing Zip names and Dicom names. If provided, --zips and --out are required and --file and --mask will be ignored.")
 	flag.StringVar(&zipPath, "zips", "", "(Required if --manifest is set) Path to the local folder containing the raw UK Biobank zip files")
-	flag.StringVar(&masks, "masks", "", "(Required if --manifest is set) Path to the local folder containing the matching mask files")
+	flag.StringVar(&maskFolder, "maskfolder", "", "(Required if --manifest is set) Path to the local folder containing the matching mask files")
+	flag.StringVar(&maskSuffix, "masksuffix", ".png.mask.png", "(Required if --manifest is set) Suffix the place after the masks's .dcm name")
 	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file.")
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
@@ -51,7 +57,7 @@ func main() {
 
 	// If a manifest is passed, we need to know where the zips are, where the
 	// masks are, and where the output should go
-	if manifest != "" && (zipPath == "" || masks == "") {
+	if manifest != "" && (zipPath == "" || maskFolder == "" || maskSuffix == "") {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -101,12 +107,207 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if true {
-		if err := runFromFiles(inputPath, maskPath, config); err != nil {
-			log.Fatalln(err)
+	if manifest != "" {
+		// Parse from zip files
+		err = runFromManifest(manifest, zipPath, maskFolder, maskSuffix, config)
+	} else {
+		// Run one file
+		err = runFromFiles(inputPath, maskPath, config)
+	}
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func runFromManifest(manifest, zipPath, maskFolder, maskSuffix string, config overlay.JSONConfig) error {
+	zipMap, err := getZipMap(manifest)
+	if err != nil {
+		return err
+	}
+
+	// Now iterate over the zips and print out the requested dicoms as images
+
+	concurrency := 1 //runtime.NumCPU()
+	sem := make(chan bool, concurrency)
+
+	for zipFile, dicomList := range zipMap {
+		sem <- true
+		go func(zipFile string, dicoms []maskMap) {
+
+			// The main purpose of this loop is to handle a specific filesystem
+			// error (input/output error) that largely happens with GCSFuse, and
+			// retry a few times before giving up.
+			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+
+				err := processOneZipFile(zipPath, zipFile, dicoms, maskFolder, maskSuffix, config)
+
+				if err != nil && loadAttempts == maxLoadAttempts {
+					// We've exhausted our retries. Fail hard.
+					log.Fatalln(err)
+				} else if err != nil {
+					log.Println("Sleeping 5s to recover from", err.Error(), ". Attempt #", loadAttempts)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				// If no error, we're done
+				break
+			}
+			<-sem
+
+		}(zipFile, dicomList)
+	}
+
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
+	}
+
+	return nil
+}
+
+func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, maskSuffix string, config overlay.JSONConfig) error {
+	f, err := os.Open(filepath.Join(zipPath, zipFile))
+	if err != nil {
+		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
+	}
+	defer f.Close()
+
+	// the zip reader wants to know the # of bytes in advance
+	nBytes, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
+	}
+
+	// The zip is now open, so we don't have to reopen/reclose for every dicom
+	for _, dicomNames := range dicoms {
+		err := func(dicomPair maskMap) error {
+
+			// TODO: Can consider optimizing further. This is an o(n^2)
+			// operation - but if you printed the Dicom image to PNG within this
+			// function, you could make it accept a map and then only iterate in
+			// o(n) time. Not sure this is a bottleneck yet.
+			dcmReadSeeker, err := extractDicomReaderFromZip(f, nBytes.Size(), dicomPair.VencDicom)
+			if err != nil {
+				return err
+			}
+
+			// Load the mask as an image. The mask comes from the cine dicom
+			// while we will apply it to the phase (VENC) dicom.
+			maskPath := filepath.Join(maskFolder, dicomPair.CineDicom+maskSuffix)
+			rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
+			if err != nil {
+				return err
+			}
+
+			return run(dcmReadSeeker, rawOverlayImg, dicomNames.VencDicom, config)
+		}(dicomNames)
+
+		// Since we want to continue processing the zip even if one of its
+		// dicoms was bad, simply log the error. However, if the underlying
+		// file system is unreliable, we should then exit.
+		if err != nil && strings.Contains(err.Error(), "input/output error") {
+
+			// If we had an error due to an unreliable filesystem, we need to
+			// fail the whole job or we will end up with unreliable or missing
+			// data.
+			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomNames.VencDicom, zipFile, err)
+
+		} else if err != nil {
+
+			// Non-i/o errors usually indicate that this is just a bad internal
+			// file that will never be readable, in which case we should move on
+			// rather than quitting.
+			log.Printf("ProcessOneZipFile error (skipping dicom %s in zip %s): %v\n", dicomNames.VencDicom, zipFile, err)
+
 		}
 	}
 
+	return nil
+}
+
+func extractDicomReaderFromZip(zipReaderAt io.ReaderAt, zipNBytes int64, dicomName string) (*bytes.Reader, error) {
+	var err error
+
+	rc, err := zip.NewReader(zipReaderAt, zipNBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range rc.File {
+		// Iterate over all of the dicoms in the zip til we find the one with
+		// the desired name
+		if v.Name != dicomName {
+			continue
+		}
+
+		dcmReadCloser, err := v.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer dcmReadCloser.Close()
+
+		// Convert our readCloser to a readSeeker
+		dcmBytes, err := ioutil.ReadAll(dcmReadCloser)
+		if err != nil {
+			return nil, err
+		}
+
+		return bytes.NewReader(dcmBytes), nil
+
+	}
+
+	return nil, fmt.Errorf("Did not find the requested Dicom %s", dicomName)
+}
+
+type maskMap struct {
+	VencDicom string
+	CineDicom string
+}
+
+func getZipMap(manifest string) (map[string][]maskMap, error) {
+	f, err := os.Open(manifest)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	csvReader := csv.NewReader(f)
+	csvReader.Comma = '\t'
+	entries, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	zipFileCol, vencDicomCol, cineDicomCol := -1, -1, -1
+
+	// First, identify whether we are extracting multiple images from any zips.
+	// If so, it will be more efficient to open the zip one time and extract the
+	// desired images, rather than opening/closing the zip for each image
+	// (especially if over gcsfuse)
+	zipMap := make(map[string][]maskMap) // map[zip_file][]dicom_file
+	for i, row := range entries {
+		if i == 0 {
+			for j, col := range row {
+				if col == "zip_file" {
+					zipFileCol = j
+				} else if col == "dicom_cine" {
+					cineDicomCol = j
+				} else if col == "dicom_venc" {
+					vencDicomCol = j
+				}
+			}
+
+			continue
+		} else if zipFileCol < 0 || vencDicomCol < 0 || cineDicomCol < 0 {
+			return nil, fmt.Errorf("Did not identify zip_file, dicom_cine, or dicom_venc in the header line of %s", manifest)
+		}
+
+		// Append to this zip file's list of individual dicom images to process
+		zipMap[row[zipFileCol]] = append(zipMap[row[zipFileCol]], maskMap{CineDicom: row[cineDicomCol], VencDicom: row[vencDicomCol]})
+	}
+
+	return zipMap, nil
 }
 
 func runFromFiles(inputPath, maskPath string, config overlay.JSONConfig) error {
