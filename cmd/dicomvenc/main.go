@@ -30,8 +30,11 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, maskPath, configPath string
+	var inputPath, maskPath, configPath, manifest, zipPath, masks string
 
+	flag.StringVar(&manifest, "manifest", "", "(Optional) Manifest file containing Zip names and Dicom names. If provided, --zips and --out are required and --file and --mask will be ignored.")
+	flag.StringVar(&zipPath, "zips", "", "(Required if --manifest is set) Path to the local folder containing the raw UK Biobank zip files")
+	flag.StringVar(&masks, "masks", "", "(Required if --manifest is set) Path to the local folder containing the matching mask files")
 	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file.")
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
@@ -40,7 +43,21 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, strings.Join(os.Args, " "))
 
-	if inputPath == "" || maskPath == "" || configPath == "" {
+	// Must pass a manifest or the raw dicom and mask path
+	if manifest == "" && (inputPath == "" || maskPath == "") {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// If a manifest is passed, we need to know where the zips are, where the
+	// masks are, and where the output should go
+	if manifest != "" && (zipPath == "" || masks == "") {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// Always need a config file
+	if configPath == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
