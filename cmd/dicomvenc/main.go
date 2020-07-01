@@ -75,6 +75,7 @@ func main() {
 		"velocity_encoding_direction_n4",
 		"venc_z_axis_sign_flipped",
 		"aliasing_risk",
+		"was_unwrapped",
 	}, "\t"))
 
 	// Do the work
@@ -240,14 +241,17 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		aliasRisk := math.Abs(pixdat.PixelVelocityMaxCMPerSec) > 0.99*flowVenc.FlowVenc ||
 			math.Abs(pixdat.PixelVelocityMinCMPerSec) > 0.99*flowVenc.FlowVenc
 
-		if false && aliasRisk {
+		unwrapped := false
+
+		if aliasRisk {
 			// Generate a histogram. The number of buckets is arbitrary. TODO:
 			// find a rational bucket count.
-			hist := histogram.Hist(50, pixdat.PixelVelocities)
+			hist := histogram.Hist(25, pixdat.PixelVelocities)
 
 			if pixdat.PixelVelocitySumCMPerSec > 0 {
 				// If the bulk flow is positive, start at the most negative
 				// value:
+
 				zeroBucket := false
 				wrapPoint := math.Inf(-1)
 				for _, bucket := range hist.Buckets {
@@ -257,31 +261,55 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 						break
 					}
 				}
-				_ = wrapPoint
 
 				// If we never saw a zero bucket, there might not actually be
 				// aliasing - the full range might be used
 				if zeroBucket {
+					unwrappedV := make([]vencPixel, len(v))
+					copy(unwrappedV, v)
+					for k, vp := range unwrappedV {
+						if unwrappedV[k].FlowVenc < wrapPoint {
+							unwrappedV[k].FlowVenc = 2.0*flowVenc.FlowVenc + vp.FlowVenc
+						}
+					}
 
+					// And replace our stats
+					pixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
+					unwrapped = true
 				}
 			} else if pixdat.PixelVelocitySumCMPerSec < 0 {
+				// If the flow is negative, reverse the sort, so we can start at
+				// the highest values and go downward.
 
 				zeroBucket := false
 				wrapPoint := math.Inf(1)
-				// If the flow is negative, reverse the order
 				sort.Slice(hist.Buckets, func(i, j int) bool {
-					return hist.Buckets[i].Max < hist.Buckets[j].Max
+					return hist.Buckets[i].Min < hist.Buckets[j].Min
 				})
 
 				for _, bucket := range hist.Buckets {
-					wrapPoint = bucket.Max
+					wrapPoint = bucket.Min
 					if bucket.Count == 0 {
 						zeroBucket = true
 						break
 					}
 				}
-				_ = wrapPoint
-				_ = zeroBucket
+
+				// If we never saw a zero bucket, there might not actually be
+				// aliasing - the full range might be used
+				if zeroBucket {
+					unwrappedV := make([]vencPixel, len(v))
+					copy(unwrappedV, v)
+					for k, vp := range unwrappedV {
+						if unwrappedV[k].FlowVenc > wrapPoint {
+							unwrappedV[k].FlowVenc = -2.0*flowVenc.FlowVenc + vp.FlowVenc
+						}
+					}
+
+					// And replace our stats
+					pixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
+					unwrapped = true
+				}
 			}
 
 			// fmt.Printf("%+v\n", hist.Buckets)
@@ -290,7 +318,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			// }
 		}
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\n",
+		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
 			filepath.Base(inputPath),
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
@@ -315,6 +343,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			velocityEncodingDirectionN4,
 			sign < 0,
 			aliasRisk,
+			unwrapped,
 		)
 	}
 
