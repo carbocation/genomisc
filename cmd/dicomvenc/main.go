@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aybabtme/uniplot/histogram"
 	"github.com/carbocation/pfx"
 	"gonum.org/v1/gonum/stat"
 
@@ -235,50 +236,61 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			continue
 		}
 
-		// Get a measure of dispersion of velocity estimates across the pixels
-		pixelVelocities := make([]float64, 0, len(v))
-		for _, px := range v {
-			pixelVelocities = append(pixelVelocities, px.FlowVenc)
-		}
-		velStDev := stat.StdDev(pixelVelocities, nil)
+		pixdat := describeSegmentationPixels(v, dt, pxHeightCM, pxWidthCM)
 
-		sum := 0.0
-		absSum := 0.0
-		minPix, maxPix := 0.0, 0.0
-		for _, px := range v {
-			sum += px.FlowVenc
-			absSum += math.Abs(px.FlowVenc)
-			if px.FlowVenc < minPix {
-				minPix = px.FlowVenc
+		// Are we potentially aliasing, based on how close we are getting to an extremum of +/- FlowVenc?
+		aliasRisk := math.Abs(pixdat.PixelVelocityMaxCMPerSec) > 0.99*flowVenc.FlowVenc ||
+			math.Abs(pixdat.PixelVelocityMinCMPerSec) > 0.99*flowVenc.FlowVenc
+
+		if false && aliasRisk {
+			// Generate a histogram. The number of buckets is arbitrary. TODO:
+			// find a rational bucket count.
+			hist := histogram.Hist(50, pixdat.PixelVelocities)
+
+			if pixdat.PixelVelocitySumCMPerSec > 0 {
+				// If the bulk flow is positive, start at the most negative
+				// value:
+				zeroBucket := false
+				wrapPoint := math.Inf(-1)
+				for _, bucket := range hist.Buckets {
+					wrapPoint = bucket.Max
+					if bucket.Count == 0 {
+						zeroBucket = true
+						break
+					}
+				}
+				_ = wrapPoint
+
+				// If we never saw a zero bucket, there might not actually be
+				// aliasing - the full range might be used
+				if zeroBucket {
+
+				}
+			} else if pixdat.PixelVelocitySumCMPerSec < 0 {
+
+				zeroBucket := false
+				wrapPoint := math.Inf(1)
+				// If the flow is negative, reverse the order
+				sort.Slice(hist.Buckets, func(i, j int) bool {
+					return hist.Buckets[i].Max < hist.Buckets[j].Max
+				})
+
+				for _, bucket := range hist.Buckets {
+					wrapPoint = bucket.Max
+					if bucket.Count == 0 {
+						zeroBucket = true
+						break
+					}
+				}
+				_ = wrapPoint
+				_ = zeroBucket
 			}
-			if px.FlowVenc > maxPix {
-				maxPix = px.FlowVenc
-			}
+
+			// fmt.Printf("%+v\n", hist.Buckets)
+			// if err := histogram.Fprint(os.Stdout, hist, histogram.Linear(5)); err != nil {
+			// 	panic(err)
+			// }
 		}
-
-		// Get VTI (units are cm/contraction; here, just unitless cm) This is
-		// the integral of venc (cm/sec) over the unit of time (portion of a
-		// second). Specifically, we want a peak velocity. To try to reduce
-		// error, will take 99% value rather than the very top pixel. Since this
-		// is directional, will assess the mean velocity first, and then take
-		// the extremum that is directionally consistent with the bulk flow.
-		sort.Float64Slice(pixelVelocities).Sort()
-		lowVel := stat.Quantile(0.01, stat.LinInterp, pixelVelocities, nil)
-		highVel := stat.Quantile(0.99, stat.LinInterp, pixelVelocities, nil)
-
-		vti99pct := dt * highVel
-		vtimax := dt * maxPix
-
-		if sum < 0 {
-			vti99pct = dt * lowVel
-			vtimax = dt * minPix
-		}
-
-		vtimean := dt * sum / float64(len(v))
-
-		// Convert to units of "cm^3 / sec"
-		absFlow := absSum * pxHeightCM * pxWidthCM
-		flow := sum * pxHeightCM * pxWidthCM
 
 		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\n",
 			filepath.Base(inputPath),
@@ -286,29 +298,93 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			strings.ReplaceAll(label.Label, " ", "_"),
 			len(v),
 			float64(len(v))*pxHeightCM*pxWidthCM,
-			flow,
-			flow*dt,
-			vtimean,
-			vti99pct,
-			vtimax,
-			absFlow,
-			sum/float64(len(v)),
-			velStDev,
-			minPix,
-			lowVel,
-			highVel,
-			maxPix,
+			pixdat.FlowCM3PerSec,
+			pixdat.FlowCM3PerSec*dt,
+			pixdat.VTIMeanCM,
+			pixdat.VTI99pctCM,
+			pixdat.VTIMaxCM,
+			pixdat.AbsFlowCM3PerSec,
+			pixdat.PixelVelocitySumCMPerSec/float64(len(pixdat.PixelVelocities)),
+			pixdat.PixelVelocityVelocityStandardDeviationCMPerSec,
+			pixdat.PixelVelocityMinCMPerSec,
+			pixdat.PixelVelocity01PctCMPerSec,
+			pixdat.PixelVelocity99PctCMPerSec,
+			pixdat.PixelVelocityMaxCMPerSec,
 			flowVenc.FlowVenc,
 			dt,
 			meta.InstanceNumber,
 			phaseContrastN4,
 			velocityEncodingDirectionN4,
 			sign < 0,
-			math.Abs(maxPix) > 0.99*flowVenc.FlowVenc || math.Abs(minPix) > 0.99*flowVenc.FlowVenc,
+			aliasRisk,
 		)
 	}
 
 	return nil
+}
+
+type segmentationPixelBulkProperties struct {
+	PixelVelocities                                []float64
+	PixelVelocityVelocityStandardDeviationCMPerSec float64
+	PixelVelocitySumCMPerSec                       float64
+	PixelVelocityAbsoluteSumCMPerSec               float64
+	PixelVelocityMinCMPerSec                       float64
+	PixelVelocityMaxCMPerSec                       float64
+	PixelVelocity01PctCMPerSec                     float64
+	PixelVelocity99PctCMPerSec                     float64
+	VTI99pctCM                                     float64
+	VTIMaxCM                                       float64
+	VTIMeanCM                                      float64
+	AbsFlowCM3PerSec                               float64
+	FlowCM3PerSec                                  float64
+}
+
+func describeSegmentationPixels(v []vencPixel, dt, pxHeightCM, pxWidthCM float64) (out segmentationPixelBulkProperties) {
+	// Get a measure of dispersion of velocity estimates across the pixels
+	out.PixelVelocities = make([]float64, 0, len(v))
+	for _, px := range v {
+		out.PixelVelocities = append(out.PixelVelocities, px.FlowVenc)
+	}
+	out.PixelVelocityVelocityStandardDeviationCMPerSec = stat.StdDev(out.PixelVelocities, nil)
+
+	out.PixelVelocityMinCMPerSec = math.MaxFloat32
+	out.PixelVelocityMaxCMPerSec = -1.0 * math.MaxFloat32
+	for _, px := range v {
+		out.PixelVelocitySumCMPerSec += px.FlowVenc
+		out.PixelVelocityAbsoluteSumCMPerSec += math.Abs(px.FlowVenc)
+		if px.FlowVenc < out.PixelVelocityMinCMPerSec {
+			out.PixelVelocityMinCMPerSec = px.FlowVenc
+		}
+		if px.FlowVenc > out.PixelVelocityMaxCMPerSec {
+			out.PixelVelocityMaxCMPerSec = px.FlowVenc
+		}
+	}
+
+	// Get VTI (units are cm/contraction; here, just unitless cm) This is
+	// the integral of venc (cm/sec) over the unit of time (portion of a
+	// second). Specifically, we want a peak velocity. To try to reduce
+	// error, will take 99% value rather than the very top pixel. Since this
+	// is directional, will assess the mean velocity first, and then take
+	// the extremum that is directionally consistent with the bulk flow.
+	sort.Float64Slice(out.PixelVelocities).Sort()
+	out.PixelVelocity01PctCMPerSec = stat.Quantile(0.01, stat.LinInterp, out.PixelVelocities, nil)
+	out.PixelVelocity99PctCMPerSec = stat.Quantile(0.99, stat.LinInterp, out.PixelVelocities, nil)
+
+	out.VTI99pctCM = dt * out.PixelVelocity99PctCMPerSec
+	out.VTIMaxCM = dt * out.PixelVelocityMaxCMPerSec
+
+	if out.PixelVelocitySumCMPerSec < 0 {
+		out.VTI99pctCM = dt * out.PixelVelocity01PctCMPerSec
+		out.VTIMaxCM = dt * out.PixelVelocityMinCMPerSec
+	}
+
+	out.VTIMeanCM = dt * out.PixelVelocitySumCMPerSec / float64(len(v))
+
+	// Convert to units of "cm^3 / sec"
+	out.AbsFlowCM3PerSec = out.PixelVelocityAbsoluteSumCMPerSec * pxHeightCM * pxWidthCM
+	out.FlowCM3PerSec = out.PixelVelocitySumCMPerSec * pxHeightCM * pxWidthCM
+
+	return
 }
 
 // deltaT returns the assumed amount of time (in seconds) belonging to each
