@@ -1,14 +1,10 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
-	"encoding/csv"
 	"flag"
 	"fmt"
 	"image"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -16,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aybabtme/uniplot/histogram"
 	"github.com/carbocation/genomisc/overlay"
@@ -25,6 +20,11 @@ import (
 	"github.com/suyashkumar/dicom/dicomtag"
 	"github.com/suyashkumar/dicom/element"
 )
+
+type vencPixel struct {
+	PixelNumber int
+	FlowVenc    float64
+}
 
 // Special value that is to be set using ldflags
 // E.g.: go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"
@@ -112,7 +112,7 @@ func main() {
 		err = runFromManifest(manifest, zipPath, maskFolder, maskSuffix, config)
 	} else {
 		// Run one file
-		err = runFromFiles(inputPath, maskPath, config)
+		err = runFromFile(inputPath, maskPath, config)
 	}
 
 	if err != nil {
@@ -120,197 +120,7 @@ func main() {
 	}
 }
 
-func runFromManifest(manifest, zipPath, maskFolder, maskSuffix string, config overlay.JSONConfig) error {
-	zipMap, err := getZipMap(manifest)
-	if err != nil {
-		return err
-	}
-
-	// Now iterate over the zips and print out the requested dicoms as images
-
-	concurrency := 1 //runtime.NumCPU()
-	sem := make(chan bool, concurrency)
-
-	for zipFile, dicomList := range zipMap {
-		sem <- true
-		go func(zipFile string, dicoms []maskMap) {
-
-			// The main purpose of this loop is to handle a specific filesystem
-			// error (input/output error) that largely happens with GCSFuse, and
-			// retry a few times before giving up.
-			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
-
-				err := processOneZipFile(zipPath, zipFile, dicoms, maskFolder, maskSuffix, config)
-
-				if err != nil && loadAttempts == maxLoadAttempts {
-					// We've exhausted our retries. Fail hard.
-					log.Fatalln(err)
-				} else if err != nil {
-					log.Println("Sleeping 5s to recover from", err.Error(), ". Attempt #", loadAttempts)
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				// If no error, we're done
-				break
-			}
-			<-sem
-
-		}(zipFile, dicomList)
-	}
-
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
-	}
-
-	return nil
-}
-
-func processOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, maskSuffix string, config overlay.JSONConfig) error {
-	f, err := os.Open(filepath.Join(zipPath, zipFile))
-	if err != nil {
-		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
-	}
-	defer f.Close()
-
-	// the zip reader wants to know the # of bytes in advance
-	nBytes, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipFile, err)
-	}
-
-	// The zip is now open, so we don't have to reopen/reclose for every dicom
-	for _, dicomNames := range dicoms {
-		err := func(dicomPair maskMap) error {
-
-			// TODO: Can consider optimizing further. This is an o(n^2)
-			// operation - but if you printed the Dicom image to PNG within this
-			// function, you could make it accept a map and then only iterate in
-			// o(n) time. Not sure this is a bottleneck yet.
-			dcmReadSeeker, err := extractDicomReaderFromZip(f, nBytes.Size(), dicomPair.VencDicom)
-			if err != nil {
-				return err
-			}
-
-			// Load the mask as an image. The mask comes from the cine dicom
-			// while we will apply it to the phase (VENC) dicom.
-			maskPath := filepath.Join(maskFolder, dicomPair.CineDicom+maskSuffix)
-			rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
-			if err != nil {
-				return err
-			}
-
-			return run(dcmReadSeeker, rawOverlayImg, dicomNames.VencDicom, config)
-		}(dicomNames)
-
-		// Since we want to continue processing the zip even if one of its
-		// dicoms was bad, simply log the error. However, if the underlying
-		// file system is unreliable, we should then exit.
-		if err != nil && strings.Contains(err.Error(), "input/output error") {
-
-			// If we had an error due to an unreliable filesystem, we need to
-			// fail the whole job or we will end up with unreliable or missing
-			// data.
-			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomNames.VencDicom, zipFile, err)
-
-		} else if err != nil {
-
-			// Non-i/o errors usually indicate that this is just a bad internal
-			// file that will never be readable, in which case we should move on
-			// rather than quitting.
-			log.Printf("ProcessOneZipFile error (skipping dicom %s in zip %s): %v\n", dicomNames.VencDicom, zipFile, err)
-
-		}
-	}
-
-	return nil
-}
-
-func extractDicomReaderFromZip(zipReaderAt io.ReaderAt, zipNBytes int64, dicomName string) (*bytes.Reader, error) {
-	var err error
-
-	rc, err := zip.NewReader(zipReaderAt, zipNBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range rc.File {
-		// Iterate over all of the dicoms in the zip til we find the one with
-		// the desired name
-		if v.Name != dicomName {
-			continue
-		}
-
-		dcmReadCloser, err := v.Open()
-		if err != nil {
-			return nil, err
-		}
-		defer dcmReadCloser.Close()
-
-		// Convert our readCloser to a readSeeker
-		dcmBytes, err := ioutil.ReadAll(dcmReadCloser)
-		if err != nil {
-			return nil, err
-		}
-
-		return bytes.NewReader(dcmBytes), nil
-
-	}
-
-	return nil, fmt.Errorf("Did not find the requested Dicom %s", dicomName)
-}
-
-type maskMap struct {
-	VencDicom string
-	CineDicom string
-}
-
-func getZipMap(manifest string) (map[string][]maskMap, error) {
-	f, err := os.Open(manifest)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	csvReader := csv.NewReader(f)
-	csvReader.Comma = '\t'
-	entries, err := csvReader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	zipFileCol, vencDicomCol, cineDicomCol := -1, -1, -1
-
-	// First, identify whether we are extracting multiple images from any zips.
-	// If so, it will be more efficient to open the zip one time and extract the
-	// desired images, rather than opening/closing the zip for each image
-	// (especially if over gcsfuse)
-	zipMap := make(map[string][]maskMap) // map[zip_file][]dicom_file
-	for i, row := range entries {
-		if i == 0 {
-			for j, col := range row {
-				if col == "zip_file" {
-					zipFileCol = j
-				} else if col == "dicom_cine" {
-					cineDicomCol = j
-				} else if col == "dicom_venc" {
-					vencDicomCol = j
-				}
-			}
-
-			continue
-		} else if zipFileCol < 0 || vencDicomCol < 0 || cineDicomCol < 0 {
-			return nil, fmt.Errorf("Did not identify zip_file, dicom_cine, or dicom_venc in the header line of %s", manifest)
-		}
-
-		// Append to this zip file's list of individual dicom images to process
-		zipMap[row[zipFileCol]] = append(zipMap[row[zipFileCol]], maskMap{CineDicom: row[cineDicomCol], VencDicom: row[vencDicomCol]})
-	}
-
-	return zipMap, nil
-}
-
-func runFromFiles(inputPath, maskPath string, config overlay.JSONConfig) error {
+func runFromFile(inputPath, maskPath string, config overlay.JSONConfig) error {
 	// Load the dicom as a reader
 	f, err := os.Open(inputPath)
 	if err != nil {
@@ -325,15 +135,15 @@ func runFromFiles(inputPath, maskPath string, config overlay.JSONConfig) error {
 	}
 
 	// Do the work
-	return run(f, rawOverlayImg, filepath.Base(inputPath), config)
+	str, err := run(f, rawOverlayImg, filepath.Base(inputPath), config)
+	if err != nil {
+		return err
+	}
+	fmt.Print(str)
+	return nil
 }
 
-type vencPixel struct {
-	PixelNumber int
-	FlowVenc    float64
-}
-
-func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config overlay.JSONConfig) error {
+func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config overlay.JSONConfig) (string, error) {
 
 	cols := rawOverlayImg.Bounds().Size().X
 	rows := rawOverlayImg.Bounds().Size().Y
@@ -343,7 +153,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 
 	meta, err := bulkprocess.DicomToMetadata(f)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Reset the DICOM reader
@@ -352,30 +162,30 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 	// Make the DICOM fields addressable as a map
 	tagMap, err := bulkprocess.DicomToTagMap(f)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Load VENC data
 	flowVenc, err := fetchFlowVenc(tagMap)
 	if err != nil {
-		return pfx.Err(err)
+		return "", pfx.Err(err)
 	}
 
 	// Load the DICOM pixel data
 	pixelElem, exists := tagMap[dicomtag.PixelData]
 	if !exists {
-		return fmt.Errorf("PixelData not found")
+		return "", fmt.Errorf("PixelData not found")
 	}
 
 	pxHeightCM, pxWidthCM, err := pixelHeightWidthCM(tagMap)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Get the duration of time for this frame. Needed to infer VTI.
 	dt, err := deltaT(tagMap)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Need Siemens header data, if it exists
@@ -385,7 +195,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 		for _, headerRow := range elem {
 			sc, err := bulkprocess.ParseSiemensHeader(headerRow)
 			if err != nil {
-				return err
+				return "", err
 			}
 			for _, v := range sc.Slice() {
 				if v.Name == "PhaseContrastN4" {
@@ -400,7 +210,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 						}
 						velocityEncodingDirectionN4, err = strconv.ParseFloat(value, 64)
 						if err != nil {
-							return err
+							return "", err
 						}
 					}
 				}
@@ -427,13 +237,13 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 	data := pixelElem[0].(element.PixelDataInfo)
 	for _, frame := range data.Frames {
 		if frame.IsEncapsulated {
-			return fmt.Errorf("Frame is encapsulated, which we did not expect")
+			return "", fmt.Errorf("Frame is encapsulated, which we did not expect")
 		}
 
 		// Ensure that the pixels from the DICOM are in agreement with the
 		// pixels from the mask.
 		if x, y := len(frame.NativeData.Data), rows*cols; x != y {
-			return fmt.Errorf("DICOM data has %d pixels but mask data has %d pixels (%d rows and %d cols)", x, y, rows, cols)
+			return "", fmt.Errorf("DICOM data has %d pixels but mask data has %d pixels (%d rows and %d cols)", x, y, rows, cols)
 		}
 
 		// Iterate over the DICOM pixels
@@ -442,7 +252,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 			// Identify which segmentation class this pixel belongs to
 			idAtPixel, err := overlay.LabeledPixelToID(rawOverlayImg.At(j%cols, j/cols))
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			// Extract the pixel's VENC
@@ -458,6 +268,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 	}
 
 	// Print out summary data for each segmentation class.
+	sb := strings.Builder{}
 	for _, label := range config.Labels.Sorted() {
 		v, exists := segmentPixels[label.ID]
 		if !exists {
@@ -547,7 +358,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 			// }
 		}
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
+		sb.WriteString(fmt.Sprintf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
 			dicomName,
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
@@ -573,8 +384,8 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 			sign < 0,
 			aliasRisk,
 			unwrapped,
-		)
+		))
 	}
 
-	return nil
+	return sb.String(), nil
 }
