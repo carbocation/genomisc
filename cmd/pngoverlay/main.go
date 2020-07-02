@@ -44,6 +44,7 @@ func main() {
 
 	config, err := overlay.ParseJSONConfigFromPath(jsonConfig)
 	if err != nil {
+		log.Println(err)
 		flag.Usage()
 		os.Exit(1)
 	}
