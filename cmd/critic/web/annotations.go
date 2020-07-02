@@ -12,6 +12,7 @@ const (
 	AnnoValueCol
 	AnnoDateCol
 	AnnoPathCol
+	DummyLastConst
 )
 
 type Annotation struct {
@@ -50,7 +51,7 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 		if i == 0 {
 			continue
 		}
-		if len(row) != 4 {
+		if len(row) != DummyLastConst {
 			continue
 		}
 
