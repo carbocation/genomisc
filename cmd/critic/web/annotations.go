@@ -11,6 +11,7 @@ const (
 	AnnoDicomCol
 	AnnoValueCol
 	AnnoDateCol
+	AnnoPathCol
 )
 
 type Annotation struct {
@@ -18,6 +19,7 @@ type Annotation struct {
 	SampleID string
 	Value    string
 	Date     string
+	Path     string
 }
 
 func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annotation, error) {
@@ -58,6 +60,7 @@ func OpenOrCreateAnnotationFile(annotationPath string) (map[DicomFilename]Annota
 			SampleID: row[AnnoSampleIDCol],
 			Value:    row[AnnoValueCol],
 			Date:     row[AnnoDateCol],
+			Path:     row[AnnoPathCol],
 		}
 	}
 

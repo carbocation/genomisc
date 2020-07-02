@@ -45,7 +45,7 @@ func (m *AnnotationTracker) SetAnnotation(manifestIdx int, value string) error {
 	return nil
 }
 
-func (m *AnnotationTracker) WriteAnnotationsToDisk() error {
+func (m *AnnotationTracker) WriteAnnotationsToDisk(imagePath string) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -56,13 +56,17 @@ func (m *AnnotationTracker) WriteAnnotationsToDisk() error {
 	}
 	defer f.Close()
 
-	fmt.Fprintf(f, "sample_id\tdicom\tvalue\tdate\n")
+	fmt.Fprintf(f, "sample_id\tdicom\tvalue\tdate\tpath\n")
 	for _, v := range m.Entries {
 		if v.Annotation.Value == "" {
 			continue
 		}
 
-		fmt.Fprintf(f, "%s\t%s\t%s\t%s\n", v.SampleID, v.Dicom, v.Annotation.Value, v.Annotation.Date)
+		if v.Annotation.Path == "" {
+			v.Annotation.Path = imagePath
+		}
+
+		fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\n", v.SampleID, v.Dicom, v.Annotation.Value, v.Annotation.Date, v.Annotation.Path)
 	}
 
 	return nil

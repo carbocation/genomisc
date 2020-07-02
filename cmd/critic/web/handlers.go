@@ -151,7 +151,7 @@ func (h *handler) TraceOverlayPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write to disk. Can consider launching in a goroutine to reduce delay.
-	if err := h.Global.manifest.WriteAnnotationsToDisk(); err != nil {
+	if err := h.Global.manifest.WriteAnnotationsToDisk(h.Global.DicomRoot); err != nil {
 		HTTPError(h, w, r, err)
 		return
 	}
