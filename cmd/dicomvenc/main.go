@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"image"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -19,17 +22,32 @@ import (
 	"github.com/suyashkumar/dicom/element"
 )
 
+type vencPixel struct {
+	PixelNumber int
+	FlowVenc    float64
+}
+
+var (
+	BufferSize = 4096 * 8
+	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
+)
+
 // Special value that is to be set using ldflags
 // E.g.: go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"
 // Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
 var builddate string
 
 func main() {
+	defer STDOUT.Flush()
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, maskPath, configPath string
+	var inputPath, maskPath, configPath, manifest, zipPath, maskFolder, maskSuffix string
 
+	flag.StringVar(&manifest, "vencmanifest", "", "(Optional) VENC-style mapped manifest file containing Zip names and Dicom names. If provided, --zips and --out are required and --file and --mask will be ignored.")
+	flag.StringVar(&zipPath, "zips", "", "(Required if --manifest is set) Path to the local folder containing the raw UK Biobank zip files")
+	flag.StringVar(&maskFolder, "maskfolder", "", "(Required if --manifest is set) Path to the local folder containing the matching mask files")
+	flag.StringVar(&maskSuffix, "masksuffix", ".png.mask.png", "(Required if --manifest is set) Suffix the place after the masks's .dcm name")
 	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file.")
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
@@ -38,7 +56,21 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, strings.Join(os.Args, " "))
 
-	if inputPath == "" || maskPath == "" || configPath == "" {
+	// Must pass a manifest or the raw dicom and mask path
+	if manifest == "" && (inputPath == "" || maskPath == "") {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// If a manifest is passed, we need to know where the zips are, where the
+	// masks are, and where the output should go
+	if manifest != "" && (zipPath == "" || maskFolder == "" || maskSuffix == "") {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// Always need a config file
+	if configPath == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -78,43 +110,57 @@ func main() {
 		"was_unwrapped",
 	}, "\t"))
 
-	// Do the work
-	err = run(inputPath, maskPath, config)
-
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-}
-
-type vencPixel struct {
-	PixelNumber int
-	FlowVenc    float64
-}
-
-func run(inputPath, maskPath string, config overlay.JSONConfig) error {
-
-	// Load the overlay mask
-	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
-	if err != nil {
-		return err
+	if manifest != "" {
+		// Parse from zip files
+		err = runFromManifest(manifest, zipPath, maskFolder, maskSuffix, config)
+	} else {
+		// Run one file
+		err = runFromFile(inputPath, maskPath, config)
 	}
-	cols := rawOverlayImg.Bounds().Size().X
-	rows := rawOverlayImg.Bounds().Size().Y
 
-	// Will store pixels linked with each segmentation class
-	segmentPixels := make(map[uint][]vencPixel)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
 
-	// Load the DICOM
+func runFromFile(inputPath, maskPath string, config overlay.JSONConfig) error {
+	// Load the dicom as a reader
 	f, err := os.Open(inputPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	meta, err := bulkprocess.DicomToMetadata(f)
+	// Load the mask as an image
+	rawOverlayImg, err := overlay.OpenImageFromLocalFile(maskPath)
 	if err != nil {
 		return err
+	}
+
+	// Do the work
+	str, err := run(f, rawOverlayImg, filepath.Base(inputPath), config)
+	if err != nil {
+		return err
+	}
+	fmt.Print(str)
+	return nil
+}
+
+func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config overlay.JSONConfig) (string, error) {
+
+	cols := rawOverlayImg.Bounds().Size().X
+	rows := rawOverlayImg.Bounds().Size().Y
+
+	// Will store pixels linked with each segmentation class
+	segmentPixels := make(map[uint][]vencPixel)
+
+	meta, err := bulkprocess.DicomToMetadata(f)
+	if err != nil {
+		return "", err
 	}
 
 	// Reset the DICOM reader
@@ -123,30 +169,30 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 	// Make the DICOM fields addressable as a map
 	tagMap, err := bulkprocess.DicomToTagMap(f)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Load VENC data
 	flowVenc, err := fetchFlowVenc(tagMap)
 	if err != nil {
-		return pfx.Err(err)
+		return "", pfx.Err(err)
 	}
 
 	// Load the DICOM pixel data
 	pixelElem, exists := tagMap[dicomtag.PixelData]
 	if !exists {
-		return fmt.Errorf("PixelData not found")
+		return "", fmt.Errorf("PixelData not found")
 	}
 
 	pxHeightCM, pxWidthCM, err := pixelHeightWidthCM(tagMap)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Get the duration of time for this frame. Needed to infer VTI.
 	dt, err := deltaT(tagMap)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Need Siemens header data, if it exists
@@ -156,7 +202,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 		for _, headerRow := range elem {
 			sc, err := bulkprocess.ParseSiemensHeader(headerRow)
 			if err != nil {
-				return err
+				return "", err
 			}
 			for _, v := range sc.Slice() {
 				if v.Name == "PhaseContrastN4" {
@@ -171,7 +217,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 						}
 						velocityEncodingDirectionN4, err = strconv.ParseFloat(value, 64)
 						if err != nil {
-							return err
+							return "", err
 						}
 					}
 				}
@@ -198,13 +244,13 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 	data := pixelElem[0].(element.PixelDataInfo)
 	for _, frame := range data.Frames {
 		if frame.IsEncapsulated {
-			return fmt.Errorf("Frame is encapsulated, which we did not expect")
+			return "", fmt.Errorf("Frame is encapsulated, which we did not expect")
 		}
 
 		// Ensure that the pixels from the DICOM are in agreement with the
 		// pixels from the mask.
 		if x, y := len(frame.NativeData.Data), rows*cols; x != y {
-			return fmt.Errorf("DICOM data has %d pixels but mask data has %d pixels (%d rows and %d cols)", x, y, rows, cols)
+			return "", fmt.Errorf("DICOM data has %d pixels but mask data has %d pixels (%d rows and %d cols)", x, y, rows, cols)
 		}
 
 		// Iterate over the DICOM pixels
@@ -213,7 +259,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			// Identify which segmentation class this pixel belongs to
 			idAtPixel, err := overlay.LabeledPixelToID(rawOverlayImg.At(j%cols, j/cols))
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			// Extract the pixel's VENC
@@ -229,6 +275,7 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 	}
 
 	// Print out summary data for each segmentation class.
+	sb := strings.Builder{}
 	for _, label := range config.Labels.Sorted() {
 		v, exists := segmentPixels[label.ID]
 		if !exists {
@@ -318,8 +365,8 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			// }
 		}
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
-			filepath.Base(inputPath),
+		sb.WriteString(fmt.Sprintf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
+			dicomName,
 			label.ID,
 			strings.ReplaceAll(label.Label, " ", "_"),
 			len(v),
@@ -344,8 +391,8 @@ func run(inputPath, maskPath string, config overlay.JSONConfig) error {
 			sign < 0,
 			aliasRisk,
 			unwrapped,
-		)
+		))
 	}
 
-	return nil
+	return sb.String(), nil
 }
