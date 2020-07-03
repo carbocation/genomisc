@@ -33,6 +33,7 @@ func main() {
 	var imageID string
 	var timeID string
 	var pxHeight, pxWidth string
+	var nStandardDeviations float64
 
 	flag.StringVar(&pixelcountFile, "pixelcountfile", "", "Path to file with pixelcount output (tab-delimited; containing imageid, value, connectedComponents)")
 	flag.StringVar(&covarFile, "covarfile", "", "Path to file with covariates output (comma delimited; containing sampleid, imageid, timeid, pxheight, pxwidth)")
@@ -43,6 +44,7 @@ func main() {
 	flag.StringVar(&timeID, "timeid", "", "Column name that contains a time-ordered value for sorting the images for a given sampleID.")
 	flag.StringVar(&pxHeight, "pxheight", "", "Column name that identifies the column with data converting pixel height to mm. (Optional.)")
 	flag.StringVar(&pxWidth, "pxwidth", "", "Column name that identifies the column with data converting pixel width to mm. (Optional.)")
+	flag.Float64Var(&nStandardDeviations, "sd", 5.0, "Number of standard deviations beyond which to consider our metrics to have failed QC.")
 
 	flag.Parse()
 
@@ -84,12 +86,12 @@ func main() {
 
 	log.Println("Launched pixelqc")
 
-	if err := runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth); err != nil {
+	if err := runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth, nStandardDeviations); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth string) error {
+func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth string, nStandardDeviations float64) error {
 
 	// The primary output is one row per sample, with the greatest and smallest
 	// pixel value encountered for that sample during the series, with
@@ -128,7 +130,7 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 
 		log.Println("QC iteration", i)
 
-		runQC(samplesWithFlags, entries, cycle)
+		runQC(samplesWithFlags, entries, cycle, nStandardDeviations)
 
 		newFlagged := samplesWithFlags.CountFlagged()
 		if newFlagged == flagged {

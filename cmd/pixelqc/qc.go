@@ -8,7 +8,7 @@ import (
 	"github.com/gonum/stat"
 )
 
-func runQC(samplesWithFlags SampleFlags, entries map[string]File, cycle []cardiaccycle.Result) {
+func runQC(samplesWithFlags SampleFlags, entries map[string]File, cycle []cardiaccycle.Result, nStandardDeviations float64) {
 
 	// Flag entries that have 0 at any point in the cycle -- this should be
 	// optional
@@ -17,15 +17,13 @@ func runQC(samplesWithFlags SampleFlags, entries map[string]File, cycle []cardia
 
 	// Flag entries that are above or below N-SD above or below the mean for
 	// connected components
-	SD := 5.0
-	flagConnectedComponents(samplesWithFlags, entries, SD)
-	log.Println("Flagged entries beyond", SD, "standard deviations above or below the mean connected components")
+	flagConnectedComponents(samplesWithFlags, entries, nStandardDeviations)
+	log.Println("Flagged entries beyond", nStandardDeviations, "standard deviations above or below the mean connected components")
 
 	// Flag samples that are above or below N-SD above or below the mean for
 	// onestep shifts in the pixel area between each timepoint
-	SD = 5.0
-	flagOnestepShifts(samplesWithFlags, cycle, SD)
-	log.Println("Flagged entries beyond", SD, "standard deviations above or below the mean onstep pixel shift")
+	flagOnestepShifts(samplesWithFlags, cycle, nStandardDeviations)
+	log.Println("Flagged entries beyond", nStandardDeviations, "standard deviations above or below the mean onstep pixel shift")
 
 	// Flag samples that don't have the modal number of images
 	flagAbnormalImageCounts(samplesWithFlags, entries)
