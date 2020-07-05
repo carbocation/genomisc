@@ -204,6 +204,11 @@ func run(manifest, folder, suffix string) error {
 	return nil
 }
 
+type gsData struct {
+	path   string
+	reader *bytes.Reader
+}
+
 func makeOneGif(pngs []string, outName string) error {
 	outGif := &gif.GIF{}
 
@@ -212,21 +217,49 @@ func makeOneGif(pngs []string, outName string) error {
 		Weighting:      nil,
 		AddTransparent: false,
 	}
-	// quantizer := gogif.MedianCutQuantizer{NumColor: 256}
 
 	client, err := storage.NewClient(context.Background())
 	if err != nil {
 		return err
 	}
 
-	// Loop this
-	for _, input := range pngs {
-		pngReader, err := ImportFileFromGoogleStorage(input, client)
-		if err != nil {
-			return err
-		}
+	fetches := make(chan gsData)
 
-		img, err := png.Decode(pngReader)
+	for _, input := range pngs {
+		go func(input string) {
+			pngReader, err := ImportFileFromGoogleStorage(input, client)
+			if err != nil {
+				log.Println(err)
+			}
+			dat := gsData{
+				reader: pngReader,
+				path:   input,
+			}
+
+			fetches <- dat
+
+		}(input)
+	}
+
+	pngDats := make(map[string]gsData)
+	for range pngs {
+		dat := <-fetches
+		pngDats[dat.path] = dat
+	}
+
+	sortedPngDats := make([]gsData, 0, len(pngs))
+	for _, png := range pngs {
+		sortedPngDats = append(sortedPngDats, pngDats[png])
+	}
+
+	// Loop this
+	for _, input := range sortedPngDats {
+		// pngReader, err := ImportFileFromGoogleStorage(input, client)
+		// if err != nil {
+		// 	return err
+		// }
+
+		img, err := png.Decode(input.reader)
 		if err != nil {
 			return err
 		}
