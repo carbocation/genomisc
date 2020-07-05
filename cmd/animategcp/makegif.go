@@ -28,7 +28,7 @@ func makeOneGif(pngs []string, outName string) error {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
-		Aggregation:    quantize.Mode,
+		Aggregation:    quantize.Mean,
 		Weighting:      nil,
 		AddTransparent: false,
 	}
@@ -68,23 +68,22 @@ func makeOneGif(pngs []string, outName string) error {
 	}
 
 	// Loop this
-	for _, input := range sortedPngDats {
-		// pngReader, err := ImportFileFromGoogleStorage(input, client)
-		// if err != nil {
-		// 	return err
-		// }
+	var palette color.Palette
+	for i, input := range sortedPngDats {
 
 		img, err := png.Decode(input.reader)
 		if err != nil {
 			return err
 		}
 
-		palette := quantizer.Quantize(make([]color.Color, 0, 256), img)
+		if i == 0 {
+			palette = quantizer.Quantize(make([]color.Color, 0, 256), img)
+		}
 
 		palettedImage := image.NewPaletted(img.Bounds(), palette)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 		outGif.Image = append(outGif.Image, palettedImage)
-		outGif.Delay = append(outGif.Delay, 0)
+		outGif.Delay = append(outGif.Delay, 5)
 	}
 
 	// Save file

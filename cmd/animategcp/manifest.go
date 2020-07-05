@@ -49,7 +49,7 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 			continue
 		}
 
-		if i%1000 == 0 {
+		if i%10000 == 0 {
 			fmt.Printf("\rParsed %d lines from the manifest", i)
 		}
 
