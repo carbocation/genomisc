@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"image"
@@ -9,19 +8,18 @@ import (
 	"image/draw"
 	"image/gif"
 	"image/png"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/carbocation/go-quantize/quantize"
 	"github.com/carbocation/pfx"
-	"github.com/ericpauley/go-quantize/quantize"
 )
 
 type gsData struct {
-	path   string
-	reader *bytes.Reader
+	path  string
+	image image.Image
 }
 
 func makeOneGif(pngs []string, outName string) error {
@@ -42,13 +40,13 @@ func makeOneGif(pngs []string, outName string) error {
 
 	for _, input := range pngs {
 		go func(input string) {
-			pngReader, err := ImportFileFromGoogleStorage(input, client)
+			pngImage, err := ImportPNGFromGoogleStorage(input, client)
 			if err != nil {
 				log.Println(err)
 			}
 			dat := gsData{
-				reader: pngReader,
-				path:   input,
+				image: pngImage,
+				path:  input,
 			}
 
 			fetches <- dat
@@ -63,22 +61,17 @@ func makeOneGif(pngs []string, outName string) error {
 	}
 
 	sortedPngDats := make([]gsData, 0, len(pngs))
+	sortedPngs := make([]image.Image, 0, len(sortedPngDats))
 	for _, png := range pngs {
 		sortedPngDats = append(sortedPngDats, pngDats[png])
+		sortedPngs = append(sortedPngs, pngDats[png].image)
 	}
+	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedPngs)
 
-	// Loop this
-	var pal color.Palette
-	for i, input := range sortedPngDats {
+	// Convert each image to a frame in our animated gif
+	for _, input := range sortedPngDats {
 
-		img, err := png.Decode(input.reader)
-		if err != nil {
-			return err
-		}
-
-		if i == 0 {
-			pal = quantizer.Quantize(make([]color.Color, 0, 256), img)
-		}
+		img := input.image
 
 		palettedImage := image.NewPaletted(img.Bounds(), pal)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
@@ -97,9 +90,9 @@ func makeOneGif(pngs []string, outName string) error {
 	return gif.EncodeAll(f, outGif)
 }
 
-// ImportFileFromGoogleStorage copies a file from google storage and returns it
+// ImportPNGFromGoogleStorage copies a file from google storage and returns it
 // as bytes.
-func ImportFileFromGoogleStorage(gsFilePath string, client *storage.Client) (*bytes.Reader, error) {
+func ImportPNGFromGoogleStorage(gsFilePath string, client *storage.Client) (image.Image, error) {
 
 	// Detect the bucket and the path to the actual file
 	pathParts := strings.SplitN(strings.TrimPrefix(gsFilePath, "gs://"), "/", 2)
@@ -119,12 +112,10 @@ func ImportFileFromGoogleStorage(gsFilePath string, client *storage.Client) (*by
 	}
 	defer rc.Close()
 
-	data, err := ioutil.ReadAll(rc)
+	img, err := png.Decode(rc)
 	if err != nil {
-		return nil, pfx.Err(err)
+		return nil, err
 	}
 
-	br := bytes.NewReader(data)
-
-	return br, pfx.Err(err)
+	return img, pfx.Err(err)
 }
