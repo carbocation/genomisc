@@ -38,13 +38,15 @@ func main() {
 }
 
 func run(manifest, folder, suffix string) error {
+
+	fmt.Println("Animated Gif maker")
+
 	man, err := parseManifest(manifest)
 	if err != nil {
 		return err
 	}
 
 	rdr := bufio.NewReader(os.Stdin)
-	fmt.Println("Animated Gif maker")
 	fmt.Println("We are aware of", len(man), "samples in the manifest")
 	fmt.Println("An example of the sampleid_instance format is: 1234567_2")
 	fmt.Println("Enter 'rand' for a random entry")

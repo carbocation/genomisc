@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -44,7 +45,12 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 					instance = k
 				}
 			}
+			fmt.Println()
 			continue
+		}
+
+		if i%1000 == 0 {
+			fmt.Printf("\rParsed %d lines from the manifest", i)
 		}
 
 		tp, err := strconv.ParseFloat(cols[timepoint], 64)
@@ -59,6 +65,9 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 		entry = append(entry, value)
 		out[key] = entry
 	}
+
+	fmt.Printf("\rParsed %d lines from the manifest", len(manifest))
+	fmt.Println()
 
 	return out, nil
 }
