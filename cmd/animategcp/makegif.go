@@ -68,7 +68,7 @@ func makeOneGif(pngs []string, outName string) error {
 	}
 
 	// Loop this
-	var palette color.Palette
+	var pal color.Palette
 	for i, input := range sortedPngDats {
 
 		img, err := png.Decode(input.reader)
@@ -77,10 +77,10 @@ func makeOneGif(pngs []string, outName string) error {
 		}
 
 		if i == 0 {
-			palette = quantizer.Quantize(make([]color.Color, 0, 256), img)
+			pal = quantizer.Quantize(make([]color.Color, 0, 256), img)
 		}
 
-		palettedImage := image.NewPaletted(img.Bounds(), palette)
+		palettedImage := image.NewPaletted(img.Bounds(), pal)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 		outGif.Image = append(outGif.Image, palettedImage)
 		outGif.Delay = append(outGif.Delay, 5)
