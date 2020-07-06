@@ -63,6 +63,10 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	sortedPngDats := make([]gsData, 0, len(pngs))
 	sortedPngs := make([]image.Image, 0, len(sortedPngDats))
 	for _, png := range pngs {
+		if pngDats[png].image == nil {
+			return fmt.Errorf("One or more images could not be loaded")
+		}
+
 		sortedPngDats = append(sortedPngDats, pngDats[png])
 		sortedPngs = append(sortedPngs, pngDats[png].image)
 	}

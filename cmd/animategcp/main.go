@@ -115,7 +115,7 @@ func run(manifest, folder, suffix string, delay int) error {
 	WaitLoop:
 		for {
 			select {
-			case err := <-errchan:
+			case err = <-errchan:
 				fmt.Printf("\n")
 				if err != nil {
 					fmt.Println("Error making gif:", err.Error())
@@ -126,7 +126,9 @@ func run(manifest, folder, suffix string, delay int) error {
 			}
 		}
 
-		fmt.Println("Successfully created", outName)
+		if err == nil {
+			fmt.Println("Successfully created", outName)
+		}
 		continue
 	}
 
