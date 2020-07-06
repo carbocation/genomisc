@@ -30,7 +30,7 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 	}
 
 	out := make(map[manifestKey][]manifestEntry)
-	var dicom, timepoint, sampleid, instance int
+	var dicom, timepoint, sampleid, instance int = -1, -1, -1, -1
 	for i, cols := range manifest {
 		if i == 0 {
 			for k, col := range cols {
@@ -45,6 +45,11 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 					instance = k
 				}
 			}
+
+			if dicom < 0 || timepoint < 0 || sampleid < 0 || instance < 0 {
+				return nil, fmt.Errorf("did not find all columns. Please check dicom_column_name")
+			}
+
 			fmt.Println()
 			continue
 		}
