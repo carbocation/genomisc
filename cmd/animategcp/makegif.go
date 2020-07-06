@@ -22,7 +22,7 @@ type gsData struct {
 	image image.Image
 }
 
-func makeOneGif(pngs []string, outName string) error {
+func makeOneGif(pngs []string, outName string, delay int) error {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
@@ -76,7 +76,7 @@ func makeOneGif(pngs []string, outName string) error {
 		palettedImage := image.NewPaletted(img.Bounds(), pal)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 		outGif.Image = append(outGif.Image, palettedImage)
-		outGif.Delay = append(outGif.Delay, 5)
+		outGif.Delay = append(outGif.Delay, delay)
 	}
 
 	// Save file

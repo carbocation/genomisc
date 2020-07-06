@@ -20,9 +20,11 @@ const (
 
 func main() {
 	var manifest, folder, suffix string
+	var delay int
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
+	flag.IntVar(&delay, "delay", 1, "Milliseconds between each frame of the gif.")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -30,14 +32,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(manifest, folder, suffix); err != nil {
+	if err := run(manifest, folder, suffix, delay); err != nil {
 		log.Fatalln(err)
 	}
 
 	log.Println("Quitting")
 }
 
-func run(manifest, folder, suffix string) error {
+func run(manifest, folder, suffix string, delay int) error {
 
 	fmt.Println("Animated Gif maker")
 
@@ -107,7 +109,7 @@ func run(manifest, folder, suffix string) error {
 		fmt.Printf("Fetching images for %+v", key)
 		started := time.Now()
 		go func() {
-			errchan <- makeOneGif(pngs, outName)
+			errchan <- makeOneGif(pngs, outName, delay)
 		}()
 
 	WaitLoop:
