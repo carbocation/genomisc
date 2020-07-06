@@ -12,10 +12,13 @@ import (
 )
 
 const (
-	DicomColumnName     = "dicom_file"
 	TimepointColumnName = "trigger_time"
 	SampleIDColumnName  = "sample_id"
 	InstanceColumnName  = "instance"
+)
+
+var (
+	DicomColumnName = "dicom_file"
 )
 
 func main() {
@@ -24,6 +27,7 @@ func main() {
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
+	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicom.")
 	flag.IntVar(&delay, "delay", 1, "Milliseconds between each frame of the gif.")
 	flag.Parse()
 
