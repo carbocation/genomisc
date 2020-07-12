@@ -2,13 +2,97 @@ package main
 
 import "text/template"
 
+// mkMap allows you to create a map within a template, so that you can pass more
+// than one parameter to a template block. Inspired by
+// https://stackoverflow.com/a/25013152/199475 .
+func mkMap(args ...interface{}) map[interface{}]interface{} {
+	out := make(map[interface{}]interface{})
+	for k, v := range args {
+		if k%2 == 0 {
+			continue
+		}
+		out[args[k-1]] = v
+	}
+	return out
+}
+
 // TODO: create a `has_died` field and apply the censor table's
 // death_censor_date properly. Rename death_date to death_censor_date. Rename
 // death_age to death_censor_age.
 //
 // TODO: Resolve age_censor vs enroll_age. Choose one or the other (likely the
 // latter, so you end up with enroll_age, censor_age, death_censor_age).
-var queryTemplate = template.Must(template.New("").Parse(`
+var queryTemplate = template.Must(template.New("").Funcs(template.FuncMap(map[string]interface{}{"mkMap": mkMap})).Parse(`
+
+{{/* The pattern for identifying the earliest date of an 
+	exclusion criterion and the earliest date of an inclusion criterion 
+	is identical, so this is templated here. */}}
+
+{{define "include_exclude"}}
+SELECT 
+	sample_id, 
+	has_disease, 
+	incident_disease, 
+	prevalent_disease, 
+	date_censor, 
+	DATE_DIFF(date_censor,birthdate, DAY)/365.0 age_censor, 
+	birthdate, 
+	enroll_date, 
+	enroll_age, 
+	death_date, 
+	death_age, 
+	computed_date, 
+	missing_fields
+FROM (
+	SELECT 
+		c.sample_id, 
+		CASE 
+			WHEN MIN(hd.first_date) IS NOT NULL THEN 1
+			ELSE 0
+		END has_disease,
+		CASE 
+			WHEN MIN(hd.first_date) > MIN(c.enroll_date) THEN 1
+			WHEN MIN(hd.first_date) IS NOT NULL THEN NULL
+			ELSE 0
+		END incident_disease,
+		CASE 
+			WHEN MIN(hd.first_date) > MIN(c.enroll_date) THEN 0
+			WHEN MIN(hd.first_date) IS NOT NULL THEN 1
+			ELSE 0
+		END prevalent_disease,
+		CASE 
+			WHEN MIN(hd.first_date) IS NOT NULL THEN MIN(hd.first_date)
+			ELSE MIN(c.phenotype_censor_date)
+		END date_censor,
+		MIN(c.birthdate) birthdate,
+		MIN(c.enroll_date) enroll_date,
+		MIN(c.enroll_age) enroll_age,
+		MIN(c.death_date) death_date,
+		MIN(c.death_age) death_age,
+		MIN(c.computed_date) computed_date,
+		MIN(c.missing_fields) missing_fields
+	FROM ` + "`{{.g.database}}.censor`" + ` c
+	LEFT OUTER JOIN (
+		{{if .g.use_gp}}
+		SELECT * FROM ` + "`{{.g.materializedDatabase}}.materialized_gp_dates`" + `
+		UNION DISTINCT
+		{{end}}
+		SELECT * FROM ` + "`{{.g.materializedDatabase}}.materialized_hesin_dates`" + `
+		UNION DISTINCT
+		SELECT * FROM ` + "`{{.g.materializedDatabase}}.materialized_special_dates`" + `
+		UNION DISTINCT
+		SELECT * FROM undated_fields
+	) hd ON c.sample_id=hd.sample_id
+	AND (
+		FALSE
+		{{/* The .includePart or .excludePart is passed here */}}
+		{{.whichPart}}
+	)
+	GROUP BY 
+		sample_id
+)
+{{end}}
+
 WITH undated_fields AS (
 	SELECT 
 		p.sample_id, 
@@ -24,129 +108,9 @@ WITH undated_fields AS (
 		p.sample_id, 
 		p.value
 ), included_only AS (
-	SELECT 
-		sample_id, 
-		has_disease, 
-		incident_disease, 
-		prevalent_disease, 
-		date_censor, 
-		DATE_DIFF(date_censor,birthdate, DAY)/365.0 age_censor, 
-		birthdate, 
-		enroll_date, 
-		enroll_age, 
-		death_date, 
-		death_age, 
-		computed_date, 
-		missing_fields
-	FROM (
-		SELECT 
-			c.sample_id, 
-			CASE 
-				WHEN MIN(hd.first_date) IS NOT NULL THEN 1
-				ELSE 0
-			END has_disease,
-			CASE 
-				WHEN MIN(hd.first_date) > MIN(c.enroll_date) THEN 1
-				WHEN MIN(hd.first_date) IS NOT NULL THEN NULL
-				ELSE 0
-			END incident_disease,
-			CASE 
-				WHEN MIN(hd.first_date) > MIN(c.enroll_date) THEN 0
-				WHEN MIN(hd.first_date) IS NOT NULL THEN 1
-				ELSE 0
-			END prevalent_disease,
-			CASE 
-				WHEN MIN(hd.first_date) IS NOT NULL THEN MIN(hd.first_date)
-				ELSE MIN(c.phenotype_censor_date)
-			END date_censor,
-			MIN(c.birthdate) birthdate,
-			MIN(c.enroll_date) enroll_date,
-			MIN(c.enroll_age) enroll_age,
-			MIN(c.death_date) death_date,
-			MIN(c.death_age) death_age,
-			MIN(c.computed_date) computed_date,
-			MIN(c.missing_fields) missing_fields
-		FROM ` + "`{{.database}}.censor`" + ` c
-		LEFT OUTER JOIN (
-			{{if .use_gp}}
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_gp_dates`" + `
-			UNION DISTINCT
-			{{end}}
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_hesin_dates`" + `
-			UNION DISTINCT
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `
-			UNION DISTINCT
-			SELECT * FROM undated_fields
-		) hd ON c.sample_id=hd.sample_id
-		AND (
-			FALSE
-			{{.includePart}}
-		)
-		GROUP BY 
-			sample_id
-	)
+	{{template "include_exclude" (mkMap "g" . "whichPart" .includePart)}}
 ), excluded_only AS (
-	SELECT 
-		sample_id, 
-		has_disease, 
-		incident_disease, 
-		prevalent_disease, 
-		date_censor, 
-		DATE_DIFF(date_censor,birthdate, DAY)/365.0 age_censor, 
-		birthdate, 
-		enroll_date, 
-		enroll_age, 
-		death_date, 
-		death_age, 
-		computed_date, 
-		missing_fields
-	FROM (
-		SELECT 
-			c.sample_id, 
-			CASE 
-				WHEN MIN(excl.first_date) IS NOT NULL THEN 1
-				ELSE 0
-			END has_disease,
-			CASE 
-				WHEN MIN(excl.first_date) > MIN(c.enroll_date) THEN 1
-				WHEN MIN(excl.first_date) IS NOT NULL THEN NULL
-				ELSE 0
-			END incident_disease,
-			CASE 
-				WHEN MIN(excl.first_date) > MIN(c.enroll_date) THEN 0
-				WHEN MIN(excl.first_date) IS NOT NULL THEN 1
-				ELSE 0
-			END prevalent_disease,
-			CASE 
-				WHEN MIN(excl.first_date) IS NOT NULL THEN MIN(excl.first_date)
-				ELSE MIN(c.phenotype_censor_date)
-			END date_censor,
-			MIN(c.birthdate) birthdate,
-			MIN(c.enroll_date) enroll_date,
-			MIN(c.enroll_age) enroll_age,
-			MIN(c.death_date) death_date,
-			MIN(c.death_age) death_age,
-			MIN(c.computed_date) computed_date,
-			MIN(c.missing_fields) missing_fields
-		FROM ` + "`{{.database}}.censor`" + ` c
-		LEFT OUTER JOIN (
-			{{if .use_gp}}
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_gp_dates`" + `
-			UNION DISTINCT
-			{{end}}
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_hesin_dates`" + `
-			UNION DISTINCT
-			SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `
-			UNION DISTINCT
-			SELECT * FROM undated_fields
-		) excl ON c.sample_id=excl.sample_id
-		AND (
-			FALSE
-			{{.excludePart}}
-		)
-		GROUP BY 
-			sample_id
-	)
+	{{template "include_exclude" (mkMap "g" . "whichPart" .excludePart)}}
 )
 
 SELECT 

@@ -194,7 +194,7 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 	if len(exludedValues) > 0 {
 		i := 0
 		for _, v := range exludedValues {
-			excludePart = excludePart + fmt.Sprintf("\nOR (excl.FieldID = @ExcludeParts%d AND excl.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
+			excludePart = excludePart + fmt.Sprintf("\nOR (hd.FieldID = @ExcludeParts%d AND hd.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i), Value: v.FieldID})
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i+1), Value: v.FormattedValues()})
 			i += 2
