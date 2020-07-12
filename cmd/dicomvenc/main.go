@@ -42,7 +42,7 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
-	var inputPath, maskPath, configPath, manifest, zipPath, maskFolder, maskSuffix string
+	var inputPath, maskPath, configPath, manifest, zipPath, maskFolder, maskSuffix, plot string
 
 	flag.StringVar(&manifest, "vencmanifest", "", "(Optional) VENC-style mapped manifest file containing Zip names and Dicom names. If provided, --zips and --out are required and --file and --mask will be ignored.")
 	flag.StringVar(&zipPath, "zips", "", "(Required if --manifest is set) Path to the local folder containing the raw UK Biobank zip files")
@@ -51,6 +51,7 @@ func main() {
 	flag.StringVar(&inputPath, "file", "", "Path to the local DICOM file.")
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
+	flag.StringVar(&plot, "plot", "", "(Optional) Produce a plot? Accepts 'vti' or ''.")
 
 	flag.Parse()
 
@@ -82,39 +83,43 @@ func main() {
 	}
 
 	// Print the header
-	fmt.Println(strings.Join([]string{
-		"dicom",
-		"label_id",
-		"label_name",
-		"pixels",
-		"area_cm2",
-		"flow_cm3_sec",
-		"volume_cm3",
-		"vti_mean_cm",
-		"vti_99pct_cm",
-		"vti_100pct_cm",
-		"flow_abs_cm3_sec",
-		"velocity_mean_cm_sec",
-		"velocity_stdev_cm_sec",
-		"velocity_min_cm_sec",
-		"velocity_01pct_cm_sec",
-		"velocity_99pct_cm_sec",
-		"velocity_max_cm_sec",
-		"venc_limit",
-		"duration_sec",
-		"instance_number",
-		"phase_contrast_n4",
-		"velocity_encoding_direction_n4",
-		"venc_z_axis_sign_flipped",
-		"aliasing_risk",
-		"was_unwrapped",
-	}, "\t"))
+	if plot == "" {
+		fmt.Println(strings.Join([]string{
+			"dicom",
+			"label_id",
+			"label_name",
+			"pixels",
+			"area_cm2",
+			"flow_cm3_sec",
+			"volume_cm3",
+			"vti_mean_cm",
+			"vti_99pct_cm",
+			"vti_100pct_cm",
+			"flow_abs_cm3_sec",
+			"velocity_mean_cm_sec",
+			"velocity_stdev_cm_sec",
+			"velocity_min_cm_sec",
+			"velocity_01pct_cm_sec",
+			"velocity_99pct_cm_sec",
+			"velocity_max_cm_sec",
+			"venc_limit",
+			"duration_sec",
+			"instance_number",
+			"phase_contrast_n4",
+			"velocity_encoding_direction_n4",
+			"venc_z_axis_sign_flipped",
+			"aliasing_risk",
+			"was_unwrapped",
+		}, "\t"))
+	}
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if manifest != "" {
+	if plot != "" {
+		err = plotFromManifest(manifest, zipPath, maskFolder, maskSuffix, config)
+	} else if manifest != "" {
 		// Parse from zip files
 		err = runFromManifest(manifest, zipPath, maskFolder, maskSuffix, config)
 	} else {
