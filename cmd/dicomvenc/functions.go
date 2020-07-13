@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/aybabtme/uniplot/histogram"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 	"github.com/suyashkumar/dicom/dicomtag"
@@ -186,4 +187,74 @@ func fetchFlowVenc(tagMap map[dicomtag.Tag][]interface{}) (*bulkprocess.VENC, er
 	out, err := bulkprocess.NewVENC(venc, bitsStored)
 
 	return &out, err
+}
+
+func deAlias(pixdat segmentationPixelBulkProperties, flowVenc *bulkprocess.VENC, dt, pxHeightCM, pxWidthCM float64, pixels []vencPixel) (outPixdat segmentationPixelBulkProperties, unwrappedPixels []vencPixel, unwrapped bool) {
+	// Generate a histogram. The number of buckets is arbitrary. TODO: find a
+	// rational bucket count.
+	hist := histogram.Hist(25, pixdat.PixelVelocities)
+
+	unwrappedV := make([]vencPixel, len(pixels))
+	copy(unwrappedV, pixels)
+
+	if pixdat.PixelVelocitySumCMPerSec > 0 {
+		// If the bulk flow is positive, start at the most negative value:
+
+		zeroBucket := false
+		wrapPoint := math.Inf(-1)
+		for _, bucket := range hist.Buckets {
+			wrapPoint = bucket.Max
+			if bucket.Count == 0 {
+				zeroBucket = true
+				break
+			}
+		}
+
+		// If we never saw a zero bucket, there might not actually be aliasing -
+		// the full range might be used
+		if zeroBucket {
+			for k, vp := range unwrappedV {
+				if unwrappedV[k].FlowVenc < wrapPoint {
+					unwrappedV[k].FlowVenc = 2.0*flowVenc.FlowVenc + vp.FlowVenc
+				}
+			}
+
+			// And replace our stats
+			outPixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
+			unwrapped = true
+		}
+	} else if pixdat.PixelVelocitySumCMPerSec < 0 {
+		// If the flow is negative, reverse the sort, so we can start at the
+		// highest values and go downward.
+
+		zeroBucket := false
+		wrapPoint := math.Inf(1)
+		sort.Slice(hist.Buckets, func(i, j int) bool {
+			return hist.Buckets[i].Min < hist.Buckets[j].Min
+		})
+
+		for _, bucket := range hist.Buckets {
+			wrapPoint = bucket.Min
+			if bucket.Count == 0 {
+				zeroBucket = true
+				break
+			}
+		}
+
+		// If we never saw a zero bucket, there might not actually be aliasing -
+		// the full range might be used
+		if zeroBucket {
+			for k, vp := range unwrappedV {
+				if unwrappedV[k].FlowVenc > wrapPoint {
+					unwrappedV[k].FlowVenc = -2.0*flowVenc.FlowVenc + vp.FlowVenc
+				}
+			}
+
+			// And replace our stats
+			outPixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
+			unwrapped = true
+		}
+	}
+
+	return outPixdat, unwrappedV, unwrapped
 }

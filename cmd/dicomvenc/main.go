@@ -10,11 +10,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/aybabtme/uniplot/histogram"
 	"github.com/carbocation/genomisc/overlay"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
@@ -289,85 +287,14 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 
 		pixdat := describeSegmentationPixels(v, dt, pxHeightCM, pxWidthCM)
 
-		// Are we potentially aliasing, based on how close we are getting to an extremum of +/- FlowVenc?
+		// Are we potentially aliasing, based on how close we are getting to an
+		// extremum of +/- FlowVenc?
 		aliasRisk := math.Abs(pixdat.PixelVelocityMaxCMPerSec) > 0.99*flowVenc.FlowVenc ||
 			math.Abs(pixdat.PixelVelocityMinCMPerSec) > 0.99*flowVenc.FlowVenc
 
 		unwrapped := false
-
 		if aliasRisk {
-			// Generate a histogram. The number of buckets is arbitrary. TODO:
-			// find a rational bucket count.
-			hist := histogram.Hist(25, pixdat.PixelVelocities)
-
-			if pixdat.PixelVelocitySumCMPerSec > 0 {
-				// If the bulk flow is positive, start at the most negative
-				// value:
-
-				zeroBucket := false
-				wrapPoint := math.Inf(-1)
-				for _, bucket := range hist.Buckets {
-					wrapPoint = bucket.Max
-					if bucket.Count == 0 {
-						zeroBucket = true
-						break
-					}
-				}
-
-				// If we never saw a zero bucket, there might not actually be
-				// aliasing - the full range might be used
-				if zeroBucket {
-					unwrappedV := make([]vencPixel, len(v))
-					copy(unwrappedV, v)
-					for k, vp := range unwrappedV {
-						if unwrappedV[k].FlowVenc < wrapPoint {
-							unwrappedV[k].FlowVenc = 2.0*flowVenc.FlowVenc + vp.FlowVenc
-						}
-					}
-
-					// And replace our stats
-					pixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
-					unwrapped = true
-				}
-			} else if pixdat.PixelVelocitySumCMPerSec < 0 {
-				// If the flow is negative, reverse the sort, so we can start at
-				// the highest values and go downward.
-
-				zeroBucket := false
-				wrapPoint := math.Inf(1)
-				sort.Slice(hist.Buckets, func(i, j int) bool {
-					return hist.Buckets[i].Min < hist.Buckets[j].Min
-				})
-
-				for _, bucket := range hist.Buckets {
-					wrapPoint = bucket.Min
-					if bucket.Count == 0 {
-						zeroBucket = true
-						break
-					}
-				}
-
-				// If we never saw a zero bucket, there might not actually be
-				// aliasing - the full range might be used
-				if zeroBucket {
-					unwrappedV := make([]vencPixel, len(v))
-					copy(unwrappedV, v)
-					for k, vp := range unwrappedV {
-						if unwrappedV[k].FlowVenc > wrapPoint {
-							unwrappedV[k].FlowVenc = -2.0*flowVenc.FlowVenc + vp.FlowVenc
-						}
-					}
-
-					// And replace our stats
-					pixdat = describeSegmentationPixels(unwrappedV, dt, pxHeightCM, pxWidthCM)
-					unwrapped = true
-				}
-			}
-
-			// fmt.Printf("%+v\n", hist.Buckets)
-			// if err := histogram.Fprint(os.Stdout, hist, histogram.Linear(5)); err != nil {
-			// 	panic(err)
-			// }
+			pixdat, _, unwrapped = deAlias(pixdat, flowVenc, dt, pxHeightCM, pxWidthCM, v)
 		}
 
 		sb.WriteString(fmt.Sprintf("%s\t%d\t%s\t%d\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%.5g\t%s\t%s\t%.5g\t%t\t%t\t%t\n",
