@@ -189,10 +189,16 @@ func fetchFlowVenc(tagMap map[dicomtag.Tag][]interface{}) (*bulkprocess.VENC, er
 	return &out, err
 }
 
+type histBucket struct {
+	Position int
+	Value    float64
+	Count    int
+}
+
 func deAlias(pixdat segmentationPixelBulkProperties, flowVenc *bulkprocess.VENC, dt, pxHeightCM, pxWidthCM float64, pixels []vencPixel) (outPixdat segmentationPixelBulkProperties, unwrappedPixels []vencPixel, unwrapped bool) {
 	// Generate a histogram. The number of buckets is arbitrary. TODO: find a
 	// rational bucket count.
-	hist := histogram.Hist(25, pixdat.PixelVelocities)
+	hist := histogram.Hist(100, pixdat.PixelVelocities)
 
 	unwrappedV := make([]vencPixel, len(pixels))
 	copy(unwrappedV, pixels)
@@ -200,19 +206,42 @@ func deAlias(pixdat segmentationPixelBulkProperties, flowVenc *bulkprocess.VENC,
 	if pixdat.PixelVelocitySumCMPerSec > 0 {
 		// If the bulk flow is positive, start at the most negative value:
 
-		zeroBucket := false
-		wrapPoint := math.Inf(-1)
-		for _, bucket := range hist.Buckets {
-			wrapPoint = bucket.Max
+		zeroBuckets := make([]histBucket, 0)
+		for i, bucket := range hist.Buckets {
 			if bucket.Count == 0 {
-				zeroBucket = true
+
+				// If this is our first, or first in a new contiguous series,
+				// generate the first bucket
+				if len(zeroBuckets) == 0 || zeroBuckets[len(zeroBuckets)-1].Position != (i-1) {
+					zeroBuckets = append(zeroBuckets, histBucket{Position: i, Value: bucket.Max, Count: 1})
+					continue
+				}
+
+				// If not, update the last bucket
+				zeroBuckets[len(zeroBuckets)-1].Count++
+				zeroBuckets[len(zeroBuckets)-1].Position = i
+				zeroBuckets[len(zeroBuckets)-1].Value = bucket.Max
+
+			}
+
+			// Don't wrap back around to positive values
+			if bucket.Max >= 0 {
 				break
 			}
 		}
 
 		// If we never saw a zero bucket, there might not actually be aliasing -
 		// the full range might be used
-		if zeroBucket {
+		if len(zeroBuckets) > 0 {
+			var wrapPoint float64
+			var biggestBucketCount int
+			for _, bucket := range zeroBuckets {
+				if bucket.Count > biggestBucketCount {
+					wrapPoint = bucket.Value
+					biggestBucketCount = bucket.Count
+				}
+			}
+
 			for k, vp := range unwrappedV {
 				if unwrappedV[k].FlowVenc < wrapPoint {
 					unwrappedV[k].FlowVenc = 2.0*flowVenc.FlowVenc + vp.FlowVenc
@@ -227,23 +256,46 @@ func deAlias(pixdat segmentationPixelBulkProperties, flowVenc *bulkprocess.VENC,
 		// If the flow is negative, reverse the sort, so we can start at the
 		// highest values and go downward.
 
-		zeroBucket := false
-		wrapPoint := math.Inf(1)
 		sort.Slice(hist.Buckets, func(i, j int) bool {
 			return hist.Buckets[i].Min < hist.Buckets[j].Min
 		})
 
-		for _, bucket := range hist.Buckets {
-			wrapPoint = bucket.Min
+		zeroBuckets := make([]histBucket, 0)
+		for i, bucket := range hist.Buckets {
 			if bucket.Count == 0 {
-				zeroBucket = true
+
+				// If this is our first, or first in a new contiguous series,
+				// generate the first bucket
+				if len(zeroBuckets) == 0 || zeroBuckets[len(zeroBuckets)-1].Position != (i-1) {
+					zeroBuckets = append(zeroBuckets, histBucket{Position: i, Value: bucket.Min, Count: 1})
+					continue
+				}
+
+				// If not, update the last bucket
+				zeroBuckets[len(zeroBuckets)-1].Count++
+				zeroBuckets[len(zeroBuckets)-1].Position = i
+				zeroBuckets[len(zeroBuckets)-1].Value = bucket.Min
+
+			}
+
+			// Don't wrap back around to negative values
+			if bucket.Min <= 0 {
 				break
 			}
 		}
 
 		// If we never saw a zero bucket, there might not actually be aliasing -
 		// the full range might be used
-		if zeroBucket {
+		if len(zeroBuckets) > 0 {
+			var wrapPoint float64
+			var biggestBucketCount int
+			for _, bucket := range zeroBuckets {
+				if bucket.Count > biggestBucketCount {
+					wrapPoint = bucket.Value
+					biggestBucketCount = bucket.Count
+				}
+			}
+
 			for k, vp := range unwrappedV {
 				if unwrappedV[k].FlowVenc > wrapPoint {
 					unwrappedV[k].FlowVenc = -2.0*flowVenc.FlowVenc + vp.FlowVenc

@@ -372,7 +372,7 @@ func runPlot(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, confi
 
 	out := make(map[string]plotStruct)
 
-	// Print out summary data for each segmentation class.
+	// Collect data for each segmentation class.
 	for _, label := range config.Labels.Sorted() {
 		v, exists := segmentPixels[label.ID]
 		if !exists {
@@ -385,7 +385,8 @@ func runPlot(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, confi
 
 		pixdat := describeSegmentationPixels(v, dt, pxHeightCM, pxWidthCM)
 
-		// Are we potentially aliasing, based on how close we are getting to an extremum of +/- FlowVenc?
+		// Are we potentially aliasing, based on how close we are getting to an
+		// extremum of +/- FlowVenc?
 		aliasRisk := math.Abs(pixdat.PixelVelocityMaxCMPerSec) > 0.99*flowVenc.FlowVenc ||
 			math.Abs(pixdat.PixelVelocityMinCMPerSec) > 0.99*flowVenc.FlowVenc
 
