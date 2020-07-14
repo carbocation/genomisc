@@ -104,6 +104,8 @@ func main() {
 
 			m[ss] = entry
 		}
+
+		fi.Close()
 	}
 
 	// Sort by source and then by ID
@@ -164,6 +166,8 @@ func readSampleFile(samplePath string) ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer sf.Close()
+
 	sfCSV := csv.NewReader(sf)
 	sfCSV.Comma = ' '
 	sampleFileContents, err := sfCSV.ReadAll()
