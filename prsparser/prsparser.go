@@ -61,6 +61,22 @@ func DefaultParseRow(layout *Layout, row []string) (PRS, error) {
 		p.Score = score
 	}
 
+	if p.EffectAllele != p.Allele1 && p.EffectAllele != p.Allele2 {
+		return p, pfx.Err(fmt.Errorf("Effect allele %v is neither allele1 (%s) nor alleles2 (%s)", p.EffectAllele, p.Allele1, p.Allele2))
+	}
+
+	// Align all alleles such that the effect allele is risk-increasing. This
+	// requires flipping the effect and non-effect allele.
+	if p.Score < 0 {
+		p.Score = -1 * p.Score
+
+		if p.EffectAllele == p.Allele1 {
+			p.EffectAllele = p.Allele2
+		} else {
+			p.EffectAllele = p.Allele1
+		}
+	}
+
 	return p, nil
 }
 
