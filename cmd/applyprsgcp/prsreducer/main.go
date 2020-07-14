@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -58,7 +59,7 @@ func main() {
 			continue
 		}
 
-		fi, err := os.Open(f.Name())
+		fi, err := os.Open(filepath.Join(folder, f.Name()))
 		if err != nil {
 			log.Fatalln(err)
 		}
