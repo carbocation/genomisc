@@ -200,31 +200,20 @@ func plotOneZipFile(zipPath, zipFile string, dicoms []maskMap, maskFolder, maskS
 				}
 			}
 
-			// Outline the vmax
-			binWith99, err := hg.Find(dicom.V99)
-			if err != nil {
-				return err
-			}
-			for mult := 0; mult < heightMultiplier; mult++ {
-				for xmul := 0; xmul < widthMultiplier; xmul++ {
-					outImg.Set(x*widthMultiplier+xmul, binWith99*heightMultiplier+mult, color.NRGBA{R: 0, G: 255, B: 255, A: 255})
-				}
-			}
-
-			// Outline the vmax
-			sign := 1.0
-			if dicom.Vmax > 0 {
-				sign = -1.0
-			}
-			binWithMax, err := hg.Find(dicom.Vmax + 0.0001*sign)
-			if err != nil {
-				return err
-			}
-			for mult := 0; mult < heightMultiplier; mult++ {
-				for xmul := 0; xmul < widthMultiplier; xmul++ {
-					outImg.Set(x*widthMultiplier+xmul, binWithMax*heightMultiplier+mult, color.NRGBA{R: 255, G: 255, B: 0, A: 255})
-				}
-			}
+			// // Outline the vmax
+			// sign := 1.0
+			// if dicom.Vmax > 0 {
+			// 	sign = -1.0
+			// }
+			// binWithMax, err := hg.Find(dicom.Vmax + 0.0001*sign)
+			// if err != nil {
+			// 	return err
+			// }
+			// for mult := 0; mult < heightMultiplier; mult++ {
+			// 	for xmul := 0; xmul < widthMultiplier; xmul++ {
+			// 		outImg.Set(x*widthMultiplier+xmul, binWithMax*heightMultiplier+mult, color.NRGBA{R: 255, G: 255, B: 0, A: 255})
+			// 	}
+			// }
 		}
 		f, err := os.Create(zipFile + "_" + strings.ReplaceAll(lab, " ", "_") + ".png")
 		if err != nil {
