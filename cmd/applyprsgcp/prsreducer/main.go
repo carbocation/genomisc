@@ -33,6 +33,9 @@ type ScoreCount struct {
 }
 
 func main() {
+
+	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
+
 	var folder, sampleFile string
 
 	flag.StringVar(&folder, "chunks", "", "Path to folder containing PRS chunks")
