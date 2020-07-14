@@ -24,6 +24,7 @@ func CreateTasks(
 	hasHeader bool,
 	variantsPerJob int,
 	overrideName string,
+	customLayout string,
 ) error {
 
 	parser, err := prsparser.New(layout)
@@ -62,7 +63,13 @@ func CreateTasks(
 
 	sourceFileName := path.Base(prsPath)
 
-	fmt.Printf("--env chrom\t--env firstline\t--env lastline\t--input infile\t--output outfile\t--env layout\t--env source\n")
+	layoutCol := "layout"
+	if layout == "CUSTOM" {
+		layoutCol = "custom_layout"
+		layout = customLayout
+	}
+
+	fmt.Printf("--env chrom\t--env firstline\t--env lastline\t--input infile\t--output outfile\t--env %s\t--env source\n", layoutCol)
 
 	reader := csv.NewReader(fd)
 	reader.Comma = parser.CSVReaderSettings.Comma

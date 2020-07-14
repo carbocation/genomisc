@@ -30,6 +30,8 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
+	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
+
 	var (
 		bgenTemplatePath string
 		inputBucket      string
