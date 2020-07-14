@@ -8,7 +8,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/prsparser"
 )
 
@@ -125,13 +127,41 @@ func main() {
 		break
 	}
 
-	// Load the BGEN Index
 	bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
 
-	// Extract sites from the BGEN file that overlap with our PRS sites
-	sites, err := BGENPreprocessor(bgenPath, chromosome)
-	if err != nil {
-		log.Fatalln(err)
+	var sites []bgen.VariantIndex
+	var err error
+
+	// Because of i/o errors on GCP, may need to loop this
+	for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+
+		// Extract sites from the BGEN file that overlap with our PRS sites
+		sites, err = BGENPreprocessor(bgenPath, chromosome)
+		if err != nil && loadAttempts == maxLoadAttempts {
+
+			// Ongoing failure at maxLoadAttempts is a terminal error
+			log.Fatalln(err)
+
+		} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+
+			// If we had an error, often due to an unreliable underlying
+			// filesystem, wait for a substantial amount of time before
+			// retrying.
+			log.Println("BGENPreprocessor: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
+			time.Sleep(5 * time.Second)
+
+			continue
+
+		} else if err != nil {
+
+			// Not simply an i/o error:
+			log.Fatalln(err)
+
+		}
+
+		// If loading the data was error-free, no additional attempts are
+		// required.
+		break
 	}
 
 	score, err := AccumulateScore(bgenPath, sites)
@@ -140,8 +170,8 @@ func main() {
 	}
 
 	fmt.Printf("sample_file_row\tsource\tscore\tn_incremented\n")
-	for file_row, v := range score {
-		fmt.Fprintf(STDOUT, "%d\t%s\t%f\t%d\n", file_row, sourceFile, v.SumScore, v.NIncremented)
+	for fileRow, v := range score {
+		fmt.Fprintf(STDOUT, "%d\t%s\t%f\t%d\n", fileRow, sourceFile, v.SumScore, v.NIncremented)
 	}
 
 }

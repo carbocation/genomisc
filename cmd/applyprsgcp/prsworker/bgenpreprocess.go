@@ -6,19 +6,18 @@ import (
 	"strconv"
 
 	"github.com/carbocation/bgen"
+	"github.com/carbocation/genomisc/applyprsgcp/prsworker"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func BGENPreprocessor(bgenPath, chromosome string) ([]bgen.VariantIndex, error) {
 
-	// Load the BGEN Index
-	bgi, err := bgen.OpenBGI(bgenPath + ".bgi?mode=ro")
+	bgi, b, err := prsworker.OpenBGIAndBGEN(bgenPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer bgi.Close()
-	bgi.Metadata.FirstThousandBytes = nil
-	log.Printf("BGI Metadata: %+v\n", bgi.Metadata)
+	defer b.Close()
 
 	// Fetch variants within our range
 	firstPos, lastPos := FirstLastPos(currentVariantScoreLookup)
