@@ -73,8 +73,11 @@ func main() {
 		}
 
 		for i, cols := range rows {
-			if i == 0 && k == 0 {
-				header = cols
+			if i == 0 {
+				if k == 0 {
+					header = cols
+				}
+				continue
 			}
 
 			ss := SampleSource{
