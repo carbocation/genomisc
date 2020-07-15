@@ -5,8 +5,10 @@ import (
 	"log"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/carbocation/bgen"
+	"github.com/carbocation/genomisc/applyprsgcp/prsworker"
 	"github.com/carbocation/genomisc/prsparser"
 )
 
@@ -100,7 +102,49 @@ func Worker(bgPath string, jobs <-chan bgen.VariantIndex, results chan<- []Sampl
 
 	for variant := range jobs {
 		prs := LookupPRS(variant.Chromosome, variant.Position)
-		res, err := ProcessOneVariant(b, variant, prs)
+		var res []Sample
+
+		// Because of i/o errors on GCP, may need to loop this
+		for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+			res, err = ProcessOneVariant(b, variant, prs)
+
+			if err != nil && loadAttempts == maxLoadAttempts {
+
+				// Ongoing failure at maxLoadAttempts is a terminal error
+				log.Fatalln("Worker:", err)
+
+			} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+
+				// If we had an error, often due to an unreliable underlying
+				// filesystem, wait for a substantial amount of time before
+				// retrying.
+				log.Println("Worker: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
+				time.Sleep(5 * time.Second)
+
+				// Since the file handle is no longer valid, we need to close it
+				// and reopen
+				b.Close()
+				_, b, err = prsworker.OpenBGIAndBGEN(bgPath)
+				if err != nil {
+					log.Fatalln("Worker:", err)
+				}
+				defer b.Close()
+
+				continue
+
+			} else if err != nil {
+
+				// Not simply an i/o error. Send the error over the channel like
+				// usual
+				break
+
+			}
+
+			// If loading the data was error-free, no additional attempts are
+			// required.
+			break
+		}
+
 		if err != nil {
 			errors <- err
 			results <- nil
