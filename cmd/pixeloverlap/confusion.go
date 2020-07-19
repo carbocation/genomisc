@@ -1,5 +1,7 @@
 package main
 
+import "math"
+
 type assignment struct {
 	ID1 uint32
 	ID2 uint32
@@ -66,6 +68,23 @@ func (v evalLabel) Jaccard() float64 {
 	return v.Dice() / (2 - v.Dice())
 }
 
-func (e evalLabel) NetSum() int64 {
-	return e.Total - e.Agreed - e.Only1 - e.Only2
+// Count agreement ignores whether pixels overlap and simply asks about
+// agreement in terms of the total number of pixels annotated as being within a
+// class. This returns a fraction scaled from 0 to 1, with the numerator being
+// the smaller pixel count and the denominator being the larger pixel count.
+func (v evalLabel) CountAgreement() float64 {
+	p1 := float64(v.Agreed + v.Only1)
+	p2 := float64(v.Agreed + v.Only2)
+
+	denom := math.Max(p1, p2)
+
+	if denom == 0 {
+		return 0
+	}
+
+	return math.Min(p1, p2) / denom
+}
+
+func (v evalLabel) NetSum() int64 {
+	return v.Total - v.Agreed - v.Only1 - v.Only2
 }

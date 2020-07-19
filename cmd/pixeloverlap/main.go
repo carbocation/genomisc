@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(strings.Join([]string{"dicom", "LabelID", "Label", "Agree", "Only1", "Only2", "Kappa", "Dice", "Jaccard"}, "\t"))
+	fmt.Println(strings.Join([]string{"dicom", "LabelID", "Label", "Agree", "Only1", "Only2", "Kappa", "Dice", "Jaccard", "CountAgreement"}, "\t"))
 
 	if manifest != "" {
 
@@ -219,7 +219,7 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 	for _, label := range config.Labels.Sorted() {
 		v := labelEvaluations[label]
 
-		fmt.Printf("%s\t%d\t%s\t%d\t%d\t%d\t%g\t%g\t%g\n", dicom, label.ID, label.Label, v.Agreed, v.Only1, v.Only2, v.Kappa(total), v.Dice(), v.Jaccard())
+		fmt.Printf("%s\t%d\t%s\t%d\t%d\t%d\t%g\t%g\t%g\t%g\n", dicom, label.ID, label.Label, v.Agreed, v.Only1, v.Only2, v.Kappa(total), v.Dice(), v.Jaccard(), v.CountAgreement())
 	}
 
 	return nil
