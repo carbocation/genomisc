@@ -58,8 +58,11 @@ func (l *List) Extrema(adjacentN, discardN int) (Result, error) {
 		l.Ring = l.Next()
 	}
 
+	// Note that we are sorting on the TrueMetric, not the median metric. So,
+	// while we do define a median metric, we don't record exactly where its max
+	// and min are.
 	sort.Slice(synthetic, func(i, j int) bool {
-		return synthetic[i].Metric < synthetic[j].Metric
+		return synthetic[i].TrueMetric < synthetic[j].TrueMetric
 	})
 
 	max := synthetic[len(synthetic)-1]
