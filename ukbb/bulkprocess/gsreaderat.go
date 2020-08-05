@@ -12,7 +12,7 @@ import (
 )
 
 func MaybeOpenFromGoogleStorage(path string, client *storage.Client) (ReaderAtCloser, int64, error) {
-	if strings.HasPrefix(path, "gs://") {
+	if client != nil && strings.HasPrefix(path, "gs://") {
 		// Detect the bucket and the path to the actual file
 		pathParts := strings.SplitN(strings.TrimPrefix(path, "gs://"), "/", 2)
 		if len(pathParts) != 2 {
