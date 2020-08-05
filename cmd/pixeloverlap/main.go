@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/carbocation/genomisc/overlay"
 )
 
@@ -24,7 +27,12 @@ func init() {
 	}
 }
 
+// Safe for concurrent use by multiple goroutines
+var client *storage.Client
+
 func main() {
+	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
+
 	var threshold int
 	var path1, path2, jsonConfig, manifest, suffix string
 
@@ -44,6 +52,16 @@ func main() {
 	if err != nil {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Initialize the Google Storage client only if we're pointing to Google
+	// Storage paths.
+	if strings.HasPrefix(path1, "gs://") || strings.HasPrefix(path2, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	fmt.Println(strings.Join([]string{"dicom", "LabelID", "Label", "Agree", "Only1", "Only2", "Kappa", "Dice", "Jaccard", "CountAgreement"}, "\t"))
@@ -77,9 +95,38 @@ func runSlice(config overlay.JSONConfig, path1, path2, suffix, manifest string, 
 	for i, file := range dicoms {
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(path1+"/"+file+suffix, path2+"/"+file+suffix, file, config, threshold); err != nil {
-				log.Println(err)
+
+			// The main purpose of this loop is to handle a specific filesystem
+			// error (input/output error) that largely happens with GCSFuse, and
+			// retry a few times before giving up.
+			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+
+				err := processOneImage(path1+"/"+file+suffix, path2+"/"+file+suffix, file, config, threshold)
+
+				if err != nil && loadAttempts == maxLoadAttempts {
+
+					// We've exhausted our retries. Fail hard.
+					log.Fatalln(err)
+
+				} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+
+					// If it's an i/o error, we can retry
+					log.Println("Sleeping 5s to recover from", err.Error(), ". Attempt #", loadAttempts)
+					time.Sleep(5 * time.Second)
+					continue
+
+				} else if err != nil {
+
+					// If it's an error that is not an i/o error, don't retry
+					log.Println(err)
+					break
+
+				}
+
+				// If no error, don't retry
+				break
 			}
+
 			<-sem
 		}(file)
 
@@ -138,12 +185,12 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 	dicom = strings.ReplaceAll(dicom, ".mask.png", "")
 
 	// Open the files
-	overlay1, err := overlay.OpenImageFromLocalFile(filePath1)
+	overlay1, err := overlay.OpenImageFromLocalFileOrGoogleStorage(filePath1, client)
 	if err != nil {
 		return err
 	}
 
-	overlay2, err := overlay.OpenImageFromLocalFile(filePath2)
+	overlay2, err := overlay.OpenImageFromLocalFileOrGoogleStorage(filePath2, client)
 	if err != nil {
 		return err
 	}
