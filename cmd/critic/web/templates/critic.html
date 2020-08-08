@@ -25,9 +25,13 @@
 </ol>
 
 <form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
-    <button name="value" value="bad-image" class="btn btn-lg btn-danger" type="submit">Bad MRI</button>
+    {{range $label := $.Data.Labels}}
+        <button name="value" value="{{$label.Value}}" class="btn btn-lg btn-default" type="submit">{{$label.DisplayName}}</button>
+    {{end}}
+
+    <!-- <button name="value" value="bad-image" class="btn btn-lg btn-danger" type="submit">Bad MRI</button>
     <button name="value" value="mistrace" class="btn btn-lg btn-warning" type="submit">Mistraced Segmentation</button>
-    <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button>
+    <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button> -->
 
 </form>
 <br />
@@ -42,9 +46,13 @@ height="{{$.Data.Height}}"></canvas>
 
 <form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
     
-    <button name="value" value="bad-image" class="btn btn-lg btn-danger" type="submit">Bad MRI</button>
+    {{range $label := $.Data.Labels}}
+        <button name="value" value="{{$label.Value}}" class="btn btn-lg btn-default" type="submit">{{$label.DisplayName}}</button>
+    {{end}}
+    
+    <!-- <button name="value" value="bad-image" class="btn btn-lg btn-danger" type="submit">Bad MRI</button>
     <button name="value" value="mistrace" class="btn btn-lg btn-warning" type="submit">Mistraced Segmentation</button>
-    <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button>
+    <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button> -->
 
 </form>
 

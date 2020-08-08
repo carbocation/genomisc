@@ -1,0 +1,7 @@
+{
+    "Labels": [
+        {"name": "Bad Image", "value": "bad-image"},
+        {"name": "Mistraced Segmentation", "value": "mistrace"},
+        {"name": "Good", "value": "good"}
+    ]
+}

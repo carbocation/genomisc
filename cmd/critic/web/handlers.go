@@ -112,6 +112,7 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		Width         int
 		Height        int
 		ShowOverlay   bool
+		Labels        []Label
 	}{
 		h.Global.Project,
 		manifestEntry,
@@ -120,12 +121,13 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		im.Bounds().Dx(),
 		im.Bounds().Dy(),
 		showOverlay,
+		h.Global.Labels,
 	}
 
-	Render(h, w, r, "Critic Handler", "traceoverlay.html", output, nil)
+	Render(h, w, r, "Critic Handler", "critic.html", output, nil)
 }
 
-func (h *handler) TraceOverlayPost(w http.ResponseWriter, r *http.Request) {
+func (h *handler) CriticPost(w http.ResponseWriter, r *http.Request) {
 	manifestIdx := mux.Vars(r)["manifest_index"]
 	manifestIndex, err := strconv.Atoi(manifestIdx)
 	if err != nil {

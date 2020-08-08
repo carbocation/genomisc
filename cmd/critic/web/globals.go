@@ -21,6 +21,7 @@ type Global struct {
 	ManifestPath string
 	DicomRoot    string
 	PreParsed    bool
+	Labels       []Label
 
 	m        sync.RWMutex
 	manifest *AnnotationTracker

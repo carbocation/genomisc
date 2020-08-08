@@ -26,7 +26,7 @@ func router(config *Global) http.Handler {
 	// POST
 	//
 	POST.Handle("/", http.NotFoundHandler())
-	POST.HandleFunc("/critic/{manifest_index}", h.TraceOverlayPost)
+	POST.HandleFunc("/critic/{manifest_index}", h.CriticPost)
 
 	// Static assets
 	GET.PathPrefix(h.Assets()).Handler(
