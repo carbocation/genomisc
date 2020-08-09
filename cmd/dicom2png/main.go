@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
@@ -22,13 +24,16 @@ import (
 // Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
 var builddate string
 
+// Safe for concurrent use by multiple goroutines
+var client *storage.Client
+
 func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicom2png binary was built at: %s\n", builddate)
 
 	var inputPath, outputPath, manifest string
 	var includeOverlay bool
-	flag.StringVar(&inputPath, "raw", "", "Path to the local folder containing the raw zip files")
+	flag.StringVar(&inputPath, "raw", "", "Path to the folder containing the raw zip files (if begins with gs://, will try the Google Storage URL)")
 	flag.StringVar(&outputPath, "out", "", "Path to the local folder where the extracted PNGs will go")
 	flag.StringVar(&manifest, "manifest", "", "Manifest file containing Zip names and Dicom names.")
 	flag.BoolVar(&includeOverlay, "include-overlay", true, "Print the overlay on top of the images?")
@@ -37,6 +42,16 @@ func main() {
 	if inputPath == "" || outputPath == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	// Initialize the Google Storage client only if we're pointing to Google
+	// Storage paths.
+	if strings.HasPrefix(inputPath, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	if err := run(inputPath, outputPath, manifest, includeOverlay); err != nil {
@@ -140,17 +155,21 @@ func getZipMap(manifest string) (map[string][]string, error) {
 // error channel.
 func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) error {
 
-	f, err := os.Open(filepath.Join(inputPath, zipName))
+	// Note: uses global client, which is OK for concurrent use
+	path := filepath.Join(inputPath, zipName)
+	if strings.HasPrefix(inputPath, "gs://") {
+		path = inputPath
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+		path += zipName
+	}
+
+	f, nBytes, err := bulkprocess.MaybeOpenFromGoogleStorage(path, client)
 	if err != nil {
 		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipName, err)
 	}
 	defer f.Close()
-
-	// the zip reader wants to know the # of bytes in advance
-	nBytes, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipName, err)
-	}
 
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
 	for _, dicomName := range dicomList {
@@ -161,7 +180,7 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			// operation - but if you printed the Dicom image to PNG within this
 			// function, you could make it accept a map and then only iterate in
 			// o(n) time. Not sure this is a bottleneck yet.
-			img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+			img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes, dicomName, includeOverlay)
 			if err != nil {
 				return err
 			}
