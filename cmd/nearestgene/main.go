@@ -118,7 +118,7 @@ func main() {
 		sitePos := float64(sitePosInt)
 
 		sort.Slice(transcripts, func(i, j int) bool {
-			if transcripts[i].Chromosome != siteChr {
+			if transcripts[i].PlinkChromosome() != siteChr && transcripts[i].Chromosome != siteChr {
 				return false
 			}
 
@@ -164,6 +164,21 @@ func main() {
 			onTranscript = true
 		}
 
+		i++
+
+		if transcripts[0].PlinkChromosome() != siteChr && transcripts[0].Chromosome != siteChr {
+
+			// Didn't find the chromosome for this variant
+			output = append(output, outputType{
+				Site:       site,
+				Chromosome: siteChr,
+				Position:   sitePosInt,
+			})
+
+			continue
+		}
+
+		// Found the chromosome. Here is the nearest.
 		output = append(output, outputType{
 			Site:                    site,
 			Chromosome:              siteChr,
@@ -183,7 +198,6 @@ func main() {
 			}
 		}
 
-		i++
 	}
 
 	if x, y := len(output), len(sitesList); y-x > 2 || (y-x == 1 && !likelyHeader) {

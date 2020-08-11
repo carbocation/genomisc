@@ -33,6 +33,23 @@ type Gene struct {
 	TranscriptEnd   int
 }
 
+// PlinkChromosome prints chromosomal values as numbers in the Plink numbering
+// system (See https://zzz.bwh.harvard.edu/plink/data.shtml )
+func (g Gene) PlinkChromosome() string {
+	switch g.Chromosome {
+	case "X":
+		return "23"
+	case "Y":
+		return "24"
+	case "XY":
+		return "25"
+	case "MT":
+		return "26"
+	}
+
+	return g.Chromosome
+}
+
 func ReadSitesFile(fileName string) ([]string, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
