@@ -70,6 +70,7 @@ func run(file string) error {
 	seen := make(map[string]struct{})
 	saw := 0
 	fixed := 0
+	random := 0
 
 	for {
 		line, err := r.Read()
@@ -101,6 +102,7 @@ func run(file string) error {
 				// Add random suffix
 				if _, exists := seen[line[SNP]]; exists {
 					line[SNP] += "_" + RandHeteroglyphs(3)
+					random++
 				}
 			}
 
@@ -115,7 +117,8 @@ func run(file string) error {
 	}
 
 	log.Println("Saw", saw, "total SNP IDs")
-	log.Println("Fixed", fixed, "duplicate SNP IDs")
+	log.Println("Fixed", fixed-random, "duplicate SNP IDs by adding allele information")
+	log.Println("Had to resort to adding random suffixes to", random, "duplicate SNP IDs")
 
 	return nil
 }
