@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cloud.google.com/go/storage"
 	"github.com/carbocation/pfx"
 )
 
@@ -23,12 +22,7 @@ func ImportBGIFromGoogleStorage(bgiPath string) (memfsBIGPath string, err error)
 		return filename, nil
 	}
 
-	// Otherwise, create a google storage client with default settings and use
-	// it to fetch the bgi
-	client, err := storage.NewClient(context.Background())
-	if err != nil {
-		return "", pfx.Err(err)
-	}
+	// Otherwise, use the global google storage client
 
 	// Detect the bucket and the path to the actual file
 	pathParts := strings.SplitN(strings.TrimPrefix(bgiPath, "gs://"), "/", 2)
