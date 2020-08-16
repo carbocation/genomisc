@@ -87,7 +87,7 @@ func main() {
 		log.Println("pxWidth not provided; assuming that pxWidth == 1")
 	}
 
-	log.Println("Launched pixelqc")
+	log.Println("Launched pixelqc for", pixels)
 
 	if err := runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, imageID, timeID, pxHeight, pxWidth, nStandardDeviations); err != nil {
 		log.Fatalln(err)
