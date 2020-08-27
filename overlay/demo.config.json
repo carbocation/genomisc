@@ -1,0 +1,8 @@
+{
+  "labels": {
+    "Background": { "id": 0, "color": "" },
+    "Asc Aorta": { "id": 1, "color": "#f9424b" },
+    "Desc Aorta": { "id": 2, "color": "#ffff00" }
+  }
+}
+
