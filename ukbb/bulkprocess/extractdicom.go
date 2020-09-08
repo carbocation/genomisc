@@ -205,7 +205,7 @@ func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.I
 			data := elem.Value[0].(element.PixelDataInfo)
 
 			for _, frame := range data.Frames {
-				if frame.IsEncapsulated {
+				if frame.IsEncapsulated() {
 					return nil, fmt.Errorf("Frame is encapsulated, which we did not expect")
 				}
 
