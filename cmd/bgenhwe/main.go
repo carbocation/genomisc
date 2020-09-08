@@ -95,7 +95,7 @@ func main() {
 
 				idx, err := FindOneVariant(bgi, rsID)
 				if err != nil {
-					log.Fatalln(err)
+					log.Fatalln(fmt.Errorf("SNP %s error: %v", rsID, err))
 				}
 
 				variant := rdr.ReadAt(int64(idx.FileStartPosition))
