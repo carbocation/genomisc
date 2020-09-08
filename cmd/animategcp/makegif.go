@@ -42,7 +42,7 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 		go func(input string) {
 			pngImage, err := ImportPNGFromGoogleStorage(input, client)
 			if err != nil {
-				log.Println(err)
+				log.Println(err, "when operating on", input)
 			}
 			dat := gsData{
 				image: pngImage,

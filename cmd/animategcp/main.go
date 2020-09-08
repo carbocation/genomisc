@@ -36,6 +36,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	folder = strings.TrimSuffix(folder, "/")
+
 	if err := run(manifest, folder, suffix, delay); err != nil {
 		log.Fatalln(err)
 	}
