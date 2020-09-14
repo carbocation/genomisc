@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 const (
@@ -150,7 +151,7 @@ func run(manifest, folder string, delay int) error {
 				fmt.Printf("Fetching images for %+v:%v", key, entry.Zip)
 
 				// Fetch the zip file just once per zip, even if it has many series
-				imgMap, err := FetchImagesFromZIP(folder+"/"+entry.Zip, false, client)
+				imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, false, client)
 				if err != nil {
 					return err
 				}
