@@ -166,8 +166,9 @@ func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client
 }
 
 // MakeOneGIF creates an animated gif from an ordered slice of images. The delay
-// between frames is in hundredths of a second. A delay of 2 seems to be the
-// smallest allowed delay.
+// between frames is in hundredths of a second. The color quantizer is built
+// from *all* input images, and the quantized palette is shared across all of
+// the output frames.
 func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
 	outGif := &gif.GIF{}
 
