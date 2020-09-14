@@ -19,7 +19,7 @@ type gsData struct {
 }
 
 func makeOneGif(pngs []string, outName string, delay int) error {
-	outGif, err := MakeOneGif(pngs, delay)
+	outGif, err := MakeOneGIF(pngs, delay)
 	if err != nil {
 		return err
 	}
@@ -35,10 +35,10 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	return gif.EncodeAll(f, outGif)
 }
 
-// MakeOneGif creates an animated gif from a (sorted) slice of paths - which may
+// MakeOneGIF creates an animated gif from a (sorted) slice of paths - which may
 // be local or Google Storage. The delay (between frames) is in hundredths of a
 // second. A delay of 2 seems to be the smallest allowed delay.
-func MakeOneGif(pngs []string, delay int) (*gif.GIF, error) {
+func MakeOneGIF(pngs []string, delay int) (*gif.GIF, error) {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
