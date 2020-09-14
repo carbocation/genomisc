@@ -19,7 +19,7 @@ type gsData struct {
 }
 
 func makeOneGif(pngs []string, outName string, delay int) error {
-	outGif, err := MakeOneGIF(pngs, delay)
+	outGif, err := MakeOneGIFFromPaths(pngs, delay)
 	if err != nil {
 		return err
 	}
@@ -35,18 +35,10 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	return gif.EncodeAll(f, outGif)
 }
 
-// MakeOneGIF creates an animated gif from a (sorted) slice of paths - which may
-// be local or Google Storage. The delay (between frames) is in hundredths of a
-// second. A delay of 2 seems to be the smallest allowed delay.
-func MakeOneGIF(pngs []string, delay int) (*gif.GIF, error) {
-	outGif := &gif.GIF{}
-
-	quantizer := quantize.MedianCutQuantizer{
-		Aggregation:    quantize.Mean,
-		Weighting:      nil,
-		AddTransparent: false,
-	}
-
+// MakeOneGIFFromPaths creates an animated gif from an ordered slice of paths -
+// which may be local or hosted in an accessible Google Storage location. (The
+// string for each png should be a fully specified path.)
+func MakeOneGIFFromPaths(pngs []string, delay int) (*gif.GIF, error) {
 	fetches := make(chan gsData)
 
 	for _, input := range pngs {
@@ -79,10 +71,26 @@ func MakeOneGIF(pngs []string, delay int) (*gif.GIF, error) {
 
 		sortedPngs = append(sortedPngs, pngDats[png].image)
 	}
-	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedPngs)
+
+	return MakeOneGIF(sortedPngs, delay)
+}
+
+// MakeOneGIF creates an animated gif from an ordered slice of images. The delay
+// between frames is in hundredths of a second. A delay of 2 seems to be the
+// smallest allowed delay.
+func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
+	outGif := &gif.GIF{}
+
+	quantizer := quantize.MedianCutQuantizer{
+		Aggregation:    quantize.Mean,
+		Weighting:      nil,
+		AddTransparent: false,
+	}
+
+	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedImages)
 
 	// Convert each image to a frame in our animated gif
-	for _, img := range sortedPngs {
+	for _, img := range sortedImages {
 		palettedImage := image.NewPaletted(img.Bounds(), pal)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 		outGif.Image = append(outGif.Image, palettedImage)
