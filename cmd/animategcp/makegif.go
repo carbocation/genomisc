@@ -19,6 +19,26 @@ type gsData struct {
 }
 
 func makeOneGif(pngs []string, outName string, delay int) error {
+	outGif, err := MakeOneGif(pngs, delay)
+	if err != nil {
+		return err
+	}
+
+	// Save file
+	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	return gif.EncodeAll(f, outGif)
+}
+
+// MakeOneGif creates an animated gif from a (sorted) slice of paths - which may
+// be local or Google Storage. The delay (between frames) is in hundredths of a
+// second. A delay of 2 seems to be the smallest allowed delay.
+func MakeOneGif(pngs []string, delay int) (*gif.GIF, error) {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
@@ -55,7 +75,7 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	sortedPngs := make([]image.Image, 0, len(sortedPngDats))
 	for _, png := range pngs {
 		if pngDats[png].image == nil {
-			return fmt.Errorf("One or more images could not be loaded")
+			return nil, fmt.Errorf("One or more images could not be loaded")
 		}
 
 		sortedPngDats = append(sortedPngDats, pngDats[png])
@@ -74,13 +94,5 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 		outGif.Delay = append(outGif.Delay, delay)
 	}
 
-	// Save file
-	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return gif.EncodeAll(f, outGif)
+	return outGif, nil
 }
