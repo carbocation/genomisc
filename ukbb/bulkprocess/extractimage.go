@@ -29,13 +29,19 @@ func ExtractImageFromLocalFile(dicomName, suffix, folderPath string) (image.Imag
 	return img, err
 }
 
-// ExtractImageFromGoogleStorage pulls an image with the specified suffix (derived
-// from the DICOM name) from a possibly remote folder
+// ExtractImageFromGoogleStorage is now just a deprecated wrapper around
+// MaybeExtractImageFromGoogleStorage and may be removed in the future.
 func ExtractImageFromGoogleStorage(dicomName, suffix, folderPath string, storageClient *storage.Client) (image.Image, error) {
+	return MaybeExtractImageFromGoogleStorage(folderPath+"/"+dicomName+suffix, storageClient)
+}
 
-	// Read the PNG into memory still compressed - either from a local
-	// file, or from Google storage, depending on the prefix you provide.
-	f, _, err := MaybeOpenFromGoogleStorage(folderPath+"/"+dicomName+suffix, storageClient)
+// MaybeExtractImageFromGoogleStorage pulls an image from a (possibly remote)
+// folder
+func MaybeExtractImageFromGoogleStorage(imagePath string, storageClient *storage.Client) (image.Image, error) {
+
+	// Read the PNG into memory still compressed - either from a local file, or
+	// from Google storage, depending on the prefix you provide.
+	f, _, err := MaybeOpenFromGoogleStorage(imagePath, storageClient)
 	if err != nil {
 		return nil, err
 	}

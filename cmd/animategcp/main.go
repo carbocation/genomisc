@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -9,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"cloud.google.com/go/storage"
 )
 
 const (
@@ -20,6 +23,9 @@ const (
 var (
 	DicomColumnName = "dicom_file"
 )
+
+// Safe for concurrent use by multiple goroutines so we'll make this a global
+var client *storage.Client
 
 func main() {
 	var manifest, folder, suffix string
@@ -37,6 +43,16 @@ func main() {
 	}
 
 	folder = strings.TrimSuffix(folder, "/")
+
+	// Initialize the Google Storage client, but only if our folder indicates
+	// that we are pointing to a Google Storage path.
+	if strings.HasPrefix(folder, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
 
 	if err := run(manifest, folder, suffix, delay); err != nil {
 		log.Fatalln(err)
@@ -133,7 +149,7 @@ func run(manifest, folder, suffix string, delay int) error {
 		}
 
 		if err == nil {
-			fmt.Println("Successfully created", outName)
+			fmt.Println("Successfully created", outName, "for", fmt.Sprintf("%s_%s", key.SampleID, key.Instance))
 		}
 		continue
 	}

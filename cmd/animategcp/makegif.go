@@ -1,20 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
-	"image/png"
 	"log"
 	"os"
-	"strings"
 
-	"cloud.google.com/go/storage"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/go-quantize/quantize"
-	"github.com/carbocation/pfx"
 )
 
 type gsData struct {
@@ -31,16 +27,11 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 		AddTransparent: false,
 	}
 
-	client, err := storage.NewClient(context.Background())
-	if err != nil {
-		return err
-	}
-
 	fetches := make(chan gsData)
 
 	for _, input := range pngs {
 		go func(input string) {
-			pngImage, err := ImportPNGFromGoogleStorage(input, client)
+			pngImage, err := bulkprocess.MaybeExtractImageFromGoogleStorage(input, client)
 			if err != nil {
 				log.Println(err, "when operating on", input)
 			}
@@ -92,34 +83,4 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	defer f.Close()
 
 	return gif.EncodeAll(f, outGif)
-}
-
-// ImportPNGFromGoogleStorage copies a file from google storage and returns it
-// as bytes.
-func ImportPNGFromGoogleStorage(gsFilePath string, client *storage.Client) (image.Image, error) {
-
-	// Detect the bucket and the path to the actual file
-	pathParts := strings.SplitN(strings.TrimPrefix(gsFilePath, "gs://"), "/", 2)
-	if len(pathParts) != 2 {
-		return nil, fmt.Errorf("Tried to split your google storage path into 2 parts, but got %d: %v", len(pathParts), pathParts)
-	}
-	bucketName := pathParts[0]
-	pathName := pathParts[1]
-
-	// Open the bucket with default credentials
-	bkt := client.Bucket(bucketName)
-	handle := bkt.Object(pathName)
-
-	rc, err := handle.NewReader(context.Background())
-	if err != nil {
-		return nil, pfx.Err(err)
-	}
-	defer rc.Close()
-
-	img, err := png.Decode(rc)
-	if err != nil {
-		return nil, err
-	}
-
-	return img, pfx.Err(err)
 }
