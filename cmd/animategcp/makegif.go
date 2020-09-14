@@ -71,23 +71,18 @@ func MakeOneGIF(pngs []string, delay int) (*gif.GIF, error) {
 		pngDats[dat.path] = dat
 	}
 
-	sortedPngDats := make([]gsData, 0, len(pngs))
-	sortedPngs := make([]image.Image, 0, len(sortedPngDats))
+	sortedPngs := make([]image.Image, 0, len(pngDats))
 	for _, png := range pngs {
 		if pngDats[png].image == nil {
 			return nil, fmt.Errorf("One or more images could not be loaded")
 		}
 
-		sortedPngDats = append(sortedPngDats, pngDats[png])
 		sortedPngs = append(sortedPngs, pngDats[png].image)
 	}
 	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedPngs)
 
 	// Convert each image to a frame in our animated gif
-	for _, input := range sortedPngDats {
-
-		img := input.image
-
+	for _, img := range sortedPngs {
 		palettedImage := image.NewPaletted(img.Bounds(), pal)
 		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 		outGif.Image = append(outGif.Image, palettedImage)
