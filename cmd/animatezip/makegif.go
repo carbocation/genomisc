@@ -3,7 +3,6 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -20,23 +19,6 @@ import (
 type gsData struct {
 	path  string
 	image image.Image
-}
-
-func makeOneGif(pngs []string, outName string, delay int) error {
-	outGif, err := MakeOneGIFFromPaths(pngs, delay, client)
-	if err != nil {
-		return err
-	}
-
-	// Save file
-	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return gif.EncodeAll(f, outGif)
 }
 
 func makeOneGifFromImageMap(dicomNames []string, imgMap map[string]image.Image, outName string, delay int) error {
@@ -71,8 +53,9 @@ func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay
 	return outGif, nil
 }
 
-// FetchImagesFromZIPByDICOMNames fetches images from DICOM files within a Zip
-// file. The Zip file may be local or on Google Storage.
+// FetchImagesFromZIP fetches images from DICOM files within a Zip file. The Zip
+// file may be local or on Google Storage. They are returned as
+// map[dicom_name]image
 func FetchImagesFromZIP(zipPath string, includeOverlay bool, storageClient *storage.Client) (map[string]image.Image, error) {
 	pngDats := make(map[string]image.Image)
 
@@ -119,46 +102,6 @@ func FetchImagesFromZIP(zipPath string, includeOverlay bool, storageClient *stor
 	}
 
 	return pngDats, nil
-}
-
-// MakeOneGIFFromPaths creates an animated gif from an ordered slice of paths to
-// image files - which may be local or hosted in an accessible Google Storage
-// location. (The string for each png should be a fully specified path.)
-func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
-	fetches := make(chan gsData)
-
-	for _, input := range pngs {
-		go func(input string) {
-			pngImage, err := bulkprocess.MaybeExtractImageFromGoogleStorage(input, storageClient)
-			if err != nil {
-				log.Println(err, "when operating on", input)
-			}
-			dat := gsData{
-				image: pngImage,
-				path:  input,
-			}
-
-			fetches <- dat
-
-		}(input)
-	}
-
-	pngDats := make(map[string]gsData)
-	for range pngs {
-		dat := <-fetches
-		pngDats[dat.path] = dat
-	}
-
-	sortedPngs := make([]image.Image, 0, len(pngDats))
-	for _, png := range pngs {
-		if pngDats[png].image == nil {
-			return nil, fmt.Errorf("One or more images could not be loaded")
-		}
-
-		sortedPngs = append(sortedPngs, pngDats[png].image)
-	}
-
-	return MakeOneGIF(sortedPngs, delay)
 }
 
 // MakeOneGIF creates an animated gif from an ordered slice of images. The delay

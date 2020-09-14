@@ -162,34 +162,39 @@ func run(manifest, folder string, delay int) error {
 		fmt.Printf("Found %d zip files+series combinations. One gif will be created for each.\n", len(zipSeriesMap))
 
 		// For now, doing one zip at a time
+		errchan := make(chan error)
+		started := time.Now()
+
 		for zip, pngs := range zipSeriesMap {
-			errchan := make(chan error)
+			go func(zip seriesMap, pngs []string) {
+				outName := zip.Zip + "_" + zip.Series + ".gif"
+				imgMap := zipMap[zip.Zip]
 
-			outName := zip.Zip + "_" + zip.Series + ".gif"
-			imgMap := zipMap[zip.Zip]
-			started := time.Now()
-
-			go func() {
 				errchan <- makeOneGifFromImageMap(pngs, imgMap, outName, delay)
-			}()
+			}(zip, pngs)
+		}
 
-		WaitLoop:
-			for {
-				select {
-				case err = <-errchan:
-					fmt.Printf("\n")
-					if err != nil {
-						fmt.Println("Error making gif:", err.Error())
-					}
-					break WaitLoop
-				case current := <-tick.C:
-					fmt.Printf("\rFetching images for %+v (%s)", key, current.Sub(started))
+		completed := 0
+
+	WaitLoop:
+		for {
+			select {
+			case err = <-errchan:
+				completed++
+				if err != nil {
+					fmt.Println("Error making gif:", err.Error())
 				}
-			}
 
-			if err == nil {
-				fmt.Println("Successfully created", outName, "for", fmt.Sprintf("%s_%s", key.SampleID, key.Instance))
+				if completed >= len(zipSeriesMap) {
+					break WaitLoop
+				}
+			case current := <-tick.C:
+				fmt.Printf("\rCreating %d more gifs for %+v (%s)", len(zipSeriesMap)-completed, key, current.Sub(started))
 			}
+		}
+
+		if err == nil {
+			fmt.Println("Successfully created file #", completed, "for", fmt.Sprintf("%s_%s", key.SampleID, key.Instance))
 		}
 	}
 

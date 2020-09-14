@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/zip"
 	"fmt"
 	"image"
 	"image/color"
@@ -35,94 +34,6 @@ func makeOneGif(pngs []string, outName string, delay int) error {
 	defer f.Close()
 
 	return gif.EncodeAll(f, outGif)
-}
-
-func makeOneGifFromZip(dicomNames []string, zipPath string, outName string, delay int) error {
-	outGif, err := MakeOneGIFFromZIP(dicomNames, zipPath, delay, client)
-	if err != nil {
-		return err
-	}
-
-	// Save file
-	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return gif.EncodeAll(f, outGif)
-}
-
-func MakeOneGIFFromZIP(dicomNames []string, zipPath string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
-	images, err := FetchImagesFromZIPByDICOMNames(dicomNames, zipPath, false, storageClient)
-	if err != nil {
-		return nil, err
-	}
-
-	outGif, err := MakeOneGIF(images, delay)
-	if err != nil {
-		return nil, err
-	}
-
-	return outGif, nil
-}
-
-// FetchImagesFromZIPByDICOMNames fetches images from DICOM files within a Zip
-// file. The Zip file may be local or on Google Storage.
-func FetchImagesFromZIPByDICOMNames(dicomNames []string, zipPath string, includeOverlay bool, storageClient *storage.Client) ([]image.Image, error) {
-
-	dicomNameMap := make(map[string]struct{})
-	for _, dicomName := range dicomNames {
-		dicomNameMap[dicomName] = struct{}{}
-	}
-
-	pngDats := make(map[string]image.Image)
-
-	// Read the zip file into memory still compressed - either from a local
-	// file, or from Google storage, depending on the prefix you provide.
-	readerAt, zipNBytes, err := bulkprocess.MaybeOpenFromGoogleStorage(zipPath, storageClient)
-	if err != nil {
-		return nil, err
-	}
-	defer readerAt.Close()
-
-	rc, err := zip.NewReader(readerAt, zipNBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	// Iterate over the files within the Zip
-	for _, v := range rc.File {
-		if _, exists := dicomNameMap[v.Name]; !exists {
-			continue
-		}
-
-		// Read the desired DICOMs into images
-
-		dicomReader, err := v.Open()
-		if err != nil {
-			return nil, err
-		}
-		defer dicomReader.Close()
-
-		img, err := bulkprocess.ExtractDicomFromReader(dicomReader, includeOverlay)
-		if err != nil {
-			return nil, err
-		}
-		dicomReader.Close()
-
-		pngDats[v.Name] = img
-	}
-
-	// Make sure that the images are in the same sort order as the original
-	// input slice
-	out := make([]image.Image, 0, len(dicomNames))
-	for _, dicom := range dicomNames {
-		out = append(out, pngDats[dicom])
-	}
-
-	return out, nil
 }
 
 // MakeOneGIFFromPaths creates an animated gif from an ordered slice of paths to
