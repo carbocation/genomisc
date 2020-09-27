@@ -12,6 +12,9 @@ import (
 	"github.com/tj/go-rle"
 )
 
+// SpecialTransparentColor is a color which will render as transparent.
+const SpecialTransparentColor = "#000001"
+
 // A Label tracks the segmentation ID with the human-identifiable Label and
 // human-interpretable color (in RGB hex, e.g., #FF0000 for red).
 type Label struct {
@@ -118,7 +121,8 @@ func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, 
 // DecodeImageFromImageSegment consumes an ID-encoded image (where each pixel is
 // #010101 for ID 1, #020202 for ID 2 etc), and transforms it into a
 // human-visible value based on the colors for those IDs assigned in the config
-// file. It special-cases ID 0 (the background) to be transparent.
+// file. It special-cases ID 0 (the background) and color value #000001 to be
+// transparent.
 func (l LabelMap) DecodeImageFromImageSegment(bmpImage image.Image) (image.Image, error) {
 	// Map from the color code to the Label, with all of its attached
 	// information
@@ -172,7 +176,7 @@ func (l LabelMap) DecodeImageFromImageSegment(bmpImage image.Image) (image.Image
 			// For human vision, we want the background to be special-cased to
 			// transparent, and the pixels otherwise to be fully opaque.
 			var opacity uint8 = 255
-			if lab.ID == 0 {
+			if lab.ID == 0 || lab.Color == SpecialTransparentColor {
 				opacity = 0
 			}
 			humanColor, err := rgbaFromColorCode(lab.Color)
