@@ -51,8 +51,8 @@ func main() {
 	var override bool
 	var allowUndated bool
 
-	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings_Showcase.csv", "URL or path to CSV file with the UKBB data encodings")
-	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv", "URL or path to CSV file with the UKBB data dictionary")
+	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL or path to tab-delimited file with the UKBB data encodings, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
+	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL or path to tab-delimited file with the UKBB data dictionary, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")

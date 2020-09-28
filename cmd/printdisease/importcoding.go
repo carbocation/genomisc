@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/csv"
+	"io"
 	"log"
 
 	"github.com/gocarina/gocsv"
@@ -21,6 +23,14 @@ func ImportCoding(url string) (map[string]map[string]string, error) {
 	}
 
 	records := []*UKBCoding{}
+
+	// Tell gocsv to use tab as the delimiter
+	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
+		r := csv.NewReader(in)
+		r.Comma = '\t'
+		r.LazyQuotes = true
+		return r
+	})
 
 	if err := gocsv.UnmarshalBytes(fileBytes, &records); err != nil {
 		return nil, err
