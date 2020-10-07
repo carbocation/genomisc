@@ -139,17 +139,20 @@ func FetchImagesFromZIP(zipPath string, includeOverlay bool, storageClient *stor
 		if err != nil {
 			return nil, err
 		}
-		defer dicomReader.Close()
+		// We're in a loop so try to keep track of when to close this file this
+		// manually rather than relying on defer.
+		// defer dicomReader.Close()
 
 		img, err := ExtractDicomFromReader(dicomReader, includeOverlay)
 		if err != nil {
 			// If it's not a DICOM file, mention that and move on
 			log.Println(err)
+			dicomReader.Close()
 			continue
 		}
-		dicomReader.Close()
 
 		pngDats[v.Name] = img
+		dicomReader.Close()
 	}
 
 	return pngDats, nil
