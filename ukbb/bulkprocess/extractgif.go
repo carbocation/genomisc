@@ -103,11 +103,24 @@ func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client
 	return MakeOneGIF(sortedPngs, delay)
 }
 
-// FetchImagesFromZIP fetches images from DICOM files within a Zip file. The Zip
-// file may be local or on Google Storage (if path begins with gs://). The
-// images are returned in a map, keyed to the DICOM name: map[dicom_name]image
+// FetchImagesFromZIP is a deprecated shortcut to FetchNamedImagesFromZIP with
+// an empty list of images, which will return all images from a zip file.
 func FetchImagesFromZIP(zipPath string, includeOverlay bool, storageClient *storage.Client) (map[string]image.Image, error) {
+	return FetchNamedImagesFromZIP(zipPath, includeOverlay, storageClient, nil)
+}
+
+// FetchNamedImagesFromZIP fetches images from DICOM files within a Zip file.
+// The Zip file may be local or on Google Storage (if path begins with gs://).
+// The images are returned in a map, keyed to the DICOM name:
+// map[dicom_name]image. If a non-nil slice of filenames is passed, then only
+// filenames that appear in this slice will be processed and returned.
+func FetchNamedImagesFromZIP(zipPath string, includeOverlay bool, storageClient *storage.Client, acceptedFiles []string) (map[string]image.Image, error) {
 	pngDats := make(map[string]image.Image)
+
+	permittedFilenames := make(map[string]struct{})
+	for _, v := range acceptedFiles {
+		permittedFilenames[v] = struct{}{}
+	}
 
 	// Read the zip file into memory still compressed - either from a local
 	// file, or from Google storage, depending on the prefix you provide.
@@ -133,6 +146,11 @@ func FetchImagesFromZIP(zipPath string, includeOverlay bool, storageClient *stor
 
 	// Iterate over the files within the Zip
 	for _, v := range rc.File {
+
+		// Don't burn cycles parsing non-permitted filenames
+		if _, allowed := permittedFilenames[v.Name]; len(permittedFilenames) > 0 && !allowed {
+			continue
+		}
 
 		// Read all DICOMs into images
 		dicomReader, err := v.Open()
