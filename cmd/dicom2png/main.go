@@ -229,6 +229,7 @@ func imgToPNG(img image.Image, outputPath, dicomName string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	if err := png.Encode(f, colImg); err != nil {
 		return err
