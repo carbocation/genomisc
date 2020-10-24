@@ -164,6 +164,16 @@ func (h *handler) CriticPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Force query string so if your overlays are off, they stay off
+	showOverlay := "on"
+	log.Println(r.Form)
+	if overlay := r.Form.Get("overlay"); overlay == "off" {
+		showOverlay = "off"
+	}
+	qv := nextURL.Query()
+	qv.Add("overlay", showOverlay)
+	nextURL.RawQuery = qv.Encode()
+
 	http.Redirect(w, r, nextURL.String(), http.StatusSeeOther)
 }
 

@@ -21,10 +21,10 @@
     <li class="breadcrumb-item"><a href="/listproject">{{$.Data.Project}}</a></li>
     <li class="breadcrumb-item active">Zip: {{$.Data.ManifestEntry.Zip}}</li>
     <li class="breadcrumb-item"><a href="?overlay={{if $.Data.ShowOverlay}}off{{else}}on{{end}}">Toggle Overlay</a></li>
-    <li class="breadcrumb-item"><a href="/critic/{{add 1 $.Data.ManifestIndex}}">Skip</a></li>
+    <li class="breadcrumb-item"><a href="/critic/{{add 1 $.Data.ManifestIndex}}?overlay={{if $.Data.ShowOverlay}}on{{else}}off{{end}}">Skip</a></li>
 </ol>
 
-<form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
+<form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}?overlay={{if $.Data.ShowOverlay}}on{{else}}off{{end}}">
     {{range $label := $.Data.Labels}}
         <button name="value" value="{{$label.Value}}" class="btn btn-lg btn-default" type="submit">{{$label.DisplayName}}</button>
     {{end}}
@@ -44,7 +44,7 @@ id="imgCanvas"
 width="{{$.Data.Width}}" 
 height="{{$.Data.Height}}"></canvas>
 
-<form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}">
+<form method="POST" id="saveImage" action="/critic/{{$.Data.ManifestIndex}}?overlay={{if $.Data.ShowOverlay}}on{{else}}off{{end}}">
     
     {{range $label := $.Data.Labels}}
         <button name="value" value="{{$label.Value}}" class="btn btn-lg btn-default" type="submit">{{$label.DisplayName}}</button>
@@ -62,6 +62,7 @@ height="{{$.Data.Height}}"></canvas>
     <li class="breadcrumb-item active">Zip: {{$.Data.ManifestEntry.Zip}}</li>
     <li class="breadcrumb-item active">Dicom: {{$.Data.ManifestEntry.Dicom}}</li>
     <li class="breadcrumb-item"><a href="?overlay={{if $.Data.ShowOverlay}}off{{else}}on{{end}}">Toggle Overlay</a></li>
+    <li class="breadcrumb-item"><a href="/critic/{{add 1 $.Data.ManifestIndex}}?overlay={{if $.Data.ShowOverlay}}on{{else}}off{{end}}">Skip</a></li>
 </ol>
 
 <!-- <canvas 
