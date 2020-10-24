@@ -55,7 +55,7 @@ func main() {
 		log.Fatalln("Please provide -pixelcountfile")
 	}
 
-	if covarFile == "" {
+	if covarFile == "" && !(pxHeight == "" && pxWidth == "") {
 		log.Fatalln("Please provide -covarfile")
 	}
 
@@ -110,11 +110,13 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	log.Println("Loaded pixel data from", pixelcountFile)
 
 	// Next, add in covariate metadata.
-	err = parseCovarFile(entries, covarFile, sampleID, imageID, timeID, pxHeight, pxWidth)
-	if err != nil {
-		return err
+	if covarFile != "" {
+		err = parseCovarFile(entries, covarFile, sampleID, imageID, timeID, pxHeight, pxWidth)
+		if err != nil {
+			return err
+		}
+		log.Println("Loaded covariate data from", covarFile)
 	}
-	log.Println("Loaded covariate data from", covarFile)
 
 	// Find the timepoint and values for the min and max in the cardiac cycle.
 	// When doing so, look at the adjacent 2 values and discard 0 extremes.
