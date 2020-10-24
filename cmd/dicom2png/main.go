@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"context"
 	"encoding/csv"
@@ -172,6 +173,11 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 	}
 	defer f.Close()
 
+	rc, err := zip.NewReader(f, nBytes)
+	if err != nil {
+		return err
+	}
+
 	// The zip is now open, so we don't have to reopen/reclose for every dicom
 	for _, dicomName := range dicomList {
 
@@ -181,7 +187,7 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			// operation - but if you printed the Dicom image to PNG within this
 			// function, you could make it accept a map and then only iterate in
 			// o(n) time. Not sure this is a bottleneck yet.
-			img, err := bulkprocess.ExtractDicomFromReaderAt(f, nBytes, dicomName, includeOverlay)
+			img, err := bulkprocess.ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
 			if err != nil {
 				return err
 			}

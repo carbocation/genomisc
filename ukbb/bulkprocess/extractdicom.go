@@ -21,16 +21,23 @@ import (
 // Google Storage and returns it as a native go image.Image, optionally with the
 // overlay displayed on top.
 func ExtractDicomFromGoogleStorage(zipPath, dicomName string, includeOverlay bool, storageClient *storage.Client) (image.Image, error) {
-	// Read the zip file into memory still compressed - either from a local
-	// file, or from Google storage, depending on the prefix you provide.
+	// Read the zip file handle into memory still compressed and turn it into an
+	// io.ReaderAt which is appropriate for consumption by the zip reader -
+	// either from a local file, or from Google storage, depending on the prefix
+	// you provide.
 	f, nbytes, err := MaybeOpenFromGoogleStorage(zipPath, storageClient)
 	if err != nil {
 		return nil, err
 	}
 
-	// Now we have our compressed zip data in an io.ReaderAt, regardless of its
-	// origin. The zip library can now consume it.
-	return ExtractDicomFromReaderAt(f, nbytes, dicomName, includeOverlay)
+	rc, err := zip.NewReader(f, nbytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now we have our compressed zip data in an zip.Reader, regardless of its
+	// origin.
+	return ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
 }
 
 // ExtractDicomFromLocalFile constructs a native go Image type from the dicom image with the
@@ -48,7 +55,12 @@ func ExtractDicomFromLocalFile(zipPath, dicomName string, includeOverlay bool) (
 		return nil, err
 	}
 
-	img, err := ExtractDicomFromReaderAt(f, nBytes.Size(), dicomName, includeOverlay)
+	rc, err := zip.NewReader(f, nBytes.Size())
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
 	if err != nil {
 		return nil, fmt.Errorf("Err parsing zip %s: %s", zipPath, err.Error())
 	}
@@ -56,19 +68,15 @@ func ExtractDicomFromLocalFile(zipPath, dicomName string, includeOverlay bool) (
 	return img, nil
 }
 
-// ExtractDicomFromReaderAt operates directly on a ReaderAt object, which makes
-// it possible to use in conjunction with, e.g., a Google Storage object.
-func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName string, includeOverlay bool) (image.Image, error) {
-	var err error
-
-	rc, err := zip.NewReader(readerAt, zipNBytes)
-	if err != nil {
-		return nil, err
-	}
+// ExtractDicomFromZipReader consumes a zip reader of the UK Biobank format,
+// finds the dicom of the desired name, and returns that image, with or without
+// the overlay (if any is present) based on includeOverlay.
+func ExtractDicomFromZipReader(rc *zip.Reader, dicomName string, includeOverlay bool) (image.Image, error) {
 
 	for _, v := range rc.File {
 		// Iterate over all of the dicoms in the zip til we find the one with
-		// the desired name
+		// the desired name. This is reasonably efficient since we don't need to
+		// read all of the data to find the right name.
 		if v.Name != dicomName {
 			continue
 		}
