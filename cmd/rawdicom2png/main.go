@@ -65,7 +65,12 @@ func run(inputPath, outputPath string, includeOverlay bool) error {
 	}
 	defer f.Close()
 
-	img, err := bulkprocess.ExtractDicomFromReader(f, includeOverlay)
+	size, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	img, err := bulkprocess.ExtractDicomFromReader(f, size.Size(), includeOverlay)
 	if err != nil {
 		return err
 	}

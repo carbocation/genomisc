@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/csv"
 	"flag"
@@ -231,9 +232,15 @@ func imgToPNG(img image.Image, outputPath, dicomName string) error {
 	}
 	defer f.Close()
 
-	if err := png.Encode(f, colImg); err != nil {
+	// Use a buffered writer in case we end up writing to a high-latency disk
+	// such as gcsfuse
+	fw := bufio.NewWriter(f)
+
+	if err := png.Encode(fw, colImg); err != nil {
 		return err
 	}
+
+	fw.Flush()
 
 	return nil
 }

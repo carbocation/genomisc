@@ -161,7 +161,7 @@ func FetchNamedImagesFromZIP(zipPath string, includeOverlay bool, storageClient 
 		// manually rather than relying on defer.
 		// defer dicomReader.Close()
 
-		img, err := ExtractDicomFromReader(dicomReader, includeOverlay)
+		img, err := ExtractDicomFromReader(dicomReader, int64(v.UncompressedSize64), includeOverlay)
 		if err != nil {
 			// If it's not a DICOM file, mention that and move on
 			log.Println(err)

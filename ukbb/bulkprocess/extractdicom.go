@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -80,7 +79,7 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 		}
 		defer dicomReader.Close()
 
-		img, err := ExtractDicomFromReader(dicomReader, includeOverlay)
+		img, err := ExtractDicomFromReader(dicomReader, int64(v.UncompressedSize64), includeOverlay)
 
 		return img, err
 	}
@@ -89,14 +88,9 @@ func ExtractDicomFromReaderAt(readerAt io.ReaderAt, zipNBytes int64, dicomName s
 }
 
 // ExtractDicomFromReader operates on a reader that contains one DICOM.
-func ExtractDicomFromReader(dicomReader io.Reader, includeOverlay bool) (image.Image, error) {
+func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOverlay bool) (image.Image, error) {
 
-	dcm, err := ioutil.ReadAll(dicomReader)
-	if err != nil {
-		return nil, err
-	}
-
-	p, err := dicom.NewParserFromBytes(dcm, nil)
+	p, err := dicom.NewParser(dicomReader, nReaderBytes, nil)
 	if err != nil {
 		return nil, err
 	}
