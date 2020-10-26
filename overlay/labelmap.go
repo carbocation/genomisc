@@ -98,7 +98,7 @@ func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, 
 			// Make sure that all labels are known
 			lab, exists := colorLabels[rawC]
 			if !exists {
-				return nil, fmt.Errorf("Saw color %v but could not find a neighbor for this color in the label map palette", rawC)
+				return nil, fmt.Errorf("Saw color %v at {%d, %d} but could not find a neighbor for this color in the label map palette", rawC, x, y)
 			}
 
 			// If

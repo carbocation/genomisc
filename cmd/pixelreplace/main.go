@@ -206,8 +206,6 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 	for y := 0; y < r1.Bounds().Max.Y; y++ {
 		for x := 0; x < r1.Bounds().Max.X; x++ {
 
-			fmt.Printf("%+T\n", overlay1.At(x, y))
-
 			col1, err := overlay.LabeledPixelToID(overlay1.At(x, y))
 			if err != nil {
 				return err
@@ -220,12 +218,7 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 
 				rep := uint8(newCol1)
 
-				var alpha uint8
-				if rep != 0 {
-					alpha = 1
-				}
-
-				output.Set(x, y, color.RGBA{rep, rep, rep, alpha})
+				output.Set(x, y, color.RGBA{rep, rep, rep, 255})
 			}
 		}
 	}
