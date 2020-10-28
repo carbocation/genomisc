@@ -246,7 +246,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 	// values
 	data := pixelElem[0].(element.PixelDataInfo)
 	for _, frame := range data.Frames {
-		if frame.IsEncapsulated {
+		if frame.IsEncapsulated() {
 			return "", fmt.Errorf("Frame is encapsulated, which we did not expect")
 		}
 
