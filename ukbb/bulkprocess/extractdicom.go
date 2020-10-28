@@ -103,7 +103,7 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: false,
 	})
 

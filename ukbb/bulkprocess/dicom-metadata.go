@@ -52,7 +52,7 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: true,
 	})
 	if parsedData == nil || err != nil {

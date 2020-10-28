@@ -85,7 +85,7 @@ func ProcessDicom(dicomReader io.Reader) error {
 		return err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := bulkprocess.SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: true,
 	})
 	if parsedData == nil || err != nil {

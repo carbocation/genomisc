@@ -46,7 +46,7 @@ func DicomToOverlayImage(dicomReader io.Reader, opts DicomOverlayOpts) ([]image.
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: true,
 		ReturnTags: []dicomtag.Tag{
 			// The overlay data

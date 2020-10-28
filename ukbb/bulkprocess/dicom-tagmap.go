@@ -23,7 +23,7 @@ func DicomToTagMap(dicomReader io.Reader) (map[dicomtag.Tag][]interface{}, error
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: false,
 	})
 	if parsedData == nil || err != nil {

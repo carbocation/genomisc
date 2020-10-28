@@ -9,8 +9,10 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/gradienthealth/dicom"
-	"github.com/gradienthealth/dicom/dicomtag"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
+	"github.com/suyashkumar/dicom"
+	"github.com/suyashkumar/dicom/dicomtag"
+	"github.com/suyashkumar/dicom/element"
 )
 
 // DicomToImage constructs native go Image types from the dicom images. Usually
@@ -26,7 +28,7 @@ func DicomToImages(dicomReader io.Reader) ([]image.Image, error) {
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{
+	parsedData, err := bulkprocess.SafelyDicomParse(p, dicom.ParseOptions{
 		DropPixelData: false,
 	})
 
@@ -38,10 +40,10 @@ func DicomToImages(dicomReader io.Reader) ([]image.Image, error) {
 
 	for _, elem := range parsedData.Elements {
 		if elem.Tag == dicomtag.PixelData {
-			data := elem.Value[0].(dicom.PixelDataInfo)
+			data := elem.Value[0].(element.PixelDataInfo)
 
 			for _, frame := range data.Frames {
-				if frame.IsEncapsulated {
+				if frame.IsEncapsulated() {
 					return nil, fmt.Errorf("Frame is encapsulated, which we did not expect")
 				}
 
@@ -78,7 +80,9 @@ func DicomToJpeg(dicomReader io.Reader) ([][]byte, error) {
 		return nil, err
 	}
 
-	parsedData, err := p.Parse(dicom.ParseOptions{DropPixelData: false})
+	parsedData, err := bulkprocess.SafelyDicomParse(p, dicom.ParseOptions{
+		DropPixelData: false,
+	})
 	if parsedData == nil || err != nil {
 		return nil, fmt.Errorf("Error reading dicom: %v", err)
 	}
@@ -90,13 +94,13 @@ func DicomToJpeg(dicomReader io.Reader) ([][]byte, error) {
 			continue
 		}
 
-		data := elem.Value[0].(dicom.PixelDataInfo)
+		data := elem.Value[0].(element.PixelDataInfo)
 
 		for _, frame := range data.Frames {
 
 			// Encapsulated
 
-			if frame.IsEncapsulated {
+			if frame.IsEncapsulated() {
 				output = append(output, frame.EncapsulatedData.Data)
 				continue
 			}
