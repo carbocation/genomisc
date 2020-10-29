@@ -101,7 +101,7 @@ func IsSpecial(fieldID int) bool {
 	return exists
 }
 
-func describeDateFields() {
+func describeDateFields(verbose bool) {
 	fmt.Fprintf(os.Stderr, "\nNote that the tool tries to set accurate dates only for the following FieldIDs:\n")
 	fmt.Fprintf(os.Stderr, "\tICD-like FieldIDs:\n")
 
@@ -114,10 +114,14 @@ func describeDateFields() {
 
 	fmt.Fprintf(os.Stderr, "\tOther FieldIDs:\n")
 
-	out = make([]string, 0, len(MaterializedSpecial))
-	for icd := range MaterializedSpecial {
-		out = append(out, strconv.Itoa(icd))
+	if verbose {
+		out = make([]string, 0, len(MaterializedSpecial))
+		for icd := range MaterializedSpecial {
+			out = append(out, strconv.Itoa(icd))
+		}
+		sort.StringSlice(out).Sort()
+		fmt.Fprintf(os.Stderr, "\t\t%s\n", strings.Join(out, ","))
+	} else {
+		fmt.Fprintf(os.Stderr, "\t\tAnd %d additional fields (use -verbose to see all).\n", len(MaterializedSpecial))
 	}
-	sort.StringSlice(out).Sort()
-	fmt.Fprintf(os.Stderr, "\t\t%s\n", strings.Join(out, ","))
 }

@@ -35,7 +35,7 @@ var materializedDB string
 func init() {
 	flag.Usage = func() {
 		flag.PrintDefaults()
-		describeDateFields()
+		describeDateFields(false)
 	}
 }
 
@@ -50,11 +50,13 @@ func main() {
 	var codingPath string
 	var override bool
 	var allowUndated bool
+	var verbose bool
 
 	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL or path to tab-delimited file with the UKBB data encodings, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL or path to tab-delimited file with the UKBB data dictionary, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
+	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
 	flag.Parse()
 
