@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"os"
 	"strconv"
+
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 type manifestKey struct {
@@ -18,7 +19,8 @@ type manifestEntry struct {
 }
 
 func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error) {
-	man, err := os.Open(manifestPath)
+
+	man, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, client)
 	if err != nil {
 		return nil, err
 	}
