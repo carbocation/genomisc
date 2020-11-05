@@ -62,7 +62,7 @@ func main() {
 		log.Fatalln("Please specify assembly version")
 	}
 
-	if strings.HasPrefix(snpfile, "gs://") || strings.HasPrefix(samplePath, "gs://") {
+	if strings.HasPrefix(snpfile, "gs://") || strings.HasPrefix(samplePath, "gs://") || strings.HasPrefix(bgenTemplatePath, "gs://") {
 		var err error
 		client, err = storage.NewClient(context.Background())
 		if err != nil {
