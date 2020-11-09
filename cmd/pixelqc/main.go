@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,6 +30,9 @@ func (f File) CM2() float64 {
 var divisor float64
 
 func main() {
+
+	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
+
 	var pixels, connectedComponents string
 	var pixelcountFile, covarFile string
 	var sampleID string
@@ -55,7 +59,7 @@ func main() {
 		log.Fatalln("Please provide -pixelcountfile")
 	}
 
-	if covarFile == "" && !(pxHeight == "" && pxWidth == "") {
+	if covarFile == "" {
 		log.Fatalln("Please provide -covarfile")
 	}
 
@@ -107,7 +111,7 @@ func runAll(pixelcountFile, covarFile, pixels, connectedComponents, sampleID, im
 	if err != nil {
 		return err
 	}
-	log.Println("Loaded pixel data from", pixelcountFile)
+	log.Println("Loaded pixel data on ", len(entries), "images from", pixelcountFile)
 
 	// Next, add in covariate metadata.
 	if covarFile != "" {
