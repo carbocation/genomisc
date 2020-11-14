@@ -151,7 +151,7 @@ func run(manifest, folder string, delay int, includeOverlay bool) error {
 		zipMap := make(map[string]map[string]image.Image)
 		for entry := range zipSeriesMap {
 			if _, exists := zipMap[entry.Zip]; !exists {
-				fmt.Printf("Fetching images for %+v:%v", key, entry.Zip)
+				fmt.Printf("Fetching images for %+v:%v\n", key, entry.Zip)
 
 				// Fetch the zip file just once per zip, even if it has many series
 				imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, includeOverlay, client)
@@ -198,7 +198,7 @@ func run(manifest, folder string, delay int, includeOverlay bool) error {
 		}
 
 		if err == nil {
-			fmt.Println("Successfully created file #", completed, "for", fmt.Sprintf("%s_%s", key.SampleID, key.Instance))
+			fmt.Printf("\nSuccessfully created file #%d for %s_%s\n", completed, key.SampleID, key.Instance)
 		}
 	}
 

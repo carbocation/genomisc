@@ -21,6 +21,11 @@ type gsData struct {
 	image image.Image
 }
 
+type orderedPaletted struct {
+	key   int
+	image *image.Paletted
+}
+
 // MakeOneGIF creates an animated gif from an ordered slice of images. The delay
 // between frames is in hundredths of a second. The color quantizer is built
 // from *all* input images, and the quantized palette is shared across all of
@@ -37,28 +42,39 @@ func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
 	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedImages)
 
 	// Convert each image to a frame in our animated gif
-	palettedImages := make(chan *image.Paletted)
+	palettedImages := make(chan orderedPaletted)
 	semaphore := make(chan struct{}, runtime.NumCPU())
 
 	// This is surprisingly slow and so is worth parallelizing.
 	go func() {
-		for _, img := range sortedImages {
+		for k, img := range sortedImages {
 			semaphore <- struct{}{}
 
-			go func() {
+			go func(k int, img image.Image) {
 				defer func() { <-semaphore }()
 
 				palettedImage := image.NewPaletted(img.Bounds(), pal)
 				draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
 
-				palettedImages <- palettedImage
-			}()
+				palettedImages <- orderedPaletted{
+					key:   k,
+					image: palettedImage,
+				}
+			}(k, img)
 		}
 	}()
 
+	// Save the outputs - in order
+	sortedPalattedImages := make([]*image.Paletted, len(sortedImages))
 	for range sortedImages {
-		palettedImage := <-palettedImages
 
+		palettedImage := <-palettedImages
+		sortedPalattedImages[palettedImage.key] = palettedImage.image
+
+	}
+
+	// Assemble into a gif
+	for _, palettedImage := range sortedPalattedImages {
 		outGif.Image = append(outGif.Image, palettedImage)
 		outGif.Delay = append(outGif.Delay, delay)
 	}
