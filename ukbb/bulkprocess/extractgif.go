@@ -37,9 +37,28 @@ func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
 	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedImages)
 
 	// Convert each image to a frame in our animated gif
-	for _, img := range sortedImages {
-		palettedImage := image.NewPaletted(img.Bounds(), pal)
-		draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
+	palettedImages := make(chan *image.Paletted)
+	semaphore := make(chan struct{}, runtime.NumCPU())
+
+	// This is surprisingly slow and so is worth parallelizing.
+	go func() {
+		for _, img := range sortedImages {
+			semaphore <- struct{}{}
+
+			go func() {
+				defer func() { <-semaphore }()
+
+				palettedImage := image.NewPaletted(img.Bounds(), pal)
+				draw.Draw(palettedImage, img.Bounds(), img, image.Point{}, draw.Over)
+
+				palettedImages <- palettedImage
+			}()
+		}
+	}()
+
+	for range sortedImages {
+		palettedImage := <-palettedImages
+
 		outGif.Image = append(outGif.Image, palettedImage)
 		outGif.Delay = append(outGif.Delay, delay)
 	}
