@@ -10,6 +10,7 @@ import (
 	"image/gif"
 	"io/ioutil"
 	"log"
+	"runtime"
 
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/go-quantize/quantize"
@@ -68,22 +69,35 @@ func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay
 func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
 	fetches := make(chan gsData)
 
-	// Download the images in parallel
-	for _, input := range pngs {
-		go func(input string) {
-			pngImage, err := MaybeExtractImageFromGoogleStorage(input, storageClient)
-			if err != nil {
-				log.Println(err, "when operating on", input)
-			}
-			dat := gsData{
-				image: pngImage,
-				path:  input,
-			}
+	semaphore := make(chan struct{}, 4*runtime.NumCPU())
 
-			fetches <- dat
+	// Download in parallel. Will fetch up to `4*runtime.NumCPU()` images
+	// simultaneously.
+	go func() {
+		for _, input := range pngs {
 
-		}(input)
-	}
+			// Will block after `4*runtime.NumCPU()` simultaneous downloads are running
+			semaphore <- struct{}{}
+
+			go func(input string) {
+
+				// Unblock once finished
+				defer func() { <-semaphore }()
+
+				pngImage, err := MaybeExtractImageFromGoogleStorage(input, storageClient)
+				if err != nil {
+					log.Println(err, "when operating on", input)
+				}
+				dat := gsData{
+					image: pngImage,
+					path:  input,
+				}
+
+				fetches <- dat
+
+			}(input)
+		}
+	}()
 
 	pngDats := make(map[string]gsData)
 	for range pngs {

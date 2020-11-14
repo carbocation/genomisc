@@ -128,7 +128,7 @@ func run(manifest, folder, suffix string, delay int) error {
 
 		errchan := make(chan error)
 
-		fmt.Printf("Fetching images for %+v", key)
+		fmt.Printf("Fetching images for %+v %s_%s", key, key.SampleID, key.Instance)
 		started := time.Now()
 		go func() {
 			errchan <- makeOneGif(pngs, outName, delay)
