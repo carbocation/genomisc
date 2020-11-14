@@ -15,13 +15,13 @@ import (
 )
 
 const (
-	TimepointColumnName = "trigger_time"
-	SampleIDColumnName  = "sample_id"
-	InstanceColumnName  = "instance"
+	SampleIDColumnName = "sample_id"
+	InstanceColumnName = "instance"
 )
 
 var (
-	DicomColumnName = "dicom_file"
+	TimepointColumnName = "trigger_time"
+	DicomColumnName     = "dicom_file"
 )
 
 // Safe for concurrent use by multiple goroutines so we'll make this a global
@@ -34,6 +34,7 @@ func main() {
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicom.")
+	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
 	flag.Parse()
 

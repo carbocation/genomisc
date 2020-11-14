@@ -17,28 +17,31 @@ import (
 )
 
 const (
-	TimepointColumnName = "trigger_time"
-	SampleIDColumnName  = "sample_id"
-	InstanceColumnName  = "instance"
-	SeriesColumnName    = "series"
+	SampleIDColumnName = "sample_id"
+	InstanceColumnName = "instance"
+	SeriesColumnName   = "series"
 )
 
 var (
-	ZipColumnName   = "zip_file"
-	DicomColumnName = "dicom_file"
+	TimepointColumnName = "trigger_time"
+	ZipColumnName       = "zip_file"
+	DicomColumnName     = "dicom_file"
 )
 
 // Safe for concurrent use by multiple goroutines so we'll make this a global
 var client *storage.Client
 
 func main() {
+	var includeOverlay bool
 	var manifest, folder string
 	var delay int
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
-	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
+	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains zip files.")
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicoms.")
 	flag.StringVar(&ZipColumnName, "zip_column_name", "zip_file", "Name of the column in the manifest with the zip file.")
+	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
+	flag.BoolVar(&includeOverlay, "overlay", false, "Print overlay information, if present?")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -58,7 +61,7 @@ func main() {
 		}
 	}
 
-	if err := run(manifest, folder, delay); err != nil {
+	if err := run(manifest, folder, delay, includeOverlay); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -70,7 +73,7 @@ type seriesMap struct {
 	Series string
 }
 
-func run(manifest, folder string, delay int) error {
+func run(manifest, folder string, delay int, includeOverlay bool) error {
 
 	fmt.Println("Animated Gif maker")
 
@@ -151,7 +154,7 @@ func run(manifest, folder string, delay int) error {
 				fmt.Printf("Fetching images for %+v:%v", key, entry.Zip)
 
 				// Fetch the zip file just once per zip, even if it has many series
-				imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, false, client)
+				imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, includeOverlay, client)
 				if err != nil {
 					return err
 				}
