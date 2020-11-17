@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 type DicomFilename string
@@ -94,7 +96,7 @@ func ReadManifestAndCreateOutput(manifestPath, annotationPath string) (*Annotati
 	}
 
 	// Now open the full manifest of files we want to critique.
-	f, err := os.Open(manifestPath)
+	f, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
 	if err != nil {
 		return nil, err
 	}

@@ -39,10 +39,10 @@ func main() {
 	var preParsed bool
 	var labelsFile string
 	manifest := flag.String("manifest", "", "Tab-delimited manifest file which contains a zip_file and a dicom_file column (at least).")
-	dicomRoot := flag.String("dicom-path", "", "Root path under which all DICOM zip files sit. If empty, folder where manifest file resides. May be a Google Storage URL (gs://).")
+	dicomRoot := flag.String("dicom-path", "", "Root path under which all DICOM zip files sit, or the root folder for ./dicom_pngs and ./merged_pngs if --preparsed=true. If empty, folder where manifest file resides. May be a Google Storage URL (gs://).")
 	outputPath := flag.String("output", "", "Path to a local file where all output will be written. Will be created if it does not yet exist.")
 	port := flag.Int("port", 9019, "Port for HTTP server")
-	flag.BoolVar(&preParsed, "preparsed", false, "(Optional) If true, looks for pre-parsed images under ./dicom_pngs and ./merged_pngs (depending on whether the UI has toggled the overlay) under the dicom-path folder. This is useful if images are pre-parsed as PNGs.")
+	flag.BoolVar(&preParsed, "preparsed", false, "(Optional) If true, looks for pre-parsed images under {dicom-path}/dicom_pngs and {dicom-path}/merged_pngs (depending on whether the UI has toggled the overlay). This is useful if images are pre-parsed as PNGs.")
 	flag.StringVar(&labelsFile, "labels", "", "(Optional) json file with labels. E.g.: {Labels: [{'name':'Label 1', 'value':'l1'}]}")
 	//dbName := flag.String("db_name", "pubrank", "Name of the database schema to connect to")
 	flag.Parse()
@@ -54,11 +54,6 @@ func main() {
 
 	if *dicomRoot == "" {
 		*dicomRoot = filepath.Dir(*manifest)
-	}
-
-	sortedAnnotatedManifest, err := ReadManifestAndCreateOutput(*manifest, *outputPath)
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	sclient, err := storage.NewClient(context.Background())
@@ -78,10 +73,16 @@ func main() {
 		Project:      *outputPath,
 		ManifestPath: *manifest,
 		DicomRoot:    *dicomRoot,
-		manifest:     sortedAnnotatedManifest,
 		PreParsed:    preParsed,
 		Labels:       []Label{{DisplayName: "Bad Image", Value: "bad-image"}, {DisplayName: "Mistraced Segmentation", Value: "mistrace"}, {DisplayName: "Good", Value: "good"}},
 	}
+
+	sortedAnnotatedManifest, err := ReadManifestAndCreateOutput(*manifest, *outputPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	global.manifest = sortedAnnotatedManifest
 
 	if labelsFile != "" {
 		lf, err := os.Open(labelsFile)
