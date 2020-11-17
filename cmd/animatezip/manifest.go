@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
@@ -20,20 +21,27 @@ type manifestEntry struct {
 }
 
 func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error) {
+
+	out := make(map[manifestKey][]manifestEntry)
+	var dicom, timepoint, sampleid, instance, zip, series int = -1, -1, -1, -1, -1, -1
+
 	man, err := os.Open(manifestPath)
 	if err != nil {
 		return nil, err
 	}
 	cr := csv.NewReader(man)
 	cr.Comma = '\t'
-	manifest, err := cr.ReadAll()
-	if err != nil {
-		return nil, err
-	}
 
-	out := make(map[manifestKey][]manifestEntry)
-	var dicom, timepoint, sampleid, instance, zip, series int = -1, -1, -1, -1, -1, -1
-	for i, cols := range manifest {
+	i := 0
+
+	for ; ; i++ {
+		cols, err := cr.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
 		if i == 0 {
 			for k, col := range cols {
 				switch col {
@@ -60,7 +68,7 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 			continue
 		}
 
-		if i%10000 == 0 {
+		if i%100000 == 0 {
 			fmt.Printf("\rParsed %d lines from the manifest", i)
 		}
 
@@ -77,7 +85,7 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 		out[key] = entry
 	}
 
-	fmt.Printf("\rParsed %d lines from the manifest", len(manifest))
+	fmt.Printf("\rParsed %d lines from the manifest", i)
 	fmt.Println()
 
 	return out, nil
