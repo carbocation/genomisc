@@ -37,7 +37,7 @@ func FirstLastPos(currentVariantScoreLookup map[ChrPos]prsparser.PRS) (firstPos,
 }
 
 // LoadPRSInRange is ***not*** safe for concurrent access from multiple goroutines
-func LoadPRSInRange(prsPath, layout, chromosome string, firstLine, lastLine int) error {
+func LoadPRSInRange(prsPath, layout, chromosome string, firstLine, lastLine int, alwaysIncrement bool) error {
 	parser, err := prsparser.New(layout)
 	if err != nil {
 		return fmt.Errorf("CreatePRSParserErr: %s", err.Error())
@@ -88,6 +88,21 @@ func LoadPRSInRange(prsPath, layout, chromosome string, firstLine, lastLine int)
 			Allele1:      val.Allele1,
 			Allele2:      val.Allele2,
 			Score:        val.Score,
+		}
+
+		if p.EffectAllele != p.Allele1 && p.EffectAllele != p.Allele2 {
+			return fmt.Errorf("Effect Allele (%v) is neither equal to Allele 1 (%v) nor Allele 2 (%v)", p.EffectAllele, p.Allele1, p.Allele2)
+		}
+
+		// Ensure that all scores will be positive. If the effect size is
+		// negative, swap the effect and alt alleles and the effect sign.
+		if alwaysIncrement && p.Score < 0 {
+			p.Score *= -1
+			if p.EffectAllele == p.Allele1 {
+				p.EffectAllele = p.Allele2
+			} else {
+				p.EffectAllele = p.Allele1
+			}
 		}
 
 		currentVariantScoreLookup[ChrPos{p.Chromosome, uint32(p.Position)}] = p

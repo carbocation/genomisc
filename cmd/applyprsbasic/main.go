@@ -40,6 +40,7 @@ func main() {
 		sourceFile       string
 		customLayout     string
 		samplePath       string
+		alwaysIncrement  bool
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
@@ -47,6 +48,7 @@ func main() {
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
 	flag.StringVar(&samplePath, "sample", "", "Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
+	flag.BoolVar(&alwaysIncrement, "alwaysincrement", true, "If true, flips effect (and effect allele) at sites with negative effect sizes so that scores will always be > 0.")
 	flag.Parse()
 
 	if sourceFile == "" {
@@ -116,7 +118,7 @@ func main() {
 		prsparser.Layouts["CUSTOM"] = udf
 	}
 
-	if err := LoadPRS(inputBucket, layout); err != nil {
+	if err := LoadPRS(inputBucket, layout, alwaysIncrement); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("There are", len(currentVariantScoreLookup), "variants in the PRS database")
