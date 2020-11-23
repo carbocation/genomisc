@@ -30,12 +30,14 @@ var client *storage.Client
 func main() {
 	var manifest, folder, suffix string
 	var delay int
+	var grid bool
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicom.")
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
+	flag.BoolVar(&grid, "grid", true, "If multiple series are included, display as grid? (If false, will display sequentially)")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -55,14 +57,14 @@ func main() {
 		}
 	}
 
-	if err := run(manifest, folder, suffix, delay); err != nil {
+	if err := run(manifest, folder, suffix, delay, grid); err != nil {
 		log.Fatalln(err)
 	}
 
 	log.Println("Quitting")
 }
 
-func run(manifest, folder, suffix string, delay int) error {
+func run(manifest, folder, suffix string, delay int, grid bool) error {
 
 	fmt.Println("Animated Gif maker")
 
@@ -132,7 +134,11 @@ func run(manifest, folder, suffix string, delay int) error {
 		fmt.Printf("Fetching images for %+v %s_%s", key, key.SampleID, key.Instance)
 		started := time.Now()
 		go func() {
-			errchan <- makeOneGif(pngs, outName, delay)
+			if grid {
+				errchan <- makeOneGrid(pngs, outName, delay)
+			} else {
+				errchan <- makeOneGif(pngs, outName, delay)
+			}
 		}()
 
 	WaitLoop:

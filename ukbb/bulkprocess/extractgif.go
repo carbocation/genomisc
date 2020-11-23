@@ -102,6 +102,16 @@ func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay
 // image files - which may be local or hosted in an accessible Google Storage
 // location. (The string for each png should be a fully specified path.)
 func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
+
+	sortedPngs, err := FetchGIFComponents(pngs, storageClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return MakeOneGIF(sortedPngs, delay)
+}
+
+func FetchGIFComponents(pngs []string, storageClient *storage.Client) ([]image.Image, error) {
 	fetches := make(chan gsData)
 
 	semaphore := make(chan struct{}, 4*runtime.NumCPU())
@@ -149,7 +159,7 @@ func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client
 		sortedPngs = append(sortedPngs, pngDats[png].image)
 	}
 
-	return MakeOneGIF(sortedPngs, delay)
+	return sortedPngs, nil
 }
 
 // FetchImagesFromZIP is a deprecated shortcut to FetchNamedImagesFromZIP with
