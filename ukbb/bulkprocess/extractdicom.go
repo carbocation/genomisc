@@ -208,7 +208,14 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 
 			for _, frame := range data.Frames {
 				if frame.IsEncapsulated() {
-					return nil, fmt.Errorf("Frame is encapsulated, which we did not expect")
+					encImg, err := frame.GetImage()
+					if err != nil {
+						return nil, fmt.Errorf("Frame is encapsulated, which we did not expect. Additionally, %s", err.Error())
+					}
+
+					// We're done, since it's not clear how to add an overlay
+					return encImg, nil
+
 				}
 
 				for j := 0; j < len(frame.NativeData.Data); j++ {
