@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,11 +14,54 @@ import (
 	"github.com/carbocation/pfx"
 )
 
-func ManifestForDicom(path string) error {
+func ManifestForDicom(path, fileList string) error {
 
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		return pfx.Err(err)
+	var files []string
+
+	if fileList != "" {
+		// File list - process just the requested files. Will prefix with path +
+		// "/" if path is not the empty string ("").
+
+		fl, err := os.Open(fileList)
+		if err != nil {
+			return pfx.Err(err)
+		}
+
+		cr := csv.NewReader(fl)
+		for {
+			cols, err := cr.Read()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return pfx.Err(err)
+			}
+
+			if len(cols) < 1 {
+				continue
+			}
+
+			if len(cols[0]) < 1 {
+				continue
+			}
+
+			files = append(files, cols[0])
+		}
+
+	} else {
+		// No file list - process all of the items within the folder
+
+		fileInfos, err := ioutil.ReadDir(path)
+		if err != nil {
+			return pfx.Err(err)
+		}
+
+		for _, f := range fileInfos {
+			if f.IsDir() {
+				continue
+			}
+
+			files = append(files, f.Name())
+		}
 	}
 
 	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -73,6 +118,11 @@ func ManifestForDicom(path string) error {
 
 	}()
 
+	// Ensure a path separator if we are using a path
+	if path != "" && !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
 	semaphore := make(chan struct{}, concurrency)
 
 	for _, file := range files {
@@ -80,16 +130,16 @@ func ManifestForDicom(path string) error {
 		// Will block after `concurrency` simultaneous goroutines are running
 		semaphore <- struct{}{}
 
-		go func(file os.FileInfo) {
+		go func(file string) {
 
 			// Be sure to permit unblocking once we finish
 			defer func() { <-semaphore }()
 
-			if !strings.HasSuffix(file.Name(), ".zip") {
+			if !strings.HasSuffix(file, ".zip") {
 				return
 			}
 
-			err := bulkprocess.CardiacMRIZipIterator(path+file.Name(), func(dcm bulkprocess.DicomOutput) error {
+			err := bulkprocess.CardiacMRIZipIterator(path+file, func(dcm bulkprocess.DicomOutput) error {
 				if err := PrintCSVRow(dcm, results); err != nil {
 					log.Printf("Error parsing %+v\n", dcm)
 					return err
@@ -98,7 +148,7 @@ func ManifestForDicom(path string) error {
 				return nil
 			})
 			if err != nil {
-				log.Println("Error parsing", path+file.Name())
+				log.Println("Error parsing", path+file)
 				log.Println(err)
 			}
 		}(file)

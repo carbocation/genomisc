@@ -22,15 +22,16 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var path, output string
+	var path, output, fileList string
 	var filetypes string
 
 	flag.StringVar(&path, "path", "", "Path where the UKBB bulk .zip files are being held.")
 	flag.StringVar(&filetypes, "type", "dicomzip", "File type. Options include 'dicomzip' (default), '12leadekg', and 'exerciseekg' (for EKG data).")
 	flag.StringVar(&output, "output", "", "Output file. If blank, output will go to STDOUT.")
+	flag.StringVar(&fileList, "files", "", "Optional one-column headerless list of files to process. If set, will only process these fils rather than all available files under the path.")
 	flag.Parse()
 
-	if path == "" {
+	if path == "" && fileList == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -48,6 +49,10 @@ func main() {
 	}
 
 	if filetypes == "exerciseekg" {
+		if fileList != "" {
+			log.Fatalln("file list not yet implemented for exerciseekg file type")
+		}
+
 		if err := ManifestForExerciseEKG(path); err != nil {
 			log.Fatalln(err)
 		}
@@ -56,6 +61,9 @@ func main() {
 	}
 
 	if filetypes == "12leadekg" {
+		if fileList != "" {
+			log.Fatalln("file list not yet implemented for 12leadekg file type")
+		}
 		if err := ManifestFor12LeadEKG(path); err != nil {
 			log.Fatalln(err)
 		}
@@ -64,12 +72,12 @@ func main() {
 	}
 
 	if filetypes != "dicomzip" {
-		log.Println("Requested filetype '' not recognized")
+		log.Printf("Requested filetype '%s' not recognized\n", filetypes)
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	if err := ManifestForDicom(path); err != nil {
+	if err := ManifestForDicom(path, fileList); err != nil {
 		log.Fatalln(err)
 	}
 }
