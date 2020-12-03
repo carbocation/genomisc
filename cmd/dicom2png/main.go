@@ -35,6 +35,7 @@ var client *storage.Client
 func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicom2png binary was built at: %s\n", builddate)
+	log.Println("dicom2png start")
 
 	var inputPath, outputPath, manifest string
 	var includeOverlay bool
@@ -63,6 +64,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	log.Println("dicom2png end")
 }
 
 func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
