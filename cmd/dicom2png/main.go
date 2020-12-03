@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
 	"flag"
@@ -10,6 +11,8 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -71,6 +74,9 @@ func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
 
 	// Now iterate over the zips and print out the requested dicoms as images
 
+	// Note that here, concurrency is with regard to the number of zip files
+	// that are concurrenty processed. If all DICOMs are within the same zip,
+	// this will not be useful.
 	concurrency := runtime.NumCPU()
 	sem := make(chan bool, concurrency)
 
@@ -157,7 +163,6 @@ func getZipMap(manifest string) (map[string][]string, error) {
 // error channel.
 func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) error {
 
-	// Note: uses global client, which is OK for concurrent use
 	path := filepath.Join(inputPath, zipName)
 	if strings.HasPrefix(inputPath, "gs://") {
 		path = inputPath
@@ -167,33 +172,75 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 		path += zipName
 	}
 
+	// Note: uses global client, which is OK for concurrent use
 	f, nBytes, err := bulkprocess.MaybeOpenFromGoogleStorage(path, client)
 	if err != nil {
 		return fmt.Errorf("ProcessOneZipFile fatal error (terminating on zip %s): %v", zipName, err)
 	}
 	defer f.Close()
 
-	rc, err := zip.NewReader(f, nBytes)
+	// Whether it is efficient to ingest the entire zip file or not depends in
+	// part on how many files within the zip are being read out, how big the
+	// files are, and what kind of connection they are being read over. This is
+	// optimized for UK Biobank MRIs where the zip files are generally < 100MB.
+	// Reading these from disk is fast, but seeking over the network is much
+	// slower (~60x slower over a 500 mbit 20ms latency TCP/IP connection than
+	// from an SSD). Because of GCSFuse, it's not always clear whether these
+	// files are being read over the network based on path alone. Here, if we
+	// are requesting more than one file from a zip, we ingest the full file
+	// into RAM before operating on it.
+	var readerAt io.ReaderAt = f
+	if len(dicomList) > 1 {
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		readerAt = bytes.NewReader(b)
+	}
+
+	// Open the zip once so we don't have to reopen/reclose for every dicom
+	rc, err := zip.NewReader(readerAt, nBytes)
 	if err != nil {
 		return err
 	}
 
-	// The zip is now open, so we don't have to reopen/reclose for every dicom
+	dicomMap := make(map[string]struct{})
 	for _, dicomName := range dicomList {
+		dicomMap[dicomName] = struct{}{}
+	}
 
-		err := func(dicom string) error {
+	// Make only one pass over the Zip
+	for _, fileInZip := range rc.File {
 
-			// TODO: Can consider optimizing further. This is an o(n^2)
-			// operation - but if you printed the Dicom image to PNG within this
-			// function, you could make it accept a map and then only iterate in
-			// o(n) time. Not sure this is a bottleneck yet.
-			img, err := bulkprocess.ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
+		// Skip irrelevant files
+		if _, exists := dicomMap[fileInZip.Name]; !exists {
+			continue
+		}
+
+		// The file is a desired DICOM. Parse it and extract its image.
+		err := func(fileInZip *zip.File) error {
+
+			dicomReader, err := fileInZip.Open()
+			if err != nil {
+				return err
+			}
+			defer dicomReader.Close()
+
+			// Buffering again here seems to speed things up about 10% locally.
+			var dicomReaderBuffered io.Reader = dicomReader
+			dicomReaderBytes, err := ioutil.ReadAll(dicomReader)
+			if err != nil {
+				return err
+			}
+			dicomReaderBuffered = bytes.NewReader(dicomReaderBytes)
+
+			img, err := bulkprocess.ExtractDicomFromReader(dicomReaderBuffered, int64(fileInZip.UncompressedSize64), includeOverlay)
 			if err != nil {
 				return err
 			}
 
-			return imgToPNG(img, outputPath, dicomName)
-		}(dicomName)
+			return imgToPNG(img, outputPath, fileInZip.Name)
+		}(fileInZip)
 
 		// Since we want to continue processing the zip even if one of its
 		// dicoms was bad, simply log the error. However, if the underlying
@@ -203,14 +250,14 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			// If we had an error due to an unreliable filesystem, we need to
 			// fail the whole job or we will end up with unreliable or missing
 			// data.
-			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", dicomName, zipName, err)
+			return fmt.Errorf("ProcessOneZipFile fatal error (terminating on dicom %s in zip %s): %v", fileInZip.Name, zipName, err)
 
 		} else if err != nil {
 
 			// Non-i/o errors usually indicate that this is just a bad internal
 			// file that will never be readable, in which case we should move on
 			// rather than quitting.
-			log.Printf("ProcessOneZipFile error (skipping dicom %s in zip %s): %v\n", dicomName, zipName, err)
+			log.Printf("ProcessOneZipFile error (skipping dicom %s in zip %s): %v\n", fileInZip.Name, zipName, err)
 
 		}
 	}
