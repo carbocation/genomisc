@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/carbocation/genomisc/overlay"
 )
@@ -28,12 +27,6 @@ func init() {
 }
 
 func main() {
-	start := time.Now()
-	log.Println("pngoverlay start")
-	defer func() {
-		log.Printf("pngoverlay end. Took %.2f seconds\n", time.Since(start).Seconds())
-	}()
-
 	var basePath, overlayPath, outputFolder, jsonConfig string
 	var opacity uint
 
