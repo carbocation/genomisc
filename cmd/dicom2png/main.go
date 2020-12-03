@@ -35,7 +35,11 @@ var client *storage.Client
 func main() {
 
 	fmt.Fprintf(os.Stderr, "This dicom2png binary was built at: %s\n", builddate)
+	start := time.Now()
 	log.Println("dicom2png start")
+	defer func() {
+		log.Printf("dicom2png end. Took %.2f seconds\n", time.Since(start).Seconds())
+	}()
 
 	var inputPath, outputPath, manifest string
 	var includeOverlay bool
@@ -63,8 +67,6 @@ func main() {
 	if err := run(inputPath, outputPath, manifest, includeOverlay); err != nil {
 		log.Fatalln(err)
 	}
-
-	log.Println("dicom2png end")
 }
 
 func run(inputPath, outputPath, manifest string, includeOverlay bool) error {

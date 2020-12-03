@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/carbocation/genomisc/overlay"
 )
@@ -27,6 +28,12 @@ func init() {
 }
 
 func main() {
+	start := time.Now()
+	log.Println("pixelcounter start")
+	defer func() {
+		log.Printf("pixelcounter end. Took %.2f seconds\n", time.Since(start).Seconds())
+	}()
+
 	var threshold int
 	var overlayPath, jsonConfig, manifest, suffix, momentLabels string
 
