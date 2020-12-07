@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
+	"github.com/carbocation/pfx"
 )
 
 // Special value that is to be set using ldflags
@@ -61,7 +62,7 @@ func run(inputPath, outputPath string, includeOverlay bool) error {
 
 	f, err := os.Open(inputPath)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 	defer f.Close()
 
@@ -94,7 +95,9 @@ func runDir(inputPath, outputPath string, includeOverlay bool) error {
 
 		sem <- true
 		go func(filename string) {
-			run(filename, outputPath, includeOverlay)
+			if err := run(inputPath+"/"+filename, outputPath, includeOverlay); err != nil {
+				log.Println(err)
+			}
 			<-sem
 		}(file.Name())
 	}
