@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -28,12 +29,15 @@ var (
 var client *storage.Client
 
 func main() {
-	var manifest, folder, suffix string
+	defer func() { log.Println("Quitting") }()
+
+	var manifest, folder, suffix, sampleList string
 	var delay int
 	var grid bool
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
+	flag.StringVar(&sampleList, "samples", "", "To run in batch mode, provide a file that contains one sample (format: sampleid_instance) per line.")
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicom.")
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
@@ -57,11 +61,96 @@ func main() {
 		}
 	}
 
+	if sampleList != "" {
+		if err := runBatch(sampleList, manifest, folder, suffix, delay, grid); err != nil {
+			log.Fatalln(err)
+		}
+
+		return
+	}
+
 	if err := run(manifest, folder, suffix, delay, grid); err != nil {
 		log.Fatalln(err)
 	}
+}
 
-	log.Println("Quitting")
+func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool) error {
+	fmt.Println("Batch mode animated Gif maker")
+
+	man, err := parseManifest(manifest)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Open(sampleList)
+	if err != nil {
+		return err
+	}
+
+	r := csv.NewReader(f)
+	samples, err := r.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	for _, sampleRow := range samples {
+		if len(sampleRow) != 1 {
+			continue
+		}
+		sample := sampleRow[0]
+
+		input := strings.Split(sample, "_")
+		if len(input) != 2 {
+			fmt.Println("Expected sampleid separated from instance by an underscore (_)")
+			continue
+		}
+
+		key := manifestKey{SampleID: input[0], Instance: input[1]}
+
+		entries, exists := man[key]
+		if !exists {
+			fmt.Println(key, "not found in the manifest")
+			continue
+		}
+
+		sort.Slice(entries, func(i, j int) bool { return entries[i].timepoint < entries[j].timepoint })
+
+		pngs := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			pngs = append(pngs, folder+"/"+entry.dicom+suffix)
+		}
+
+		outName := key.SampleID + "_" + key.Instance + ".gif"
+
+		errchan := make(chan error)
+
+		fmt.Printf("Fetching images for %+v %s_%s", key, key.SampleID, key.Instance)
+		go func() {
+			if grid {
+				errchan <- makeOneGrid(pngs, outName, delay)
+			} else {
+				errchan <- makeOneGif(pngs, outName, delay)
+			}
+		}()
+
+	WaitLoop:
+		for {
+			select {
+			case err = <-errchan:
+				fmt.Printf("\n")
+				if err != nil {
+					fmt.Println("Error making gif:", err.Error())
+				}
+				break WaitLoop
+			}
+		}
+
+		if err == nil {
+			fmt.Println("Successfully created", outName, "for", fmt.Sprintf("%s_%s", key.SampleID, key.Instance))
+		}
+	}
+
+	return nil
 }
 
 func run(manifest, folder, suffix string, delay int, grid bool) error {
