@@ -34,7 +34,7 @@ func main() {
 	flag.StringVar(&overlayPath, "overlay", "", "Path to overlay image")
 	flag.StringVar(&outputFolder, "output_folder", "", "Folder where output file should be created")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
-	flag.UintVar(&opacity, "opacity", 128, "Opacity of the overlay, from 0-255.")
+	flag.UintVar(&opacity, "opacity", 128, "Opacity of the overlay, from 0-255. (Not used when no base image is provided)")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -72,7 +72,7 @@ func runOverlayOnly(config overlay.JSONConfig, overlayPath, outputFolder string)
 
 	// Use the JSONConfig to identify the desired human-visible colors for the
 	// overlay:
-	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg)
+	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg, false)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, 
 
 	// Use the JSONConfig to identify the desired human-visible colors for the
 	// overlay:
-	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg)
+	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg, true)
 	if err != nil {
 		return err
 	}

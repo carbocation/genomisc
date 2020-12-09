@@ -31,13 +31,13 @@ type orderedPaletted struct {
 // between frames is in hundredths of a second. The color quantizer is built
 // from *all* input images, and the quantized palette is shared across all of
 // the output frames.
-func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
+func MakeOneGIF(sortedImages []image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
 		Aggregation:    quantize.Mean,
 		Weighting:      nil,
-		AddTransparent: false,
+		AddTransparent: withTransparency,
 	}
 
 	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedImages)
@@ -85,13 +85,13 @@ func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
 
 // MakeOneGIFFromMap creates an animated gif from an ordered list of image names
 // along with a map of the respective images.
-func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay int) (*gif.GIF, error) {
+func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
 	images := make([]image.Image, 0, len(dicomNames))
 	for _, dicomName := range dicomNames {
 		images = append(images, imgMap[dicomName])
 	}
 
-	outGif, err := MakeOneGIF(images, delay)
+	outGif, err := MakeOneGIF(images, delay, withTransparency)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay
 // MakeOneGIFFromPaths creates an animated gif from an ordered slice of paths to
 // image files - which may be local or hosted in an accessible Google Storage
 // location. (The string for each png should be a fully specified path.)
-func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
+func MakeOneGIFFromPaths(pngs []string, delay int, withTransparency bool, storageClient *storage.Client) (*gif.GIF, error) {
 
 	sortedPngs, err := FetchGIFComponents(pngs, storageClient)
 	if err != nil {
@@ -118,7 +118,7 @@ func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client
 		}
 	}
 
-	return MakeOneGIF(sortedPngs, delay)
+	return MakeOneGIF(sortedPngs, delay, withTransparency)
 }
 
 func FetchGIFComponents(pngs []string, storageClient *storage.Client) ([]image.Image, error) {

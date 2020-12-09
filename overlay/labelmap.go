@@ -122,8 +122,9 @@ func (l LabelMap) EncodeImageToImageSegment(bmpImage image.Image) (image.Image, 
 // #010101 for ID 1, #020202 for ID 2 etc), and transforms it into a
 // human-visible value based on the colors for those IDs assigned in the config
 // file. It special-cases ID 0 (the background) and color value #000001 to be
-// transparent.
-func (l LabelMap) DecodeImageFromImageSegment(bmpImage image.Image) (image.Image, error) {
+// transparent. However, if transparentBackground is false, then the background
+// is set to black.
+func (l LabelMap) DecodeImageFromImageSegment(bmpImage image.Image, transparentBackground bool) (image.Image, error) {
 	// Map from the color code to the Label, with all of its attached
 	// information
 	colorLabels := make(map[uint32]Label)
@@ -175,8 +176,11 @@ func (l LabelMap) DecodeImageFromImageSegment(bmpImage image.Image) (image.Image
 
 			// For human vision, we want the background to be special-cased to
 			// transparent, and the pixels otherwise to be fully opaque.
+			// However, if we are running in overlay-only mode, then the special
+			// cased color will be set to full opacity rather than transparent
+			// (to facilitate gif creation)
 			var opacity uint8 = 255
-			if lab.ID == 0 || lab.Color == SpecialTransparentColor {
+			if transparentBackground && (lab.ID == 0 || lab.Color == SpecialTransparentColor) {
 				opacity = 0
 			}
 			humanColor, err := rgbaFromColorCode(lab.Color)
