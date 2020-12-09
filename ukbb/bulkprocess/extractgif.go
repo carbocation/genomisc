@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/go-quantize/quantize"
+	"github.com/carbocation/pfx"
 )
 
 type gsData struct {
@@ -108,6 +109,15 @@ func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client
 		return nil, err
 	}
 
+	// For now, block gif creation if all of the input images don't have the
+	// same size. TODO: resize images that don't all share the same bounds.
+	lastBounds := sortedPngs[0].Bounds()
+	for k, pngImg := range sortedPngs {
+		if x := pngImg.Bounds(); x != lastBounds {
+			return nil, fmt.Errorf("Image %d (%s) had unexpected bounds (image 0 (%s) bounds: %v, image %d bounds: %v)", k, pngs[k], pngs[0], lastBounds, k, x)
+		}
+	}
+
 	return MakeOneGIF(sortedPngs, delay)
 }
 
@@ -157,6 +167,11 @@ func FetchGIFComponents(pngs []string, storageClient *storage.Client) ([]image.I
 		}
 
 		sortedPngs = append(sortedPngs, pngDats[png].image)
+	}
+
+	// Confirm that we fetched at least one image
+	if len(sortedPngs) < 1 {
+		return nil, pfx.Err(fmt.Errorf("No images could be fetched from the file paths"))
 	}
 
 	return sortedPngs, nil
