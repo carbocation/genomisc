@@ -74,5 +74,5 @@ func main() {
 	permutations.MendelianGenes = mendelianTranscripts
 	permutations.Radius = radius
 
-	permutations.Summarize(repeat, transcriptStartOnly)
+	permutations.Summarize(repeat, transcriptStartOnly, mendelianGeneFile, SNPsnapFile, radius)
 }

@@ -24,7 +24,7 @@ type geneWithLoci struct {
 	Loci Loci
 }
 
-func (e Results) Summarize(repeat int, transcriptStartOnly bool) {
+func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFile, SNPsnapFile string, radius float64) {
 	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
 
 	mendelianCounts := make(map[int]Hist)
@@ -116,8 +116,12 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool) {
 			equallyOrMoreExtreme += v.Count
 		}
 	}
+	pVal := float64(equallyOrMoreExtreme) / float64(repeat*len(e.Permutations))
+
 	fmt.Println()
-	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", float64(equallyOrMoreExtreme)/float64(repeat*len(e.Permutations)))
+	fmt.Printf("Approximate one-tailed P-value: P < %.1e\n", pVal)
+	fmt.Println()
+	fmt.Printf("TABLE|%2.g|%s|%s|%.1e\n", radius, mendelianGeneFile, SNPsnapFile, pVal)
 }
 
 func (e Results) FisherExactTest(nAllGenes int, transcriptStartOnly bool) float64 {
