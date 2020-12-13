@@ -29,12 +29,14 @@ func init() {
 func main() {
 	var basePath, overlayPath, outputFolder, jsonConfig string
 	var opacity uint
+	var transparentBackground bool
 
 	flag.StringVar(&basePath, "base", "", "(Optional) Path to base image.")
 	flag.StringVar(&overlayPath, "overlay", "", "Path to overlay image")
 	flag.StringVar(&outputFolder, "output_folder", "", "Folder where output file should be created")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
-	flag.UintVar(&opacity, "opacity", 128, "Opacity of the overlay, from 0-255.")
+	flag.UintVar(&opacity, "opacity", 128, "Opacity of the overlay, from 0-255. (Not used when no base image is provided)")
+	flag.BoolVar(&transparentBackground, "transparent-background", true, "Set the special-cased background identifier's pixels to transparent?")
 	flag.Parse()
 
 	if overlayPath == "" || jsonConfig == "" {
@@ -50,20 +52,20 @@ func main() {
 	}
 
 	if basePath == "" {
-		if err := runOverlayOnly(config, overlayPath, outputFolder); err != nil {
+		if err := runOverlayOnly(config, overlayPath, outputFolder, transparentBackground); err != nil {
 			log.Fatalln(err)
 		}
 
 		return
 	}
 
-	if err := run(config, basePath, overlayPath, outputFolder, uint8(opacity)); err != nil {
+	if err := run(config, basePath, overlayPath, outputFolder, uint8(opacity), transparentBackground); err != nil {
 		log.Fatalln(err)
 	}
 
 }
 
-func runOverlayOnly(config overlay.JSONConfig, overlayPath, outputFolder string) error {
+func runOverlayOnly(config overlay.JSONConfig, overlayPath, outputFolder string, transparentBackground bool) error {
 
 	rawOverlayImg, err := openImage(overlayPath)
 	if err != nil {
@@ -72,7 +74,7 @@ func runOverlayOnly(config overlay.JSONConfig, overlayPath, outputFolder string)
 
 	// Use the JSONConfig to identify the desired human-visible colors for the
 	// overlay:
-	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg)
+	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg, transparentBackground)
 	if err != nil {
 		return err
 	}
@@ -92,7 +94,7 @@ func runOverlayOnly(config overlay.JSONConfig, overlayPath, outputFolder string)
 	return nil
 }
 
-func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, opacity uint8) error {
+func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, opacity uint8, transparentBackground bool) error {
 
 	baseImg, err := openImage(basePath)
 	if err != nil {
@@ -106,7 +108,7 @@ func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, 
 
 	// Use the JSONConfig to identify the desired human-visible colors for the
 	// overlay:
-	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg)
+	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg, transparentBackground)
 	if err != nil {
 		return err
 	}

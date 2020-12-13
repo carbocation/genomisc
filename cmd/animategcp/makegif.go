@@ -8,7 +8,7 @@ import (
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
-func makeOneGrid(dicomNames []string, outName string, delay int) error {
+func makeOneGrid(dicomNames []string, outName string, delay int, withTransparency bool) error {
 
 	// Fetch the images based on the dicom names and shove them into a map
 	sortedPngs, err := bulkprocess.FetchGIFComponents(dicomNames, client)
@@ -28,7 +28,7 @@ func makeOneGrid(dicomNames []string, outName string, delay int) error {
 	}
 
 	// Create the GIF
-	outGif, err := bulkprocess.MakeOneGIFFromMap(newDicomNames, newImageMap, 2)
+	outGif, err := bulkprocess.MakeOneGIFFromMap(newDicomNames, newImageMap, 2, withTransparency)
 	if err != nil {
 		return err
 	}
@@ -44,8 +44,8 @@ func makeOneGrid(dicomNames []string, outName string, delay int) error {
 	return gif.EncodeAll(f, outGif)
 }
 
-func makeOneGif(pngs []string, outName string, delay int) error {
-	outGif, err := bulkprocess.MakeOneGIFFromPaths(pngs, delay, client)
+func makeOneGif(pngs []string, outName string, delay int, withTransparency bool) error {
+	outGif, err := bulkprocess.MakeOneGIFFromPaths(pngs, delay, withTransparency, client)
 	if err != nil {
 		return err
 	}

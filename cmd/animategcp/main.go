@@ -33,7 +33,7 @@ func main() {
 
 	var manifest, folder, suffix, sampleList string
 	var delay int
-	var grid bool
+	var grid, withTransparency bool
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains PNGs")
 	flag.StringVar(&suffix, "suffix", ".png", "Suffix after .dcm. Typically .png for raw dicoms or .png.overlay.png for merged dicoms.")
@@ -42,6 +42,7 @@ func main() {
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
 	flag.BoolVar(&grid, "grid", true, "If multiple series are included, display as grid? (If false, will display sequentially)")
+	flag.BoolVar(&withTransparency, "transparency", false, "If true, the gif will reserve a color in its palette for transparency")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -62,19 +63,19 @@ func main() {
 	}
 
 	if sampleList != "" {
-		if err := runBatch(sampleList, manifest, folder, suffix, delay, grid); err != nil {
+		if err := runBatch(sampleList, manifest, folder, suffix, delay, grid, withTransparency); err != nil {
 			log.Fatalln(err)
 		}
 
 		return
 	}
 
-	if err := run(manifest, folder, suffix, delay, grid); err != nil {
+	if err := run(manifest, folder, suffix, delay, grid, withTransparency); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool) error {
+func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool, withTransparency bool) error {
 	fmt.Println("Batch mode animated Gif maker")
 
 	man, err := parseManifest(manifest)
@@ -127,9 +128,9 @@ func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool)
 		fmt.Printf("Fetching images for %+v %s_%s", key, key.SampleID, key.Instance)
 		go func() {
 			if grid {
-				errchan <- makeOneGrid(pngs, outName, delay)
+				errchan <- makeOneGrid(pngs, outName, delay, withTransparency)
 			} else {
-				errchan <- makeOneGif(pngs, outName, delay)
+				errchan <- makeOneGif(pngs, outName, delay, withTransparency)
 			}
 		}()
 
@@ -153,7 +154,7 @@ func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool)
 	return nil
 }
 
-func run(manifest, folder, suffix string, delay int, grid bool) error {
+func run(manifest, folder, suffix string, delay int, grid bool, withTransparency bool) error {
 
 	fmt.Println("Animated Gif maker")
 
@@ -224,9 +225,9 @@ func run(manifest, folder, suffix string, delay int, grid bool) error {
 		started := time.Now()
 		go func() {
 			if grid {
-				errchan <- makeOneGrid(pngs, outName, delay)
+				errchan <- makeOneGrid(pngs, outName, delay, withTransparency)
 			} else {
-				errchan <- makeOneGif(pngs, outName, delay)
+				errchan <- makeOneGif(pngs, outName, delay, withTransparency)
 			}
 		}()
 

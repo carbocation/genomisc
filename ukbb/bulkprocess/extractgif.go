@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/go-quantize/quantize"
+	"github.com/carbocation/pfx"
 )
 
 type gsData struct {
@@ -30,13 +31,13 @@ type orderedPaletted struct {
 // between frames is in hundredths of a second. The color quantizer is built
 // from *all* input images, and the quantized palette is shared across all of
 // the output frames.
-func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
+func MakeOneGIF(sortedImages []image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
 	outGif := &gif.GIF{}
 
 	quantizer := quantize.MedianCutQuantizer{
 		Aggregation:    quantize.Mean,
 		Weighting:      nil,
-		AddTransparent: false,
+		AddTransparent: withTransparency,
 	}
 
 	pal := quantizer.QuantizeMultiple(make([]color.Color, 0, 256), sortedImages)
@@ -84,13 +85,13 @@ func MakeOneGIF(sortedImages []image.Image, delay int) (*gif.GIF, error) {
 
 // MakeOneGIFFromMap creates an animated gif from an ordered list of image names
 // along with a map of the respective images.
-func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay int) (*gif.GIF, error) {
+func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
 	images := make([]image.Image, 0, len(dicomNames))
 	for _, dicomName := range dicomNames {
 		images = append(images, imgMap[dicomName])
 	}
 
-	outGif, err := MakeOneGIF(images, delay)
+	outGif, err := MakeOneGIF(images, delay, withTransparency)
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +102,23 @@ func MakeOneGIFFromMap(dicomNames []string, imgMap map[string]image.Image, delay
 // MakeOneGIFFromPaths creates an animated gif from an ordered slice of paths to
 // image files - which may be local or hosted in an accessible Google Storage
 // location. (The string for each png should be a fully specified path.)
-func MakeOneGIFFromPaths(pngs []string, delay int, storageClient *storage.Client) (*gif.GIF, error) {
+func MakeOneGIFFromPaths(pngs []string, delay int, withTransparency bool, storageClient *storage.Client) (*gif.GIF, error) {
 
 	sortedPngs, err := FetchGIFComponents(pngs, storageClient)
 	if err != nil {
 		return nil, err
 	}
 
-	return MakeOneGIF(sortedPngs, delay)
+	// For now, block gif creation if all of the input images don't have the
+	// same size. TODO: resize images that don't all share the same bounds.
+	lastBounds := sortedPngs[0].Bounds()
+	for k, pngImg := range sortedPngs {
+		if x := pngImg.Bounds(); x != lastBounds {
+			return nil, fmt.Errorf("Image %d (%s) had unexpected bounds (image 0 (%s) bounds: %v, image %d bounds: %v)", k, pngs[k], pngs[0], lastBounds, k, x)
+		}
+	}
+
+	return MakeOneGIF(sortedPngs, delay, withTransparency)
 }
 
 func FetchGIFComponents(pngs []string, storageClient *storage.Client) ([]image.Image, error) {
@@ -157,6 +167,11 @@ func FetchGIFComponents(pngs []string, storageClient *storage.Client) ([]image.I
 		}
 
 		sortedPngs = append(sortedPngs, pngDats[png].image)
+	}
+
+	// Confirm that we fetched at least one image
+	if len(sortedPngs) < 1 {
+		return nil, pfx.Err(fmt.Errorf("No images could be fetched from the file paths"))
 	}
 
 	return sortedPngs, nil
