@@ -57,6 +57,7 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	var MX2Y0 float64
 	var MX0Y2 float64
 
+	// columns are X, rows are Y
 	for yImg := component.Bounds.TopLeft.Y; yImg <= component.Bounds.BottomRight.Y; yImg++ {
 		// y := yImg - component.Bounds.TopLeft.Y
 		y := yImg
@@ -97,36 +98,70 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	muX0Y0 := MX0Y0
 	// muX0Y1 := 0 // unused
 	// muX1Y0 := 0 // unused
-	muX1Y1 := MX1Y1 - meanX*MX0Y1
 	muX2Y0 := MX2Y0 - meanX*MX1Y0
 	muX0Y2 := MX0Y2 - meanY*MX0Y1
+	muX1Y1 := MX1Y1 - meanX*MX0Y1
 
 	// Second-order central moments
 	muPrimeX2Y0 := muX2Y0 / muX0Y0
 	muPrimeX0Y2 := muX0Y2 / muX0Y0
 	muPrimeX1Y1 := muX1Y1 / muX0Y0
 
+	// Eigenvalues & eigenvector
+
 	// Used to construct eigenvalues
 	eigenBase := muPrimeX2Y0 + muPrimeX0Y2
 	eigenRoot := math.Sqrt(4*math.Pow(muPrimeX1Y1, 2.0) + math.Pow(muPrimeX2Y0-muPrimeX0Y2, 2.0))
 
-	// Eigenvalues & eigenvector
-
 	// See http://raphael.candelier.fr/?blog=Image%20Moments and
 	// http://sibgrapi.sid.inpe.br/col/sid.inpe.br/banon/2002/10.23.11.34/doc/35.pdf
-	// for controversy round the Eigenvalue constants.
+	// for controversy round the Eigenvalue constants. Or
+	// https://courses.cs.washington.edu/courses/cse576/book/ch3.pdf page 30,
+	// which agrees with raphael.candelier.fr.
 
 	eigen1 := math.Sqrt(8 * (eigenBase - eigenRoot)) // w, minor elliptical axis
 	eigen2 := math.Sqrt(8 * (eigenBase + eigenRoot)) // l, major elliptical axis
 
 	var computedRadians float64
-	if muPrimeX2Y0 == muPrimeX0Y2 {
-		// No eccentricity by first order moments. Would lead to division by
-		// zero, so instead just arbitrarily choose one of the axes.
-		computedRadians = 0
-	} else {
-		computedRadians = 0.5 * math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2))
+
+	// For computing the angle, the simplest resource is likely:
+	// https://lueseypid.tistory.com/attachment/cfile23.uf@15425F4150F4EBFC19C06D.pdf
+	// (Simple Image Analysis of Moments Johannes Kilian)
+	theta := 0.5 * math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2))
+	secondOrderDiff := muPrimeX2Y0 - muPrimeX0Y2
+
+	if secondOrderDiff == 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = 0
+		} else if muPrimeX1Y1 > 0 {
+			computedRadians = math.Pi / 4
+		} else if muPrimeX1Y1 < 0 {
+			computedRadians = -math.Pi / 4
+		}
+	} else if secondOrderDiff > 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = 0
+		} else {
+			computedRadians = theta
+		}
+	} else if secondOrderDiff < 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = -math.Pi / 2
+		} else if muPrimeX1Y1 > 0 {
+			computedRadians = theta + math.Pi/2
+		} else if muPrimeX1Y1 < 0 {
+			computedRadians = theta - math.Pi/2
+		}
 	}
+
+	// Note that the values may seem to be mirrored over the X axis compared to
+	// a typical unit circle. But this is because we are starting our rows at
+	// the "top" of the image and so X increases as we work our way "down".
+	// Therefore, the flipping is due to axis choice with image manipulation,
+	// and is consistent (if visually counterintuitive). You can undo this
+	// mirroring effect by multiplying the long axis angle (in radians) by -1,
+	// but here we do not do so.
+	// computedRadians = -1 * computedRadians
 
 	m := CentralMoments{
 		Bounds: component.Bounds,
@@ -142,13 +177,4 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	}
 
 	return m, nil
-}
-
-func clampPositiveRadians(radians float64) float64 {
-	windowed := math.Mod(radians, 2*math.Pi)
-	if windowed < 0 {
-		return windowed + 2*math.Pi
-	}
-
-	return windowed
 }

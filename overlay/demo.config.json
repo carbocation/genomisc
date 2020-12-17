@@ -1,8 +1,11 @@
 {
   "labels": {
     "Background": { "id": 0, "color": "" },
-    "Asc Aorta": { "id": 1, "color": "#f9424b" },
-    "Desc Aorta": { "id": 2, "color": "#ffff00" }
+    "CurveBottomRight": { "id": 1, "color": "#f900c4" },
+    "CurveTopLeft": { "id": 2, "color": "#0007f9" },
+    "HorizRect": { "id": 3, "color": "#00ad00" },
+    "CircleTopRight": { "id": 4, "color": "#ffff00" },
+    "VertRect": { "id": 5, "color": "#00c0f0" }
   }
 }
 
