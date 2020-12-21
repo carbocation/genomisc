@@ -119,8 +119,8 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	// https://courses.cs.washington.edu/courses/cse576/book/ch3.pdf page 30,
 	// which agrees with raphael.candelier.fr.
 
-	eigen1 := math.Sqrt(8 * (eigenBase - eigenRoot)) // w, minor elliptical axis
-	eigen2 := math.Sqrt(8 * (eigenBase + eigenRoot)) // l, major elliptical axis
+	majorAxisLength := math.Sqrt(8 * (eigenBase + eigenRoot)) // l, major elliptical axis (the square root of the larger eigenvalue)
+	minorAxisLength := math.Sqrt(8 * (eigenBase - eigenRoot)) // w, minor elliptical axis (the square root of the smaller eigenvalue)
 
 	var computedRadians float64
 
@@ -163,6 +163,9 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	// but here we do not do so.
 	// computedRadians = -1 * computedRadians
 
+	semiMajor := majorAxisLength / 2
+	semiMinor := minorAxisLength / 2
+
 	m := CentralMoments{
 		Bounds: component.Bounds,
 		Area:   MX0Y0,
@@ -171,9 +174,9 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 			Y: meanY,
 		},
 		LongAxisOrientationRadians: computedRadians,
-		LongAxisPixels:             eigen2,
-		ShortAxisPixels:            eigen1,
-		Eccentricity:               math.Sqrt(1 - eigen1/eigen2),
+		LongAxisPixels:             majorAxisLength,
+		ShortAxisPixels:            minorAxisLength,
+		Eccentricity:               math.Sqrt(1 - math.Pow(semiMinor, 2)/math.Pow(semiMajor, 2)),
 	}
 
 	return m, nil
