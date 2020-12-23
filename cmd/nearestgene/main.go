@@ -129,21 +129,21 @@ func main() {
 				return true
 			}
 
-			if tss {
-				// If it is on a transcript of one but not the other, keep the one where it's on the transcript
-				onTranscriptI, onTranscriptJ := false, false
-				if between(sitePosInt, transcripts[i].TranscriptStart, transcripts[i].TranscriptEnd) {
-					onTranscriptI = true
-				}
-				if between(sitePosInt, transcripts[j].TranscriptStart, transcripts[j].TranscriptEnd) {
-					onTranscriptJ = true
-				}
-				if onTranscriptI && !onTranscriptJ {
-					return true
-				} else if onTranscriptJ && !onTranscriptI {
-					return false
-				}
+			// If it is on a transcript of one but not the other, keep the one where it's on the transcript.
+			onTranscriptI, onTranscriptJ := false, false
+			if between(sitePosInt, transcripts[i].TranscriptStart, transcripts[i].TranscriptEnd) {
+				onTranscriptI = true
+			}
+			if between(sitePosInt, transcripts[j].TranscriptStart, transcripts[j].TranscriptEnd) {
+				onTranscriptJ = true
+			}
+			if onTranscriptI && !onTranscriptJ {
+				return true
+			} else if onTranscriptJ && !onTranscriptI {
+				return false
+			}
 
+			if tss {
 				// Otherwise (if it's on both or neither transcript), find the distance to the nearest TSS
 				if math.Abs(sitePos-float64(transcripts[i].TranscriptStart)) < math.Abs(sitePos-float64(transcripts[j].TranscriptStart)) {
 					return true
