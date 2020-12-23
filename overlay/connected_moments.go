@@ -57,6 +57,7 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	var MX2Y0 float64
 	var MX0Y2 float64
 
+	// columns are X, rows are Y
 	for yImg := component.Bounds.TopLeft.Y; yImg <= component.Bounds.BottomRight.Y; yImg++ {
 		// y := yImg - component.Bounds.TopLeft.Y
 		y := yImg
@@ -97,22 +98,73 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 	muX0Y0 := MX0Y0
 	// muX0Y1 := 0 // unused
 	// muX1Y0 := 0 // unused
-	muX1Y1 := MX1Y1 - meanX*MX0Y1
 	muX2Y0 := MX2Y0 - meanX*MX1Y0
 	muX0Y2 := MX0Y2 - meanY*MX0Y1
+	muX1Y1 := MX1Y1 - meanX*MX0Y1
 
 	// Second-order central moments
 	muPrimeX2Y0 := muX2Y0 / muX0Y0
 	muPrimeX0Y2 := muX0Y2 / muX0Y0
 	muPrimeX1Y1 := muX1Y1 / muX0Y0
 
-	// Used to construct eigenvalues
-	eigenBase := (muPrimeX2Y0 + muPrimeX0Y2) / 2.0
-	eigenRoot := math.Sqrt(4*math.Pow(muPrimeX1Y1, 2.0)+math.Pow(muPrimeX2Y0-muPrimeX0Y2, 2.0)) / 2.0
+	// Eigenvalues & eigenvector
 
-	// Eigenvalues (~= length^2)
-	eigen1 := eigenBase - eigenRoot
-	eigen2 := eigenBase + eigenRoot
+	// Used to construct eigenvalues
+	eigenBase := muPrimeX2Y0 + muPrimeX0Y2
+	eigenRoot := math.Sqrt(4*math.Pow(muPrimeX1Y1, 2.0) + math.Pow(muPrimeX2Y0-muPrimeX0Y2, 2.0))
+
+	// See http://raphael.candelier.fr/?blog=Image%20Moments and
+	// http://sibgrapi.sid.inpe.br/col/sid.inpe.br/banon/2002/10.23.11.34/doc/35.pdf
+	// for controversy round the Eigenvalue constants. Or
+	// https://courses.cs.washington.edu/courses/cse576/book/ch3.pdf page 30,
+	// which agrees with raphael.candelier.fr.
+
+	majorAxisLength := math.Sqrt(8 * (eigenBase + eigenRoot)) // l, major elliptical axis (the square root of the larger eigenvalue)
+	minorAxisLength := math.Sqrt(8 * (eigenBase - eigenRoot)) // w, minor elliptical axis (the square root of the smaller eigenvalue)
+
+	var computedRadians float64
+
+	// For computing the angle, the simplest resource is likely:
+	// https://lueseypid.tistory.com/attachment/cfile23.uf@15425F4150F4EBFC19C06D.pdf
+	// (Simple Image Analysis of Moments Johannes Kilian)
+	theta := 0.5 * math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2))
+	secondOrderDiff := muPrimeX2Y0 - muPrimeX0Y2
+
+	if secondOrderDiff == 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = 0
+		} else if muPrimeX1Y1 > 0 {
+			computedRadians = math.Pi / 4
+		} else if muPrimeX1Y1 < 0 {
+			computedRadians = -math.Pi / 4
+		}
+	} else if secondOrderDiff > 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = 0
+		} else {
+			computedRadians = theta
+		}
+	} else if secondOrderDiff < 0 {
+		if muPrimeX1Y1 == 0 {
+			computedRadians = -math.Pi / 2
+		} else if muPrimeX1Y1 > 0 {
+			computedRadians = theta + math.Pi/2
+		} else if muPrimeX1Y1 < 0 {
+			computedRadians = theta - math.Pi/2
+		}
+	}
+
+	// Note that the values may seem to be mirrored over the X axis compared to
+	// a typical unit circle. But this is because we are starting our rows at
+	// the "top" of the image and so X increases as we work our way "down".
+	// Therefore, the flipping is due to axis choice with image manipulation,
+	// and is consistent (if visually counterintuitive). You can undo this
+	// mirroring effect by multiplying the long axis angle (in radians) by -1,
+	// but here we do not do so.
+	// computedRadians = -1 * computedRadians
+
+	semiMajor := majorAxisLength / 2
+	semiMinor := minorAxisLength / 2
 
 	m := CentralMoments{
 		Bounds: component.Bounds,
@@ -121,10 +173,10 @@ func (c *Connected) ComputeMoments(component ConnectedComponent, method MomentMe
 			X: meanX,
 			Y: meanY,
 		},
-		LongAxisOrientationRadians: math.Mod(0.5*math.Atan(2*muPrimeX1Y1/(muPrimeX2Y0-muPrimeX0Y2))+2*math.Pi, 2*math.Pi), // Wrap to [0, 2*Pi), avoiding negatives
-		LongAxisPixels:             math.Max(eigen1, eigen2),
-		ShortAxisPixels:            math.Min(eigen1, eigen2),
-		Eccentricity:               math.Sqrt(1 - math.Min(eigen1, eigen2)/math.Max(eigen1, eigen2)),
+		LongAxisOrientationRadians: computedRadians,
+		LongAxisPixels:             majorAxisLength,
+		ShortAxisPixels:            minorAxisLength,
+		Eccentricity:               math.Sqrt(1 - math.Pow(semiMinor, 2)/math.Pow(semiMajor, 2)),
 	}
 
 	return m, nil
