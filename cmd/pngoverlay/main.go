@@ -34,7 +34,7 @@ func main() {
 	flag.StringVar(&basePath, "base", "", "(Optional) Path to base image.")
 	flag.StringVar(&overlayPath, "overlay", "", "Path to overlay image")
 	flag.StringVar(&outputFolder, "output_folder", "", "Folder where output file should be created")
-	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
+	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package. Color #000001 is special-cased to be transparent.")
 	flag.UintVar(&opacity, "opacity", 128, "Opacity of the overlay, from 0-255. (Not used when no base image is provided)")
 	flag.BoolVar(&transparentBackground, "transparent-background", true, "Set the special-cased background identifier's pixels to transparent?")
 	flag.Parse()
