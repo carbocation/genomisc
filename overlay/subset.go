@@ -1,8 +1,8 @@
 package overlay
 
 import (
-	"fmt"
 	"image"
+	"image/draw"
 
 	"github.com/disintegration/imaging"
 )
@@ -33,7 +33,11 @@ func SubsetAndRescaleImage(baseImg image.Image, topLeftX, topLeftY, bottomRightX
 
 	subImg, ok := baseImg.(*image.RGBA)
 	if !ok {
-		return nil, fmt.Errorf("Type %T is not currently supported", baseImg)
+		// Previously we failed if the image wasn't natively image.RGBA. Now we
+		// will draw the image into in image.RGBA.
+		b := baseImg.Bounds()
+		subImg = image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+		draw.Draw(subImg, subImg.Bounds(), baseImg, b.Min, draw.Src)
 	}
 
 	// First extract the bounded region of interest
