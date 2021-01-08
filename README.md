@@ -1,13 +1,6 @@
 # genomisc
 Miscellaneous genomics tools and data structures in golang
 
-# HWECGO
-`go get github.com/carbocation/genomisc/hwecgo`
-
-HWE computes `Exact` Hardy-Weinberg P value. It is a wrapper around [Chris
-Chang's stats package](https://github.com/chrchang/stats). It should be
-preferred over HWE unless cgo cannot be used.
-
 # HWE
 `go get github.com/carbocation/genomisc/hwe`
 
