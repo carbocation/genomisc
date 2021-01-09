@@ -49,6 +49,8 @@ func main() {
 	if err != nil && !(strings.Contains(err.Error(), "ERR1:") && overrideMissing) {
 		log.Println(err)
 		log.Fatalln("You may re-run with --overridemissing if you are confident that missing these genes is acceptable")
+	} else if err != nil && overrideMissing {
+		fmt.Printf("Because --overridemissing is enabled, proceeding despite the following error: %s\n", err.Error())
 	}
 
 	permutations, err := ReadSNPsnap(SNPsnapFile)
