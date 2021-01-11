@@ -11,7 +11,7 @@ import (
 	"github.com/carbocation/pfx"
 )
 
-func ReadSNPsnap(fileName string) (Results, error) {
+func ReadSNPsnap(fileName string, skipHeader bool) (Results, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return Results{}, err
@@ -38,6 +38,11 @@ func ReadSNPsnap(fileName string) (Results, error) {
 	for k := range permutations {
 		// Initialize
 		permutations[k].Loci = make([]Locus, len(lines)-1)
+
+		// Override the number of loci if we are not skipping the header
+		if !skipHeader {
+			permutations[k].Loci = make([]Locus, len(lines))
+		}
 	}
 
 	// Each row is a SNP
@@ -47,8 +52,16 @@ Outer:
 			continue
 		}
 
-		if i == 0 {
+		// If we have a SNPSnap header, skip the header:
+		if i == 0 && skipHeader {
 			continue
+		}
+
+		// The program below assumes that we've skipped the header so always
+		// decrements by 1. This is just a hack to undo that if we don't have a
+		// header.
+		if !skipHeader {
+			i++
 		}
 
 		// Each column is a different permutation
