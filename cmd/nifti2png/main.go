@@ -41,12 +41,15 @@ func main() {
 	var niftiImage nifti.Nifti1Image
 	niftiImage.LoadImage(filename, true)
 
-	if err := nifti2png(niftiImage, prefix, output); err != nil {
+	var niftiHeader nifti.Nifti1Header
+	niftiHeader.LoadHeader(filename)
+
+	if err := nifti2png(niftiImage, niftiHeader, prefix, output); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func nifti2png(input nifti.Nifti1Image, prefix, output string) error {
+func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, output string) error {
 	dims := input.GetDims()
 	xm, ym, zm, tm := dims[0], dims[1], dims[2], dims[3]
 
@@ -90,6 +93,8 @@ func nifti2png(input nifti.Nifti1Image, prefix, output string) error {
 			if err := png.Encode(fw, colImg); err != nil {
 				return err
 			}
+			// Emit metadata about each PNG
+			fmt.Printf("%s\t%d\t%d\t%g\t%g\t%g\n", fmt.Sprintf("%s.z%06d_t%06d", prefix, z, t), z, t, niftiHeader.Pixdim[1], niftiHeader.Pixdim[2], niftiHeader.Pixdim[3])
 
 			fw.Flush()
 			f.Close()
