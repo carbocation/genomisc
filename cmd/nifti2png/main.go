@@ -81,7 +81,7 @@ func nifti2png(input nifti.Nifti1Image, prefix, output string) error {
 				}
 			}
 
-			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.z%d_t%d.png", prefix, z, t)))
+			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.z%06d_t%06d.png", prefix, z, t)))
 			if err != nil {
 				return err
 			}
