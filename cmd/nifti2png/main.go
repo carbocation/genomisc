@@ -38,11 +38,15 @@ func main() {
 		os.MkdirAll(output, os.ModePerm)
 	}
 
-	var niftiImage nifti.Nifti1Image
-	niftiImage.LoadImage(filename, true)
+	niftiImage, err := SafelyNiftiParse(filename, true)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	var niftiHeader nifti.Nifti1Header
-	niftiHeader.LoadHeader(filename)
+	niftiHeader, err := SafelyNiftiHeaderParse(filename)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	if err := nifti2png(niftiImage, niftiHeader, prefix, output); err != nil {
 		log.Fatalln(err)
