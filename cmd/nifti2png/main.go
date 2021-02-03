@@ -20,7 +20,7 @@ func main() {
 	var filename, output string
 
 	flag.StringVar(&filename, "file", "", "Name of .nii or .nii.gz file to convert to PNGs. ")
-	flag.StringVar(&output, "out", "", "Name of folder where the pngs will be emitted. Filenames will be {orig_filename}.{z depth}_{time}.png.")
+	flag.StringVar(&output, "out", "", "Name of folder where the pngs will be emitted. Filenames will be {orig_filename}.z{z depth}_t{time}.png.")
 	flag.Parse()
 
 	if filename == "" || output == "" {
@@ -81,7 +81,7 @@ func nifti2png(input nifti.Nifti1Image, prefix, output string) error {
 				}
 			}
 
-			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.%d_%d.png", prefix, z, t)))
+			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.z%d_t%d.png", prefix, z, t)))
 			if err != nil {
 				return err
 			}
