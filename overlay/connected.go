@@ -137,7 +137,12 @@ func (c *Connected) Count(l LabelMap, threshold int) (rawPixels, rawCounts, thre
 			id := c.PixelLabelIDs[y][x]
 
 			// Connected component ID:
-			m := c.LabeledConnectedComponents[id]
+			m, exists := c.LabeledConnectedComponents[id]
+			if !exists {
+				m = make(map[uint32]ConnectedComponent)
+				c.LabeledConnectedComponents[id] = m
+			}
+
 			component, exists := m[connectedComponentID]
 
 			// Update our bounding box for this component
