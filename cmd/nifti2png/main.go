@@ -18,9 +18,11 @@ import (
 
 func main() {
 	var filename, output string
+	var isGrayscale bool
 
 	flag.StringVar(&filename, "file", "", "Name of .nii or .nii.gz file to convert to PNGs. ")
 	flag.StringVar(&output, "out", "", "Name of folder where the pngs will be emitted. Filenames will be {orig_filename}.z{z depth}_t{time}.png.")
+	flag.BoolVar(&isGrayscale, "grayscale", false, "If true, creates a grayscale image. Otherwise creates a color image.")
 	flag.Parse()
 
 	if filename == "" || output == "" {
@@ -48,16 +50,17 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if err := nifti2png(niftiImage, niftiHeader, prefix, output); err != nil {
+	if err := nifti2png(niftiImage, niftiHeader, prefix, output, isGrayscale); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, output string) error {
+func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, output string, isGrayscale bool) error {
 	dims := input.GetDims()
 	xm, ym, zm, tm := dims[0], dims[1], dims[2], dims[3]
 
 	rect := image.Rect(0, 0, xm, ym)
+	img := image.NewGray16(rect)
 	colImg := image.NewRGBA(rect)
 	var grayCol color.Color
 	var col color.Color
@@ -81,9 +84,12 @@ func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, 
 						}
 
 						grayCol = color.Gray16{Y: applyPythonicWindowScaling(intensity, maxIntensity)}
-						// img.Set(x, y, grayCol)
-						col = color.RGBA64Model.Convert(grayCol)
-						colImg.Set(x, y, col)
+						if isGrayscale {
+							img.Set(x, y, grayCol)
+						} else {
+							col = color.RGBA64Model.Convert(grayCol)
+							colImg.Set(x, y, col)
+						}
 					}
 				}
 			}
@@ -94,7 +100,12 @@ func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, 
 			}
 			fw := bufio.NewWriter(f)
 
-			if err := png.Encode(fw, colImg); err != nil {
+			if isGrayscale {
+				err = png.Encode(fw, img)
+			} else {
+				err = png.Encode(fw, colImg)
+			}
+			if err != nil {
 				return err
 			}
 			// Emit metadata about each PNG
