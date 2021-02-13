@@ -24,9 +24,10 @@ func main() {
 	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
 
 	var imagePaths flagSlice
-	var outputPath string
+	var outputPath, delimiter string
 
 	flag.Var(&imagePaths, "input", "Paths to files with grayscale PNGs to merge. Pass once per image (e.g., -input ./img1.png -input ./img2.png).")
+	flag.StringVar(&delimiter, "delimiter", "__", "String to separate the input filenames")
 	flag.StringVar(&outputPath, "output", "", "Path to folder where output image will be put")
 	flag.Parse()
 
@@ -49,12 +50,12 @@ func main() {
 		}
 	}
 
-	outputName := ""
+	outputNames := make([]string, 0, len(imagePaths))
 	for _, filename := range imagePaths {
-		outputName += filepath.Base(filename)
+		outputNames = append(outputNames, filepath.Base(filename))
 	}
 
-	if err := processOneImage(imagePaths, outputPath, outputName); err != nil {
+	if err := processOneImage(imagePaths, outputPath, strings.Join(outputNames, delimiter)); err != nil {
 		log.Fatalln(err)
 	}
 
