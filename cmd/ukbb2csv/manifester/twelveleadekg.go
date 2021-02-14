@@ -77,7 +77,7 @@ func ManifestFor12LeadEKG(path string) error {
 		"RestingECGMeasurements.QRSNum",
 	}
 
-	fmt.Println(strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
+	fmt.Fprintln(STDOUT, strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
 
 	for _, file := range files {
 

@@ -73,7 +73,7 @@ func ManifestForExerciseEKG(path string) error {
 		"TrendData.NumberOfEntries",
 	}
 
-	fmt.Println(strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
+	fmt.Fprintln(STDOUT, strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
 
 	semaphore := make(chan struct{}, concurrency)
 
