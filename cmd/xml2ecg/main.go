@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/xml"
 	"flag"
@@ -59,6 +60,15 @@ func run(filename string) error {
 }
 
 func processSummaryStrip(filename string, doc CardiologyXML) error {
+	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_summary.csv")
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	var OUTFILE = bufio.NewWriter(outFile)
+	defer OUTFILE.Flush()
+
 	fmt.Println(doc.RestingECGMeasurements.MedianSamples.SampleRate)
 
 	// Grouped by lead
@@ -84,12 +94,23 @@ func processSummaryStrip(filename string, doc CardiologyXML) error {
 		if err := PlotLead(filename, "AvgLead_"+v.Lead, vals); err != nil {
 			return err
 		}
+
+		fmt.Fprintln(OUTFILE, strings.Join(vals, ","))
 	}
 
 	return nil
 }
 
 func processFullDisclosureSrip(filename string, doc CardiologyXML) error {
+	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_full.csv")
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	var OUTFILE = bufio.NewWriter(outFile)
+	defer OUTFILE.Flush()
+
 	fmt.Println(doc.StripData.Resolution)
 	fmt.Println(doc.StripData.SampleRate)
 
@@ -116,6 +137,8 @@ func processFullDisclosureSrip(filename string, doc CardiologyXML) error {
 		if err := PlotLead(filename, "Lead_"+v.Lead, vals); err != nil {
 			return err
 		}
+
+		fmt.Fprintln(OUTFILE, strings.Join(vals, ","))
 	}
 
 	return nil
