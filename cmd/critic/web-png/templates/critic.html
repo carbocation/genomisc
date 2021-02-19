@@ -38,7 +38,7 @@
 <br />
 
 <canvas 
-style="background-image: url('data:image/png;base64,{{$.Data.EncodedImage}}')"
+style="background-image: url('data:image/{{$.Data.EncodingType}};base64,{{$.Data.EncodedImage}}')"
 class="traceCanvas" 
 id="imgCanvas" 
 width="{{$.Data.Width}}" 

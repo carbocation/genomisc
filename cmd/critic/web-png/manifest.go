@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 )
 
@@ -86,7 +88,7 @@ type ManifestEntry struct {
 // output directory. It checks to see if the output file has already been
 // created. If so, it reads the output and matches it with the input, returning
 // pre-populated values.
-func CreateManifestAndOutput(mergedPath, annotationPath string) (*AnnotationTracker, error) {
+func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath string) (*AnnotationTracker, error) {
 
 	output := make([]ManifestEntry, 0)
 
@@ -98,57 +100,52 @@ func CreateManifestAndOutput(mergedPath, annotationPath string) (*AnnotationTrac
 	}
 
 	// Now open the full manifest of files we want to critique.
-	files, err := ioutil.ReadDir(mergedPath)
-	if err != nil {
-		return nil, pfx.Err(err)
-	}
 
-	for _, f := range files {
-		if f.IsDir() {
-			continue
+	// If we actually passed a manifest file, assume it is valid and populate:
+	if manifestPath != "" {
+		rdr, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
+		if err != nil {
+			return nil, err
 		}
 
-		anno, _ := annotations[DicomFilename(f.Name())]
+		r := csv.NewReader(rdr)
+		r.Comma = '\t'
 
-		output = append(output, ManifestEntry{
-			Dicom:      f.Name(),
-			Annotation: anno,
-		})
+		lines, err := r.ReadAll()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cols := range lines {
+			entry := cols[0]
+			anno, _ := annotations[DicomFilename(entry)]
+
+			output = append(output, ManifestEntry{
+				Dicom:      entry,
+				Annotation: anno,
+			})
+		}
+
+	} else {
+		// If we did not pass a manifest file, list the directory and populate:
+		files, err := ioutil.ReadDir(mergedPath)
+		if err != nil {
+			return nil, pfx.Err(err)
+		}
+
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+
+			anno, _ := annotations[DicomFilename(f.Name())]
+
+			output = append(output, ManifestEntry{
+				Dicom:      f.Name(),
+				Annotation: anno,
+			})
+		}
 	}
 
 	return &AnnotationTracker{Entries: output, AnnotationPath: annotationPath}, nil
-}
-
-// generateManifestSorter is a convenience function to help sort a list of
-// manifest objects
-func generateManifestSorter(output []ManifestEntry) func(i, j int) bool {
-	return func(i, j int) bool {
-		// Need both conditions so that it will proceed to the next check only
-		// if there is a tie at this one
-		if output[i].Zip < output[j].Zip {
-			return true
-		} else if output[i].Zip > output[j].Zip {
-			return false
-		}
-
-		if output[i].Series < output[j].Series {
-			return true
-		} else if output[i].Series > output[j].Series {
-			return false
-		}
-
-		if output[i].InstanceNumber < output[j].InstanceNumber {
-			return true
-		} else if output[i].InstanceNumber > output[j].InstanceNumber {
-			return false
-		}
-
-		if output[i].Dicom < output[j].Dicom {
-			return true
-		} else if output[i].Dicom > output[j].Dicom {
-			return false
-		}
-
-		return false
-	}
 }

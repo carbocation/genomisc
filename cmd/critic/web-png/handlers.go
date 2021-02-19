@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
-	"image"
-	"image/png"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"runtime"
@@ -73,28 +71,45 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		showOverlay = false
 	}
 
-	var im image.Image
+	var imReader bulkprocess.ReaderAtCloser
+	var filename string
 
 	if showOverlay {
-		im, err = bulkprocess.ExtractImageFromGoogleStorage(manifestEntry.Dicom, "", h.Global.MergedRoot, h.Global.storageClient)
+		filename = manifestEntry.Dicom
+		imReader, _, err = bulkprocess.MaybeOpenFromGoogleStorage(h.Global.MergedRoot+"/"+filename, h.Global.storageClient)
 	} else {
-		im, err = bulkprocess.ExtractImageFromGoogleStorage(MergedNameToRawName(manifestEntry.Dicom, addSuffix, removeSuffix), "", h.Global.RawRoot, h.Global.storageClient)
+		filename = MergedNameToRawName(manifestEntry.Dicom, addSuffix, removeSuffix)
+		imReader, _, err = bulkprocess.MaybeOpenFromGoogleStorage(h.Global.RawRoot+"/"+filename, h.Global.storageClient)
 	}
+	if err != nil {
+		HTTPError(h, w, r, err)
+		return
+	}
+	defer imReader.Close()
 
+	imageBytes, err := ioutil.ReadAll(imReader)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return
 	}
 
-	// Convert that image to a PNG and base64 encode it so we can show it raw
-	var imBuff bytes.Buffer
-	png.Encode(&imBuff, im)
-	encodedString := base64.StdEncoding.EncodeToString(imBuff.Bytes())
+	// Since we're consuming images as raw bytes without decoding them, we don't
+	// need to encode them either.
+	var encodingType string
+	if strings.HasSuffix(filename, ".gif") {
+		// A gif. Could be animated.
+		encodingType = "gif"
+	} else {
+		// Not a .gif. Decode the stillframe image and encode it as a PNG.
+		encodingType = "png"
+	}
+	encodedString := base64.StdEncoding.EncodeToString(imageBytes)
 
 	output := struct {
 		Project       string
 		ManifestEntry ManifestEntry
 		ManifestIndex int
+		EncodingType  string
 		EncodedImage  string
 		Width         int
 		Height        int
@@ -104,9 +119,10 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 		h.Global.Project,
 		manifestEntry,
 		manifestIndex,
+		encodingType,
 		strings.NewReplacer("\n", "", "\r", "").Replace(encodedString),
-		im.Bounds().Dx(),
-		im.Bounds().Dy(),
+		10, // Previously im.Bounds().Dx(),
+		10, // Previously im.Bounds().Dy(),
 		showOverlay,
 		h.Global.Labels,
 	}

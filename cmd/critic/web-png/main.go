@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"os/user"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,12 +40,13 @@ func main() {
 		//syscall.SIGINFO,
 	)
 
-	var rawRoot, mergedRoot, outputPath, labelsFile string
+	var rawRoot, mergedRoot, outputPath, labelsFile, manifestPath string
 	var port int
 	flag.StringVar(&addSuffix, "add_suffix", "", "(Optional) Suffix to add after the /merged/ filename to obtain the correct filename from the /raw/ data.")
 	flag.StringVar(&removeSuffix, "remove_suffix", "", "(Optional) Suffix to remove from the /merged/ filename to obtain the correct filename from the /raw/ data.")
 	flag.StringVar(&rawRoot, "raw", "", "(Optional) Path under which all secondary (usually raw/no-overlay) images sit.")
-	flag.StringVar(&mergedRoot, "merged", "", "Path under which all main images of interest sit.")
+	flag.StringVar(&manifestPath, "manifest", "", "(Optional) Path with a file whose first column is the file names of the images of interest from the --merged folder.")
+	flag.StringVar(&mergedRoot, "merged", "", "Path under which all main images of interest sit. If --manifest is set, this may be a gs:// URL.")
 	flag.StringVar(&outputPath, "output", "", "Path to a local file where all output will be written. Will be created if it does not yet exist.")
 	flag.IntVar(&port, "port", 9019, "Port for HTTP server")
 	flag.StringVar(&labelsFile, "labels", "", "(Optional) json file with labels. E.g.: {Labels: [{'name':'Label 1', 'value':'l1'}]}")
@@ -55,9 +57,17 @@ func main() {
 		return
 	}
 
-	sclient, err := storage.NewClient(context.Background())
-	if err != nil {
-		log.Fatalln(err)
+	mergedRoot = strings.TrimSuffix(mergedRoot, "/")
+	rawRoot = strings.TrimSuffix(rawRoot, "/")
+
+	var sclient *storage.Client
+	var err error
+
+	if strings.HasPrefix(mergedRoot, "gs://") {
+		sclient, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	global = &Global{
@@ -76,7 +86,7 @@ func main() {
 		Labels:     []Label{{DisplayName: "Bad Image", Value: "bad-image"}, {DisplayName: "Mistraced Segmentation", Value: "mistrace"}, {DisplayName: "Good", Value: "good"}},
 	}
 
-	sortedAnnotatedManifest, err := CreateManifestAndOutput(mergedRoot, outputPath)
+	sortedAnnotatedManifest, err := CreateManifestAndOutput(mergedRoot, outputPath, manifestPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
