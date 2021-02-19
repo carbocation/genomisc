@@ -2,6 +2,7 @@ package bulkprocess
 
 import (
 	"image"
+	"io"
 	"os"
 
 	_ "image/gif"
@@ -47,6 +48,12 @@ func MaybeExtractImageFromGoogleStorage(imagePath string, storageClient *storage
 	}
 	defer f.Close()
 
+	return DecodeImageFromReader(f)
+}
+
+// DecodeImageFromReader decodes a reader containing PNG, GIF, BMP, or
+// JPEG-formatted data and returns a single-frame image.
+func DecodeImageFromReader(f io.Reader) (image.Image, error) {
 	// Extract and decode the image. Must be PNG, GIF, BMP, or JPEG formatted
 	// (based on the decoders we have imported)
 	img, _, err := image.Decode(f)
