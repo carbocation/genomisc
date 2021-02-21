@@ -122,7 +122,16 @@ func main() {
 
 	go func() {
 		global.log.Println("Starting HTTP server on port", port)
-		if err := http.ListenAndServe(fmt.Sprintf(`:%d`, port), router(global)); err != nil {
+
+		routing, err := router(global)
+		if err != nil {
+			errors <- err
+			global.log.Println(err)
+			sig <- syscall.SIGTERM
+			return
+		}
+
+		if err := http.ListenAndServe(fmt.Sprintf(`:%d`, port), routing); err != nil {
 			errors <- err
 			global.log.Println(err)
 			sig <- syscall.SIGTERM
