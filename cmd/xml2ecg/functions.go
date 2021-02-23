@@ -71,15 +71,6 @@ func FloatAvg(f []float64) float64 {
 	return out
 }
 
-func PlotLead(filename, lead string, yMin, yMax float64, vals []string) error {
-	floatVals, err := stringSliceToFloatSlice(vals)
-	if err != nil {
-		return err
-	}
-
-	return PlotLeadFloat(filename, lead, yMin, yMax, floatVals)
-}
-
 func PlotLeadFloat(filename, lead string, yMin, yMax float64, floatVals []float64) error {
 	var chartRange *chart.ContinuousRange
 
