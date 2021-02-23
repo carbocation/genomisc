@@ -18,8 +18,12 @@ import (
 
 func main() {
 	var filename string
+	var createPNG bool
+	var debug bool
 
 	flag.StringVar(&filename, "file", "", "XML file (CardioSoft 6.73 output)")
+	flag.BoolVar(&createPNG, "createpng", false, "Create PNG representations of the EKG strips?")
+	flag.BoolVar(&debug, "debug", false, "Print extra metadata during processing?")
 	flag.Parse()
 
 	if filename == "" {
@@ -27,12 +31,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(filename); err != nil {
+	if err := run(filename, createPNG, debug); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func run(filename string) error {
+func run(filename string, createPNG, debug bool) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -48,18 +52,18 @@ func run(filename string) error {
 		return err
 	}
 
-	if err := processFullDisclosureSrip(filepath.Base(filename), doc); err != nil {
+	if err := processFullDisclosureStrip(filepath.Base(filename), doc, createPNG, debug); err != nil {
 		return err
 	}
 
-	if err := processSummaryStrip(filepath.Base(filename), doc); err != nil {
+	if err := processSummaryStrip(filepath.Base(filename), doc, createPNG, debug); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func processSummaryStrip(filename string, doc CardiologyXML) error {
+func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bool) error {
 	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_summary.csv")
 	if err != nil {
 		return err
@@ -69,7 +73,9 @@ func processSummaryStrip(filename string, doc CardiologyXML) error {
 	var OUTFILE = bufio.NewWriter(outFile)
 	defer OUTFILE.Flush()
 
-	fmt.Println(doc.RestingECGMeasurements.MedianSamples.SampleRate)
+	if debug {
+		fmt.Println(doc.RestingECGMeasurements.MedianSamples.SampleRate)
+	}
 
 	// Grouped by lead
 	for _, v := range doc.RestingECGMeasurements.MedianSamples.WaveformData {
@@ -89,19 +95,28 @@ func processSummaryStrip(filename string, doc CardiologyXML) error {
 			}
 		}
 
-		fmt.Println(v.Lead, len(vals), vals[0:20])
+		if debug {
+			fmt.Println(v.Lead, len(vals), vals[0:20])
+		}
 
-		if err := PlotLead(filename, "AvgLead_"+v.Lead, vals); err != nil {
+		if createPNG {
+			if err := PlotLead(filename, "AvgLead_"+v.Lead, vals); err != nil {
+				return err
+			}
+		}
+
+		sampleID, instance, err := fileNameToSampleInstance(filename)
+		if err != nil {
 			return err
 		}
 
-		fmt.Fprintln(OUTFILE, strings.Join(vals, ","))
+		fmt.Fprintln(OUTFILE, strings.Join(append([]string{sampleID, instance, v.Lead, doc.StripData.Resolution.Text, doc.StripData.SampleRate.Text}, vals...), ","))
 	}
 
 	return nil
 }
 
-func processFullDisclosureSrip(filename string, doc CardiologyXML) error {
+func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, debug bool) error {
 	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_full.csv")
 	if err != nil {
 		return err
@@ -111,8 +126,10 @@ func processFullDisclosureSrip(filename string, doc CardiologyXML) error {
 	var OUTFILE = bufio.NewWriter(outFile)
 	defer OUTFILE.Flush()
 
-	fmt.Println(doc.StripData.Resolution)
-	fmt.Println(doc.StripData.SampleRate)
+	if debug {
+		fmt.Println(doc.StripData.Resolution)
+		fmt.Println(doc.StripData.SampleRate)
+	}
 
 	// Grouped by lead
 	for _, v := range doc.StripData.WaveformData {
@@ -132,13 +149,22 @@ func processFullDisclosureSrip(filename string, doc CardiologyXML) error {
 			}
 		}
 
-		fmt.Println(v.Lead, len(vals), vals[0:20])
+		if debug {
+			fmt.Println(v.Lead, len(vals), vals[0:20])
+		}
 
-		if err := PlotLead(filename, "Lead_"+v.Lead, vals); err != nil {
+		if createPNG {
+			if err := PlotLead(filename, "Lead_"+v.Lead, vals); err != nil {
+				return err
+			}
+		}
+
+		sampleID, instance, err := fileNameToSampleInstance(filename)
+		if err != nil {
 			return err
 		}
 
-		fmt.Fprintln(OUTFILE, strings.Join(vals, ","))
+		fmt.Fprintln(OUTFILE, strings.Join(append([]string{sampleID, instance, v.Lead, doc.StripData.Resolution.Text, doc.StripData.SampleRate.Text}, vals...), ","))
 	}
 
 	return nil
@@ -174,6 +200,17 @@ func PlotLead(filename, lead string, vals []string) error {
 	}
 
 	return nil
+}
+
+// This is very UK Biobank-specific, but the files are stored as
+// sample_field_instance_arrayidx and so we can extract metadata from them.
+func fileNameToSampleInstance(filename string) (string, string, error) {
+	parts := strings.Split(filename, "_")
+	if len(parts) < 3 {
+		return "", "", fmt.Errorf("Expected at least two '_' characters in the filename, but found %d", len(parts)-1)
+	}
+
+	return parts[0], parts[2], nil
 }
 
 func stringSliceToFloatSlice(in []string) ([]float64, error) {
