@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/jfcg/butter"
 	"github.com/wcharczuk/go-chart/v2"
 	"golang.org/x/net/html/charset"
 )
@@ -100,7 +102,19 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bo
 		}
 
 		if createPNG {
-			if err := PlotLead(filename, "AvgLead_"+v.Lead, vals); err != nil {
+			voltageCorrection := EstimateVoltageCorrection(doc.RestingECGMeasurements.MedianSamples.Resolution.Text, doc.RestingECGMeasurements.MedianSamples.Resolution.Units)
+
+			vf, err := stringSliceToFloatSlice(vals)
+			if err != nil {
+				return err
+			}
+
+			for i := range vf {
+				// Voltage correction
+				vf[i] *= voltageCorrection
+			}
+
+			if err := PlotLeadFloat(filename, "AvgLead_"+v.Lead, -1.0, 1.0, vf); err != nil {
 				return err
 			}
 		}
@@ -109,8 +123,7 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bo
 		if err != nil {
 			return err
 		}
-
-		fmt.Fprintln(OUTFILE, strings.Join(append([]string{sampleID, instance, v.Lead, doc.StripData.Resolution.Text, doc.StripData.SampleRate.Text}, vals...), ","))
+		fmt.Fprintln(OUTFILE, strings.Join(append([]string{sampleID, instance, v.Lead, doc.RestingECGMeasurements.MedianSamples.Resolution.Text, doc.RestingECGMeasurements.MedianSamples.SampleRate.Text}, vals...), ","))
 	}
 
 	return nil
@@ -154,7 +167,25 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, d
 		}
 
 		if createPNG {
-			if err := PlotLead(filename, "Lead_"+v.Lead, vals); err != nil {
+
+			voltageCorrection := EstimateVoltageCorrection(doc.StripData.Resolution.Text, doc.StripData.Resolution.Units)
+
+			vf, err := stringSliceToFloatSlice(vals)
+			if err != nil {
+				return err
+			}
+
+			for i := range vf {
+				// Voltage correction
+				vf[i] *= voltageCorrection
+			}
+
+			valsFloat, err := BandPassFilter(vf, 500, 0.4, 40, 1)
+			if err != nil {
+				return err
+			}
+
+			if err := PlotLeadFloat(filename, "Lead_"+v.Lead, -1.0, 1.0, valsFloat); err != nil {
 				return err
 			}
 		}
@@ -170,13 +201,91 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, d
 	return nil
 }
 
-func PlotLead(filename, lead string, vals []string) error {
+func BandPassFilter(vals []float64, signalHz, highPassHz, lowPassHz, timepointsToCompress float64) ([]float64, error) {
+
+	wcBase := 2.0 * math.Pi * timepointsToCompress / signalHz
+
+	filt := butter.NewHighPass1(highPassHz * wcBase)
+	filtL := butter.NewLowPass1(lowPassHz * wcBase)
+
+	if filt == nil {
+		return nil, fmt.Errorf("Invalid high-pass filter (attempted wc=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*highPassHz)
+	}
+
+	if filtL == nil {
+		return nil, fmt.Errorf("Invalid low-pass filter (attempted wc=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*lowPassHz)
+	}
+
+	valsFloat := make([]float64, 0, len(vals))
+	compressor := make([]float64, 0)
+
+	for _, vf := range vals {
+		if float64(len(compressor)) < timepointsToCompress {
+			compressor = append(compressor, vf)
+			continue
+		}
+
+		vf = FloatAvg(compressor)
+		compressor = nil
+
+		valsFloat = append(valsFloat, filt.Next(filtL.Next(vf)))
+	}
+
+	return valsFloat, nil
+}
+
+func EstimateVoltageCorrection(value, units string) float64 {
+	voltageCorrection := 1.0
+
+	if units == "uVperLsb" {
+		vc, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			voltageCorrection = 0.001 * vc
+		}
+	}
+
+	return voltageCorrection
+}
+
+func FloatAvg(f []float64) float64 {
+	out := 0.0
+	for _, v := range f {
+		out += v
+	}
+
+	if x := len(f); x > 0 {
+		return out / float64(x)
+	}
+
+	return out
+}
+
+func PlotLead(filename, lead string, yMin, yMax float64, vals []string) error {
 	floatVals, err := stringSliceToFloatSlice(vals)
 	if err != nil {
 		return err
 	}
 
+	return PlotLeadFloat(filename, lead, yMin, yMax, floatVals)
+}
+
+func PlotLeadFloat(filename, lead string, yMin, yMax float64, floatVals []float64) error {
+	var chartRange *chart.ContinuousRange
+
+	if yMin != yMax {
+		chartRange = &chart.ContinuousRange{Min: yMin, Max: yMax}
+	}
+
 	graph := chart.Chart{
+		Width:  512,
+		Height: 256,
+		XAxis: chart.XAxis{
+			Style: chart.Hidden(),
+		},
+		YAxis: chart.YAxis{
+			Style: chart.Hidden(),
+			Range: chartRange,
+		},
 		Series: []chart.Series{
 			chart.ContinuousSeries{
 				XValues: intSeq(len(floatVals)),

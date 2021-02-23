@@ -44,6 +44,7 @@ require (
 	github.com/henghuang/nifti v0.0.0-20190719235241-c5d3abcd4525
 	github.com/icza/gox v0.0.0-20201215141822-6edfac6c05b5
 	github.com/interpose/middleware v0.0.0-20150216143757-05ed56ed52fa
+	github.com/jfcg/butter v0.1.6 // indirect
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/justinas/alice v1.2.0
