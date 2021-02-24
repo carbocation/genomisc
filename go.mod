@@ -62,6 +62,7 @@ require (
 	github.com/tj/go-rle v0.0.0-20180508204109-877ab66bb189
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
+	github.com/wcharczuk/go-chart v1.1.0 // indirect
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030

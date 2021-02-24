@@ -14,13 +14,22 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
+const (
+	SamplingHz = 500.0
+	LowPassHz  = 0.4
+	HighPassHz = 40.0
+)
+
 func main() {
 	var filename string
 	var createPNG bool
 	var debug bool
+	var widthPx, heightPx int
 
 	flag.StringVar(&filename, "file", "", "XML file (CardioSoft 6.73 output)")
 	flag.BoolVar(&createPNG, "createpng", false, "Create PNG representations of the EKG strips?")
+	flag.IntVar(&widthPx, "width", 256, "(Optional) If creating PNGs, what pixel width?")
+	flag.IntVar(&heightPx, "height", 256, "(Optional) If creating PNGs, what pixel height?")
 	flag.BoolVar(&debug, "debug", false, "Print extra metadata during processing?")
 	flag.Parse()
 
@@ -29,12 +38,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(filename, createPNG, debug); err != nil {
+	if err := run(filename, createPNG, widthPx, heightPx, debug); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func run(filename string, createPNG, debug bool) error {
+func run(filename string, createPNG bool, widthPx, heightPx int, debug bool) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -50,18 +59,18 @@ func run(filename string, createPNG, debug bool) error {
 		return err
 	}
 
-	if err := processFullDisclosureStrip(filepath.Base(filename), doc, createPNG, debug); err != nil {
+	if err := processFullDisclosureStrip(filepath.Base(filename), doc, createPNG, widthPx, heightPx, debug); err != nil {
 		return err
 	}
 
-	if err := processSummaryStrip(filepath.Base(filename), doc, createPNG, debug); err != nil {
+	if err := processSummaryStrip(filepath.Base(filename), doc, createPNG, widthPx, heightPx, debug); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bool) error {
+func processSummaryStrip(filename string, doc CardiologyXML, createPNG bool, widthPx, heightPx int, debug bool) error {
 	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_summary.csv")
 	if err != nil {
 		return err
@@ -110,7 +119,7 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bo
 				vf[i] *= voltageCorrection
 			}
 
-			if err := PlotLeadFloat(filename, "AvgLead_"+v.Lead, -1.0, 1.0, vf); err != nil {
+			if err := PlotLeadFloat(filename, "AvgLead_"+v.Lead, -1.0, 1.0, widthPx, heightPx, vf); err != nil {
 				return err
 			}
 		}
@@ -125,7 +134,7 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG, debug bo
 	return nil
 }
 
-func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, debug bool) error {
+func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG bool, widthPx, heightPx int, debug bool) error {
 	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_full.csv")
 	if err != nil {
 		return err
@@ -176,12 +185,12 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, d
 				vf[i] *= voltageCorrection
 			}
 
-			valsFloat, err := BandPassFilter(vf, 500, 0.4, 40, 1)
+			valsFloat, err := BandPassFilter(vf, SamplingHz, LowPassHz, HighPassHz, 1)
 			if err != nil {
 				return err
 			}
 
-			if err := PlotLeadFloat(filename, "Lead_"+v.Lead, -1.0, 1.0, valsFloat); err != nil {
+			if err := PlotLeadFloat(filename, "Lead_"+v.Lead, -1.0, 1.0, widthPx, heightPx, valsFloat); err != nil {
 				return err
 			}
 		}
@@ -195,38 +204,4 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG, d
 	}
 
 	return nil
-}
-
-// This is very UK Biobank-specific, but the files are stored as
-// sample_field_instance_arrayidx and so we can extract metadata from them.
-func fileNameToSampleInstance(filename string) (string, string, error) {
-	parts := strings.Split(filename, "_")
-	if len(parts) < 3 {
-		return "", "", fmt.Errorf("Expected at least two '_' characters in the filename, but found %d", len(parts)-1)
-	}
-
-	return parts[0], parts[2], nil
-}
-
-func stringSliceToFloatSlice(in []string) ([]float64, error) {
-	output := make([]float64, len(in))
-	for i, fv := range in {
-		// output[i] = float64(fv)
-		v, err := strconv.ParseFloat(fv, 64)
-		if err != nil {
-			return nil, err
-		}
-		output[i] = v
-	}
-
-	return output, nil
-}
-
-func intSeq(N int) []float64 {
-	output := make([]float64, N)
-	for i := 0; i < N; i++ {
-		output[i] = float64(i)
-	}
-
-	return output
 }

@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"math"
 	"os"
 	"strconv"
@@ -10,7 +13,12 @@ import (
 
 	"github.com/jfcg/butter"
 	"github.com/wcharczuk/go-chart/v2"
+	"github.com/wcharczuk/go-chart/v2/drawing"
 )
+
+func init() {
+	chart.DefaultColors = []drawing.Color{chart.ColorBlack}
+}
 
 func BandPassFilter(vals []float64, signalHz, highPassHz, lowPassHz, timepointsToCompress float64) ([]float64, error) {
 
@@ -71,7 +79,8 @@ func FloatAvg(f []float64) float64 {
 	return out
 }
 
-func PlotLeadFloat(filename, lead string, yMin, yMax float64, floatVals []float64) error {
+// PlotLeadFloat emits a grayscale
+func PlotLeadFloat(filename, lead string, yMin, yMax float64, widthPx, heightPx int, floatVals []float64) error {
 	var chartRange *chart.ContinuousRange
 
 	if yMin != yMax {
@@ -79,8 +88,8 @@ func PlotLeadFloat(filename, lead string, yMin, yMax float64, floatVals []float6
 	}
 
 	graph := chart.Chart{
-		Width:  512,
-		Height: 256,
+		Width:  widthPx,
+		Height: heightPx,
 		XAxis: chart.XAxis{
 			Style: chart.Hidden(),
 		},
@@ -102,13 +111,62 @@ func PlotLeadFloat(filename, lead string, yMin, yMax float64, floatVals []float6
 		return err
 	}
 
+	// Fetch the img representation of the graph
+	src, _, err := image.Decode(buffer)
+	if err != nil {
+		return err
+	}
+
+	// Create a new grayscale image
+	bounds := src.Bounds()
+	w, h := bounds.Max.X, bounds.Max.Y
+	gray := image.NewGray(image.Rect(0, 0, w, h))
+	for x := 0; x < w; x++ {
+		for y := 0; y < h; y++ {
+			oldColor := src.At(x, y)
+			grayColor := color.GrayModel.Convert(oldColor)
+			gray.Set(x, y, grayColor)
+		}
+	}
+
 	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_" + lead + ".png")
 	if err != nil {
 		return err
 	}
-	if _, err := buffer.WriteTo(outFile); err != nil {
-		return err
+
+	return png.Encode(outFile, gray)
+}
+
+// This is very UK Biobank-specific, but the files are stored as
+// sample_field_instance_arrayidx and so we can extract metadata from them.
+func fileNameToSampleInstance(filename string) (string, string, error) {
+	parts := strings.Split(filename, "_")
+	if len(parts) < 3 {
+		return "", "", fmt.Errorf("Expected at least two '_' characters in the filename, but found %d", len(parts)-1)
 	}
 
-	return nil
+	return parts[0], parts[2], nil
+}
+
+func stringSliceToFloatSlice(in []string) ([]float64, error) {
+	output := make([]float64, len(in))
+	for i, fv := range in {
+		// output[i] = float64(fv)
+		v, err := strconv.ParseFloat(fv, 64)
+		if err != nil {
+			return nil, err
+		}
+		output[i] = v
+	}
+
+	return output, nil
+}
+
+func intSeq(N int) []float64 {
+	output := make([]float64, N)
+	for i := 0; i < N; i++ {
+		output[i] = float64(i)
+	}
+
+	return output
 }
