@@ -1,10 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"image/png"
 	"log"
 	"os"
 	"path/filepath"
@@ -84,6 +86,19 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG bool, wid
 		fmt.Println(doc.RestingECGMeasurements.MedianSamples.SampleRate)
 	}
 
+	var zw *zip.Writer
+
+	if createPNG {
+		outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_summary.zip")
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
+
+		zw = zip.NewWriter(outFile)
+		defer zw.Close()
+	}
+
 	// Grouped by lead
 	for _, v := range doc.RestingECGMeasurements.MedianSamples.WaveformData {
 
@@ -119,7 +134,16 @@ func processSummaryStrip(filename string, doc CardiologyXML, createPNG bool, wid
 				vf[i] *= voltageCorrection
 			}
 
-			if err := PlotLeadFloat(filename, "AvgLead_"+v.Lead, -1.0, 1.0, widthPx, heightPx, vf); err != nil {
+			gray, err := PlotLeadFloat(-1.0, 1.0, widthPx, heightPx, vf)
+			if err != nil {
+				return err
+			}
+			imgW, err := zw.Create(strings.TrimSuffix(filename, ".xml") + "_summary_" + v.Lead + ".png")
+			if err != nil {
+				return err
+			}
+
+			if err := png.Encode(imgW, gray); err != nil {
 				return err
 			}
 		}
@@ -147,6 +171,19 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG bo
 	if debug {
 		fmt.Println(doc.StripData.Resolution)
 		fmt.Println(doc.StripData.SampleRate)
+	}
+
+	var zw *zip.Writer
+
+	if createPNG {
+		outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_full.zip")
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
+
+		zw = zip.NewWriter(outFile)
+		defer zw.Close()
 	}
 
 	// Grouped by lead
@@ -190,9 +227,19 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG bo
 				return err
 			}
 
-			if err := PlotLeadFloat(filename, "Lead_"+v.Lead, -1.0, 1.0, widthPx, heightPx, valsFloat); err != nil {
+			gray, err := PlotLeadFloat(-1.0, 1.0, widthPx, heightPx, valsFloat)
+			if err != nil {
 				return err
 			}
+			imgW, err := zw.Create(strings.TrimSuffix(filename, ".xml") + "_full_" + v.Lead + ".png")
+			if err != nil {
+				return err
+			}
+
+			if err := png.Encode(imgW, gray); err != nil {
+				return err
+			}
+
 		}
 
 		sampleID, instance, err := fileNameToSampleInstance(filename)

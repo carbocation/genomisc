@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 
@@ -79,8 +77,8 @@ func FloatAvg(f []float64) float64 {
 	return out
 }
 
-// PlotLeadFloat emits a grayscale
-func PlotLeadFloat(filename, lead string, yMin, yMax float64, widthPx, heightPx int, floatVals []float64) error {
+// PlotLeadFloat yields a grayscale image
+func PlotLeadFloat(yMin, yMax float64, widthPx, heightPx int, floatVals []float64) (image.Image, error) {
 	var chartRange *chart.ContinuousRange
 
 	if yMin != yMax {
@@ -108,13 +106,13 @@ func PlotLeadFloat(filename, lead string, yMin, yMax float64, widthPx, heightPx 
 	// Render to a byte buffer
 	buffer := bytes.NewBuffer([]byte{})
 	if err := graph.Render(chart.PNG, buffer); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Fetch the img representation of the graph
 	src, _, err := image.Decode(buffer)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create a new grayscale image
@@ -129,12 +127,7 @@ func PlotLeadFloat(filename, lead string, yMin, yMax float64, widthPx, heightPx 
 		}
 	}
 
-	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_" + lead + ".png")
-	if err != nil {
-		return err
-	}
-
-	return png.Encode(outFile, gray)
+	return gray, nil
 }
 
 // This is very UK Biobank-specific, but the files are stored as
