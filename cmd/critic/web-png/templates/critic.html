@@ -29,6 +29,10 @@
         <button name="value" value="{{$label.Value}}" class="btn btn-lg btn-default" type="submit">{{$label.DisplayName}}</button>
     {{end}}
 
+    {{if (ne "" $.Data.ManifestEntry.Annotation.Value)}}
+        <br /><span>Current value: {{$.Data.ManifestEntry.Annotation.Value}}</span>
+    {{end}}
+
     <!-- <button name="value" value="bad-image" class="btn btn-lg btn-danger" type="submit">Bad MRI</button>
     <button name="value" value="mistrace" class="btn btn-lg btn-warning" type="submit">Mistraced Segmentation</button>
     <button name="value" value="good" class="btn btn-lg btn-info" style="float: right;" type="submit">Good</button> -->
