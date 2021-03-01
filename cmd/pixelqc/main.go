@@ -51,7 +51,7 @@ func main() {
 	flag.StringVar(&pxHeight, "pxheight", "", "Column name that identifies the column with data converting pixel height to mm. (Optional.)")
 	flag.StringVar(&pxWidth, "pxwidth", "", "Column name that identifies the column with data converting pixel width to mm. (Optional.)")
 	flag.Float64Var(&nStandardDeviations, "sd", 5.0, "Number of standard deviations beyond which to consider our metrics to have failed QC.")
-	flag.Float64Var(&divisor, "divisor", 100.0, "Divide output by this value (e.g., divide by 100.0 if input was pixels and goal output is cm^2, or 1.0 if input was cm and no adjustment is desired).")
+	flag.Float64Var(&divisor, "divisor", 100.0, "Divide output by this value (e.g., divide by 100.0 if input was mm^2 and goal output is cm^2, or 1.0 if input was cm and no adjustment is desired).")
 
 	flag.Parse()
 
