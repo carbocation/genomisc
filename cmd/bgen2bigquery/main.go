@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/bgen"
+	"github.com/carbocation/genomisc/applyprsgcp"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -138,7 +139,7 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string, sampleFileContents [
 	// Open the BGI
 	var bgi *bgen.BGIIndex
 	if strings.HasPrefix(bgiPath, "gs://") {
-		filePath, err := ImportBGIFromGoogleStorage(bgiPath)
+		filePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-package main
+package applyprsgcp
 
 import (
 	"context"
@@ -8,13 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cloud.google.com/go/storage"
 	"github.com/carbocation/pfx"
 )
 
 // ImportBGIFromGoogleStorage copies the BGEN index from google storage to the
 // local temp directory. This is necessary because SQLite reads from a filename,
 // instead of a reader, and therefore can't be managed over the wire.
-func ImportBGIFromGoogleStorage(bgiPath string) (memfsBIGPath string, err error) {
+func ImportBGIFromGoogleStorage(bgiPath string, client *storage.Client) (memfsBIGPath string, err error) {
 	filename := os.TempDir() + "/" + filepath.Base(bgiPath)
 
 	// If we have already copied the file over, don't duplicate work
