@@ -88,7 +88,7 @@ func main() {
 		}
 	}
 
-	log.Println("Processing disease", diseaseName)
+	fmt.Fprintln(STDOUT, "Disease", diseaseName)
 
 	missingFields, err := tabs.CheckSensibility()
 	if err != nil && !override {
@@ -110,46 +110,46 @@ func main() {
 		log.Printf("%s: Overriding failed undated field check and continuing.\n", diseaseName)
 	}
 
-	fmt.Fprintln(os.Stderr, "Including:")
+	fmt.Fprintln(STDOUT, "Including:")
 	for _, v := range tabs.AllIncluded() {
 		dictEntry := dict[v.FieldID]
 
-		fmt.Fprintf(os.Stderr, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
+		fmt.Fprintf(STDOUT, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
 
 		codingEntry, exists := coding[dictEntry.Coding.String()]
 		if exists {
 			for _, entryValue := range v.FormattedValues() {
-				fmt.Fprintf(os.Stderr, "\t\t%s: %s\n", entryValue, codingEntry[entryValue])
+				fmt.Fprintf(STDOUT, "\t\t%s: %s\n", entryValue, codingEntry[entryValue])
 			}
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(STDOUT, "\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "\t\t")
-			fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(STDOUT, "\t\t")
+			fmt.Fprintf(STDOUT, "%s", strings.Join(v.Values, ", "))
+			fmt.Fprintf(STDOUT, "\n")
 		}
 
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(STDOUT, "\n")
 
-	fmt.Fprintln(os.Stderr, "Excluding:")
+	fmt.Fprintln(STDOUT, "Excluding:")
 	for _, v := range tabs.AllExcluded() {
 		dictEntry := dict[v.FieldID]
 
-		fmt.Fprintf(os.Stderr, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
+		fmt.Fprintf(STDOUT, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
 
 		codingEntry, exists := coding[dictEntry.Coding.String()]
 		if exists {
 			for _, entryValue := range v.FormattedValues() {
-				fmt.Fprintf(os.Stderr, "\t\t%s\n", codingEntry[entryValue])
+				fmt.Fprintf(STDOUT, "\t\t%s\n", codingEntry[entryValue])
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "\t\t")
-			fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(STDOUT, "\t\t")
+			fmt.Fprintf(STDOUT, "%s", strings.Join(v.Values, ", "))
+			fmt.Fprintf(STDOUT, "\n")
 		}
 	}
 	if len(tabs.AllExcluded()) < 1 {
-		fmt.Fprintf(os.Stderr, "\t(No exclusion criteria)\n")
+		fmt.Fprintf(STDOUT, "\t(No exclusion criteria)\n")
 	}
 
 }
