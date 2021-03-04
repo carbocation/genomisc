@@ -9,7 +9,6 @@ import (
 )
 
 func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS, scores *[]Sample) error {
-	results := *scores
 
 	nonNilErr := ErrorInfo{Message: "", Chromosome: vi.Chromosome, Position: vi.Position}
 
@@ -45,13 +44,16 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS, s
 		return nonNilErr
 	}
 
+	// If it turns out that we are initializing the slice...
+	if scores == nil || len(*scores) < 1 {
+		results := make([]Sample, len(variant.SampleProbabilities))
+		*scores = results
+	}
+
+	results := *scores
 	for i := 0; i < len(results); i++ {
 		results[i].SumScore += ComputeScore(variant.SampleProbabilities[i], variant, prs)
 		results[i].NIncremented++
-	}
-
-	if len(results) < 1 {
-		return fmt.Errorf("Results empty")
 	}
 
 	return nil

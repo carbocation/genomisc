@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,9 @@ import (
 // local temp directory. This is necessary because SQLite reads from a filename,
 // instead of a reader, and therefore can't be managed over the wire.
 func ImportBGIFromGoogleStorage(bgiPath string, client *storage.Client) (memfsBIGPath string, err error) {
-	filename := os.TempDir() + "/" + filepath.Base(bgiPath)
+	// Inject randomness into the filename so that ImportBGIFromGoogleStorage
+	// can be used simultaneously by multiple processes.
+	filename := os.TempDir() + "/" + RandHeteroglyphs(20) + "_" + filepath.Base(bgiPath)
 
 	// If we have already copied the file over, don't duplicate work
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
@@ -51,4 +54,17 @@ func ImportBGIFromGoogleStorage(bgiPath string, client *storage.Client) (memfsBI
 	err = ioutil.WriteFile(filename, data, 0666)
 
 	return filename, pfx.Err(err)
+}
+
+// RandHeteroglyphs produces a string of n symbols which do not look like one
+// another. (Derived to be the opposite of homoglyphs, which are symbols which
+// look similar to one another and cannot be quickly distinguished.)
+func RandHeteroglyphs(n int) string {
+	var letters = []rune("abcdefghkmnpqrstwxyz")
+	lenLetters := len(letters)
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(lenLetters)]
+	}
+	return string(b)
 }
