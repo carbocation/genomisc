@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"io"
-	"os"
 
 	"github.com/krolaw/zipstream"
 	"github.com/xi2/xz"
@@ -54,8 +53,12 @@ Outer:
 	return DataTypeNoCompression, nil
 }
 
-// If the file contains
-func MaybeDecompressReadCloserFromFile(f *os.File) (io.ReadCloser, error) {
+// MaybeDecompressReadCloserFromFile detects whether a file-like object (must
+// implement io.Reader, io.Seeker, and io.Closer) is compressed with GZip, Zip,
+// BZip2, XZ, or Z and decompresses it. If not, it returns the file as-is. It
+// uses the seek method to ensure that the reader is reset to the starting byte
+// so that it does not discard bytes.
+func MaybeDecompressReadCloserFromFile(f io.ReadSeekCloser) (io.ReadCloser, error) {
 	dt, err := DetectDataType(f)
 	if err != nil {
 		return nil, err
