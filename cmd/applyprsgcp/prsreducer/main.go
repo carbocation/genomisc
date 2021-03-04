@@ -172,7 +172,7 @@ func main() {
 			sampleID = samp[fileRow+2][0]
 		}
 
-		fmt.Printf("%s\t%s\t%.5g\t%d\n", sampleID, ss.Source, entry.Score, entry.N)
+		fmt.Printf("%s\t%s\t%.8g\t%d\n", sampleID, ss.Source, entry.Score, entry.N)
 	}
 
 }
