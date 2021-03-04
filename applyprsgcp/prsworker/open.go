@@ -10,9 +10,9 @@ import (
 // OpenBGIAndBGEN loops until final error or success with opening the BGI and
 // BGEN files. Useful because if you use this over an unreliable filesystem,
 // you'll run into i/o errors that can be overcome by waiting a bit.
-func OpenBGIAndBGEN(bgenPath string) (bgi *bgen.BGIIndex, b *bgen.BGEN, err error) {
+func OpenBGIAndBGEN(bgenPath, bgiPath string) (bgi *bgen.BGIIndex, b *bgen.BGEN, err error) {
 	for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
-		bgi, err = bgen.OpenBGI(bgenPath + ".bgi?mode=ro")
+		bgi, err = bgen.OpenBGI(bgiPath + "?mode=ro")
 		if err != nil && loadAttempts == maxLoadAttempts {
 			// Ongoing failure at maxLoadAttempts is a terminal error
 			return nil, nil, err

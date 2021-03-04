@@ -12,7 +12,7 @@ import (
 
 func BGENPreprocessor(bgenPath, chromosome string) ([]bgen.VariantIndex, error) {
 
-	bgi, b, err := prsworker.OpenBGIAndBGEN(bgenPath)
+	bgi, b, err := prsworker.OpenBGIAndBGEN(bgenPath, bgenPath+".bgi")
 	if err != nil {
 		log.Fatalln(err)
 	}

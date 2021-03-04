@@ -124,7 +124,7 @@ func Worker(bgPath string, jobs <-chan bgen.VariantIndex, results chan<- []Sampl
 				// Since the file handle is no longer valid, we need to close it
 				// and reopen
 				b.Close()
-				_, b, err = prsworker.OpenBGIAndBGEN(bgPath)
+				_, b, err = prsworker.OpenBGIAndBGEN(bgPath, bgPath+".bgi")
 				if err != nil {
 					log.Fatalln("Worker:", err)
 				}

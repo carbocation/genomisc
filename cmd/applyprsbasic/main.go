@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -11,9 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/carbocation/bgen"
+	"github.com/carbocation/genomisc/applyprsgcp"
 	"github.com/carbocation/genomisc/applyprsgcp/prsworker"
 	"github.com/carbocation/genomisc/prsparser"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 )
 
@@ -26,15 +30,18 @@ func init() {
 }
 
 var (
-	BufferSize = 4096
+	BufferSize = 4096 * 8
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
+	client     *storage.Client
 )
 
 func main() {
+
 	defer STDOUT.Flush()
 
 	var (
 		bgenTemplatePath string
+		bgiTemplatePath  string
 		inputBucket      string
 		layout           string
 		sourceFile       string
@@ -44,6 +51,7 @@ func main() {
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
+	flag.StringVar(&bgiTemplatePath, "bgi-template", "", "Optional: Templated path to bgi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.bgi'")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
@@ -69,6 +77,10 @@ func main() {
 	if inputBucket == "" {
 		flag.PrintDefaults()
 		log.Fatalln("Please provide --input")
+	}
+
+	if bgiTemplatePath == "" {
+		bgiTemplatePath = bgenTemplatePath + ".bgi"
 	}
 
 	if customLayout != "" {
@@ -118,6 +130,15 @@ func main() {
 		prsparser.Layouts["CUSTOM"] = udf
 	}
 
+	// Connect to Google Storage if requested
+	if strings.HasPrefix(inputBucket, "gs://") || strings.HasPrefix(samplePath, "gs://") || strings.HasPrefix(bgenTemplatePath, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 	if err := LoadPRS(inputBucket, layout, alwaysIncrement); err != nil {
 		log.Fatalln(err)
 	}
@@ -128,14 +149,11 @@ func main() {
 		break
 	}
 
-	// Place to accumulate scores
-	score := make([]Sample, 0)
-
 	// Header
 	fmt.Printf("sample_id\tsource\tscore\tn_incremented\n")
 
 	// Load the .sample file:
-	sf, err := os.Open(samplePath)
+	sf, _, err := bulkprocess.MaybeOpenFromGoogleStorage(samplePath, client)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -148,6 +166,29 @@ func main() {
 
 	chromosomalPRS := ChromosomalPRS(currentVariantScoreLookup)
 
+	score, err := accumulateLoop(chromosomalPRS, bgenTemplatePath, bgiTemplatePath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for fileRow, v := range score {
+		// +2 because the sample file contains a header of 2 rows: (1) the true
+		// header, and (2) a second header indicating the value type of the
+		// column
+		sampleID := sampleFileContents[fileRow+2][0]
+
+		fmt.Fprintf(STDOUT, "%s\t%s\t%f\t%d\n", sampleID, sourceFile, v.SumScore, v.NIncremented)
+	}
+
+}
+
+func accumulateLoop(chromosomalPRS map[string][]prsparser.PRS, bgenTemplatePath, bgiTemplatePath string) ([]Sample, error) {
+	// Place to accumulate scores
+	var score []Sample
+	var err error
+
+	i := 0
+
 	// Iterate over each chromosome present in our PRS
 	for chromosome, chomosomalSites := range chromosomalPRS {
 
@@ -158,13 +199,52 @@ func main() {
 			bgenPath = bgenTemplatePath
 		}
 
-		bgi, b, err := prsworker.OpenBGIAndBGEN(bgenPath)
+		bgiPath := fmt.Sprintf(bgiTemplatePath, chromosome) //bgenPath + ".bgi"
+		if !strings.Contains(bgiTemplatePath, "%s") {
+			// Permit explicit paths (e.g., when all data is in one BGEN)
+			bgiPath = bgiTemplatePath
+		}
+
+		// Open the BGI
+		var bgi *bgen.BGIIndex
+		var b *bgen.BGEN
+
+		// Repeatedly reading SQLite files over-the-wire is slow. So localize
+		// them.
+		if strings.HasPrefix(bgiPath, "gs://") {
+			bgiFilePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			log.Printf("Copied BGI file from %s to %s\n", bgiPath, bgiFilePath)
+
+			bgiPath = bgiFilePath
+		}
+
+		bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
 		if err != nil {
 			log.Fatalln(err)
+		}
+		defer bgi.Close()
+		defer b.Close()
+
+		if len(score) == 0 {
+			// If we haven't initialized the score slice yet, do so now by
+			// reading a random variant and creating a slice that has one sample
+			// per sample found in that variant.
+			vr := b.NewVariantReader()
+			randomVariant := vr.Read()
+			score = make([]Sample, len(randomVariant.SampleProbabilities))
 		}
 
 		// Iterate over each chromosomal position on this current chromosome
 		for _, oneSite := range chomosomalSites {
+
+			i++
+			if i%100 == 0 {
+				log.Println("Processing site", i, oneSite.Chromosome, oneSite.Position, oneSite.Allele1, oneSite.Allele2)
+			}
 
 			var sites []bgen.VariantIndex
 
@@ -188,7 +268,7 @@ func main() {
 					// We also seemingly need to reopen the handles.
 					b.Close()
 					bgi.Close()
-					bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath)
+					bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
 					if err != nil {
 						log.Fatalln(err)
 					}
@@ -209,14 +289,12 @@ func main() {
 		SitesLoop:
 			for _, site := range sites {
 
-				var scoresThisSite []Sample
-
 				// Process a variant from the BGEN file. Again, we also handle a
 				// specific filesystem error (input/output error) and retry in
 				// that case.
 				for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
 
-					scoresThisSite, err = ProcessOneVariant(b, site, &oneSite)
+					err = ProcessOneVariant(b, site, &oneSite, &score)
 					if err != nil && loadAttempts == maxLoadAttempts {
 						// Ongoing failure at maxLoadAttempts is a terminal error
 						log.Fatalln(err)
@@ -229,7 +307,7 @@ func main() {
 						// We also seemingly need to reopen the handles.
 						b.Close()
 						bgi.Close()
-						bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath)
+						bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
 						if err != nil {
 							log.Fatalln(err)
 						}
@@ -244,22 +322,7 @@ func main() {
 					// No errors? Don't retry.
 					break
 				}
-
-				if len(score) == 0 {
-					score = scoresThisSite
-				} else {
-					// TODO: Consider only summing periodically - otherwise you are
-					// doing N*M operations
-					for k, v := range scoresThisSite {
-						prior := score[k]
-						prior.NIncremented += v.NIncremented
-						prior.SumScore += v.SumScore
-
-						score[k] = prior
-					}
-				}
 			}
-
 		}
 
 		// Clean up our file handles
@@ -267,13 +330,5 @@ func main() {
 		b.Close()
 	}
 
-	for fileRow, v := range score {
-		// +2 because the sample file contains a header of 2 rows: (1) the true
-		// header, and (2) a second header indicating the value type of the
-		// column
-		sampleID := sampleFileContents[fileRow+2][0]
-
-		fmt.Fprintf(STDOUT, "%s\t%s\t%f\t%d\n", sampleID, sourceFile, v.SumScore, v.NIncremented)
-	}
-
+	return score, nil
 }

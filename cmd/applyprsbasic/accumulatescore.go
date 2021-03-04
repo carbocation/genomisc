@@ -8,21 +8,23 @@ import (
 	"github.com/carbocation/genomisc/prsparser"
 )
 
-func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) ([]Sample, error) {
+func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS, scores *[]Sample) error {
+	results := *scores
+
 	nonNilErr := ErrorInfo{Message: "", Chromosome: vi.Chromosome, Position: vi.Position}
 
 	if prs == nil || b == nil {
 		nonNilErr.Message = "prs was nil"
-		return nil, nonNilErr
+		return nonNilErr
 	}
 	if b == nil {
 		nonNilErr.Message = "b was nil"
-		return nil, nonNilErr
+		return nonNilErr
 	}
 
 	if vi.NAlleles > 2 {
 		nonNilErr.Message = fmt.Sprintf("%s:%d is multiallelic, skipping", vi.Chromosome, vi.Position)
-		return nil, nonNilErr
+		return nonNilErr
 	}
 
 	// Check whether there is allelic match (we assume same strand) between PRS
@@ -32,7 +34,7 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) (
 		// Must be the case
 	} else {
 		nonNilErr.Message = fmt.Sprintf("At %s:%d, PRS Alleles were %s,%s but variant alleles were %s,%s", vi.Chromosome, vi.Position, prs.Allele1, prs.Allele2, vi.Allele1, vi.Allele2)
-		return nil, nonNilErr
+		return nonNilErr
 	}
 
 	vr := b.NewVariantReader()
@@ -40,21 +42,19 @@ func ProcessOneVariant(b *bgen.BGEN, vi bgen.VariantIndex, prs *prsparser.PRS) (
 	variant := vr.ReadAt(int64(vi.FileStartPosition))
 	if err := vr.Error(); err != nil {
 		nonNilErr.Message = err.Error()
-		return nil, nonNilErr
+		return nonNilErr
 	}
-
-	results := make([]Sample, variant.NSamples, variant.NSamples)
 
 	for i := 0; i < len(results); i++ {
 		results[i].SumScore += ComputeScore(variant.SampleProbabilities[i], variant, prs)
-		results[i].NIncremented += 1
+		results[i].NIncremented++
 	}
 
 	if len(results) < 1 {
-		panic("Results empty")
+		return fmt.Errorf("Results empty")
 	}
 
-	return results, nil
+	return nil
 }
 
 func ComputeScore(sampleProb bgen.SampleProbability, v *bgen.Variant, prs *prsparser.PRS) float64 {
