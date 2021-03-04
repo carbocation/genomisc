@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -36,6 +37,9 @@ var (
 	BufferSize = 4096 * 8
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
 	client     *storage.Client
+
+	// Yes, an ugly global counter that is atomically updated across goroutines
+	nSitesProcessed uint64
 )
 
 func main() {
@@ -195,6 +199,16 @@ func main() {
 	scoreChan := make(chan []Sample)
 	taskCount := 0
 
+	go func() {
+		tick := time.NewTicker(1 * time.Minute)
+		for {
+			select {
+			case <-tick.C:
+				log.Println(atomic.LoadUint64(&nSitesProcessed), "sites have been processed")
+			}
+		}
+	}()
+
 	for _, chromsomalPRSChunk := range chromosomalPRSChunks {
 		taskCount++
 		wg.Add(1)
@@ -298,8 +312,6 @@ func accumulateLoop(chromosome string, chromosomalSites []prsparser.PRS, bgenTem
 	var score []Sample
 	var err error
 
-	i := 0
-
 	// Load the BGEN Index for this chromosome
 	bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
 	if !strings.Contains(bgenTemplatePath, "%s") {
@@ -337,22 +349,19 @@ func accumulateLoop(chromosome string, chromosomalSites []prsparser.PRS, bgenTem
 	defer bgi.Close()
 	defer b.Close()
 
-	if len(score) == 0 {
-		// If we haven't initialized the score slice yet, do so now by
-		// reading a random variant and creating a slice that has one sample
-		// per sample found in that variant.
-		vr := b.NewVariantReader()
-		randomVariant := vr.Read()
-		score = make([]Sample, len(randomVariant.SampleProbabilities))
-	}
+	// if len(score) == 0 {
+	// 	// If we haven't initialized the score slice yet, do so now by
+	// 	// reading a random variant and creating a slice that has one sample
+	// 	// per sample found in that variant.
+	// 	vr := b.NewVariantReader()
+	// 	randomVariant := vr.Read()
+	// 	score = make([]Sample, len(randomVariant.SampleProbabilities))
+	// }
 
 	// Iterate over each chromosomal position on this current chromosome
 	for _, oneSite := range chromosomalSites {
 
-		i++
-		if i%100 == 0 {
-			log.Println("Processing site", i, oneSite.Chromosome, oneSite.Position, oneSite.Allele1, oneSite.Allele2)
-		}
+		atomic.AddUint64(&nSitesProcessed, 1)
 
 		var sites []bgen.VariantIndex
 
