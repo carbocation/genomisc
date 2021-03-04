@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -166,10 +167,41 @@ func main() {
 
 	chromosomalPRS := ChromosomalPRS(currentVariantScoreLookup)
 
-	score, err := accumulateLoop(chromosomalPRS, bgenTemplatePath, bgiTemplatePath)
-	if err != nil {
-		log.Fatalln(err)
+	wg := sync.WaitGroup{}
+
+	var score []Sample
+	scoreChan := make(chan []Sample)
+	for chromosome, chromosomalSites := range chromosomalPRS {
+
+		wg.Add(1)
+		go func(chromosome string, chromosomalSites []prsparser.PRS) {
+			subScore, err := accumulateLoop(chromosome, chromosomalSites, bgenTemplatePath, bgiTemplatePath)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			scoreChan <- subScore
+		}(chromosome, chromosomalSites)
 	}
+
+	// Accumulate
+	go func() {
+		for range chromosomalPRS {
+			scores := <-scoreChan
+
+			if len(score) == 0 {
+				score = append(score, scores...)
+			} else {
+				for k, v := range scores {
+					score[k].NIncremented += v.NIncremented
+					score[k].SumScore += v.SumScore
+				}
+			}
+
+			wg.Done()
+		}
+	}()
+
+	wg.Wait()
 
 	for fileRow, v := range score {
 		// +2 because the sample file contains a header of 2 rows: (1) the true
@@ -182,87 +214,123 @@ func main() {
 
 }
 
-func accumulateLoop(chromosomalPRS map[string][]prsparser.PRS, bgenTemplatePath, bgiTemplatePath string) ([]Sample, error) {
+func accumulateLoop(chromosome string, chromosomalSites []prsparser.PRS, bgenTemplatePath, bgiTemplatePath string) ([]Sample, error) {
 	// Place to accumulate scores
 	var score []Sample
 	var err error
 
 	i := 0
 
-	// Iterate over each chromosome present in our PRS
-	for chromosome, chomosomalSites := range chromosomalPRS {
+	// Load the BGEN Index for this chromosome
+	bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
+	if !strings.Contains(bgenTemplatePath, "%s") {
+		// Permit explicit paths (e.g., when all data is in one BGEN)
+		bgenPath = bgenTemplatePath
+	}
 
-		// Load the BGEN Index for this chromosome
-		bgenPath := fmt.Sprintf(bgenTemplatePath, chromosome)
-		if !strings.Contains(bgenTemplatePath, "%s") {
-			// Permit explicit paths (e.g., when all data is in one BGEN)
-			bgenPath = bgenTemplatePath
-		}
+	bgiPath := fmt.Sprintf(bgiTemplatePath, chromosome) //bgenPath + ".bgi"
+	if !strings.Contains(bgiTemplatePath, "%s") {
+		// Permit explicit paths (e.g., when all data is in one BGEN)
+		bgiPath = bgiTemplatePath
+	}
 
-		bgiPath := fmt.Sprintf(bgiTemplatePath, chromosome) //bgenPath + ".bgi"
-		if !strings.Contains(bgiTemplatePath, "%s") {
-			// Permit explicit paths (e.g., when all data is in one BGEN)
-			bgiPath = bgiTemplatePath
-		}
+	// Open the BGI
+	var bgi *bgen.BGIIndex
+	var b *bgen.BGEN
 
-		// Open the BGI
-		var bgi *bgen.BGIIndex
-		var b *bgen.BGEN
-
-		// Repeatedly reading SQLite files over-the-wire is slow. So localize
-		// them.
-		if strings.HasPrefix(bgiPath, "gs://") {
-			bgiFilePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			log.Printf("Copied BGI file from %s to %s\n", bgiPath, bgiFilePath)
-
-			bgiPath = bgiFilePath
-		}
-
-		bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
+	// Repeatedly reading SQLite files over-the-wire is slow. So localize
+	// them.
+	if strings.HasPrefix(bgiPath, "gs://") {
+		bgiFilePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		defer bgi.Close()
-		defer b.Close()
 
-		if len(score) == 0 {
-			// If we haven't initialized the score slice yet, do so now by
-			// reading a random variant and creating a slice that has one sample
-			// per sample found in that variant.
-			vr := b.NewVariantReader()
-			randomVariant := vr.Read()
-			score = make([]Sample, len(randomVariant.SampleProbabilities))
+		log.Printf("Copied BGI file from %s to %s\n", bgiPath, bgiFilePath)
+
+		bgiPath = bgiFilePath
+	}
+
+	bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer bgi.Close()
+	defer b.Close()
+
+	if len(score) == 0 {
+		// If we haven't initialized the score slice yet, do so now by
+		// reading a random variant and creating a slice that has one sample
+		// per sample found in that variant.
+		vr := b.NewVariantReader()
+		randomVariant := vr.Read()
+		score = make([]Sample, len(randomVariant.SampleProbabilities))
+	}
+
+	// Iterate over each chromosomal position on this current chromosome
+	for _, oneSite := range chromosomalSites {
+
+		i++
+		if i%100 == 0 {
+			log.Println("Processing site", i, oneSite.Chromosome, oneSite.Position, oneSite.Allele1, oneSite.Allele2)
 		}
 
-		// Iterate over each chromosomal position on this current chromosome
-		for _, oneSite := range chomosomalSites {
+		var sites []bgen.VariantIndex
 
-			i++
-			if i%100 == 0 {
-				log.Println("Processing site", i, oneSite.Chromosome, oneSite.Position, oneSite.Allele1, oneSite.Allele2)
+		// Find the site in the BGEN index file. Here we also handle a
+		// specific filesystem error (input/output error) and retry in that
+		// case. Namely, exiting early is superior to producing incorrect
+		// output in the face of i/o errors. But, since we expect other
+		// "error" messages, we permit those to just be printed and ignored.
+		for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
+			sites, err = FindPRSSiteInBGI(bgi, oneSite)
+			if err != nil && loadAttempts == maxLoadAttempts {
+				// Ongoing failure at maxLoadAttempts is a terminal error
+				log.Fatalln(err)
+			} else if err != nil && strings.Contains(err.Error(), "input/output error") {
+				// If we had an error, often due to an unreliable underlying
+				// filesystem, wait for a substantial amount of time before
+				// retrying.
+				log.Println("FindPRSSiteInBGI: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
+				time.Sleep(5 * time.Second)
+
+				// We also seemingly need to reopen the handles.
+				b.Close()
+				bgi.Close()
+				bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
+				if err != nil {
+					log.Fatalln(err)
+				}
+
+				continue
+			} else if err != nil {
+				fmt.Fprintf(os.Stderr, "Skipping %v\n:", oneSite)
+				log.Println(err)
 			}
 
-			var sites []bgen.VariantIndex
+			// No errors? Don't retry.
+			break
+		}
 
-			// Find the site in the BGEN index file. Here we also handle a
-			// specific filesystem error (input/output error) and retry in that
-			// case. Namely, exiting early is superior to producing incorrect
-			// output in the face of i/o errors. But, since we expect other
-			// "error" messages, we permit those to just be printed and ignored.
+		// Multiple variants may be present at each chromosomal position
+		// (e.g., multiallelic sites, long deletions/insertions, etc) so
+		// test each of them for being an exact match.
+	SitesLoop:
+		for _, site := range sites {
+
+			// Process a variant from the BGEN file. Again, we also handle a
+			// specific filesystem error (input/output error) and retry in
+			// that case.
 			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
-				sites, err = FindPRSSiteInBGI(bgi, oneSite)
+
+				err = ProcessOneVariant(b, site, &oneSite, &score)
 				if err != nil && loadAttempts == maxLoadAttempts {
 					// Ongoing failure at maxLoadAttempts is a terminal error
 					log.Fatalln(err)
 				} else if err != nil && strings.Contains(err.Error(), "input/output error") {
 					// If we had an error, often due to an unreliable underlying
-					// filesystem, wait for a substantial amount of time before
-					// retrying.
-					log.Println("FindPRSSiteInBGI: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
+					// filesystem, wait for a substantial amount of time before retrying.
+					log.Println("ProcessOneVariant: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
 					time.Sleep(5 * time.Second)
 
 					// We also seemingly need to reopen the handles.
@@ -275,60 +343,20 @@ func accumulateLoop(chromosomalPRS map[string][]prsparser.PRS, bgenTemplatePath,
 
 					continue
 				} else if err != nil {
-					fmt.Fprintf(os.Stderr, "Skipping %v\n:", oneSite)
+					// Non i/o errors usually indicate that this is the wrong allele of a multiallelic. Print and move on.
 					log.Println(err)
+					continue SitesLoop
 				}
 
 				// No errors? Don't retry.
 				break
 			}
-
-			// Multiple variants may be present at each chromosomal position
-			// (e.g., multiallelic sites, long deletions/insertions, etc) so
-			// test each of them for being an exact match.
-		SitesLoop:
-			for _, site := range sites {
-
-				// Process a variant from the BGEN file. Again, we also handle a
-				// specific filesystem error (input/output error) and retry in
-				// that case.
-				for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
-
-					err = ProcessOneVariant(b, site, &oneSite, &score)
-					if err != nil && loadAttempts == maxLoadAttempts {
-						// Ongoing failure at maxLoadAttempts is a terminal error
-						log.Fatalln(err)
-					} else if err != nil && strings.Contains(err.Error(), "input/output error") {
-						// If we had an error, often due to an unreliable underlying
-						// filesystem, wait for a substantial amount of time before retrying.
-						log.Println("ProcessOneVariant: Sleeping 5s to recover from", err.Error(), "attempt", loadAttempts)
-						time.Sleep(5 * time.Second)
-
-						// We also seemingly need to reopen the handles.
-						b.Close()
-						bgi.Close()
-						bgi, b, err = prsworker.OpenBGIAndBGEN(bgenPath, bgiPath)
-						if err != nil {
-							log.Fatalln(err)
-						}
-
-						continue
-					} else if err != nil {
-						// Non i/o errors usually indicate that this is the wrong allele of a multiallelic. Print and move on.
-						log.Println(err)
-						continue SitesLoop
-					}
-
-					// No errors? Don't retry.
-					break
-				}
-			}
 		}
-
-		// Clean up our file handles
-		bgi.Close()
-		b.Close()
 	}
+
+	// Clean up our file handles
+	bgi.Close()
+	b.Close()
 
 	return score, nil
 }
