@@ -132,7 +132,10 @@ func main() {
 	}
 
 	// Connect to Google Storage if requested
-	if strings.HasPrefix(inputBucket, "gs://") || strings.HasPrefix(samplePath, "gs://") || strings.HasPrefix(bgenTemplatePath, "gs://") {
+	if strings.HasPrefix(inputBucket, "gs://") ||
+		strings.HasPrefix(samplePath, "gs://") ||
+		strings.HasPrefix(bgenTemplatePath, "gs://") ||
+		strings.HasPrefix(bgiTemplatePath, "gs://") {
 		var err error
 		client, err = storage.NewClient(context.Background())
 		if err != nil {
