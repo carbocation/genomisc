@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -13,6 +14,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"cloud.google.com/go/storage"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 const (
@@ -32,6 +36,10 @@ type ScoreCount struct {
 	N     int64
 }
 
+var (
+	client *storage.Client
+)
+
 func main() {
 
 	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
@@ -39,12 +47,21 @@ func main() {
 	var folder, sampleFile string
 
 	flag.StringVar(&folder, "chunks", "", "Path to folder containing PRS chunks")
-	flag.StringVar(&sampleFile, "sample", "", "(Optional) Path to .sample file to convert .bgen line numbers into true sample IDs")
+	flag.StringVar(&sampleFile, "sample", "", "(Optional) Path to .sample file to convert .bgen line numbers into true sample IDs, if not already done at a previous step.")
 	flag.Parse()
 
 	if folder == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	// Connect to Google Storage if requested
+	if strings.HasPrefix(sampleFile, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	files, err := ioutil.ReadDir(folder)
@@ -162,7 +179,7 @@ func main() {
 
 func readSampleFile(samplePath string) ([][]string, error) {
 	// Load the .sample file:
-	sf, err := os.Open(samplePath)
+	sf, _, err := bulkprocess.MaybeOpenFromGoogleStorage(samplePath, client)
 	if err != nil {
 		return nil, err
 	}
