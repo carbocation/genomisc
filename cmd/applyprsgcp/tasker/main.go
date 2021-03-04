@@ -32,13 +32,13 @@ func main() {
 		hasHeader      bool
 		variantsPerJob int
 	)
-	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
-	flag.StringVar(&inputBucket, "input", "", "Google Storage bucket path where the PRS file will be found")
-	flag.StringVar(&outputBucket, "output", "", "Google Storage bucket path where output files should go")
-	flag.StringVar(&prsPath, "prs", "", "Path to text file containing your polygenic risk score. Must be sorted by chromosome.")
+	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol. E.g., 1,1,2,0,3,5")
+	flag.StringVar(&inputBucket, "input", "", "Google Storage file with to source PRS containing SNP weights. This must have the same file content as --prs.")
+	flag.StringVar(&outputBucket, "output", "", "Google Storage file which is a 'root name' that will be slightly modified for each output chunk")
+	flag.StringVar(&prsPath, "prs", "", "Local file containing your polygenic risk score. Must be sorted by chromosome. Will be parsed to create an appropriate number of tasks per job.")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
-	flag.BoolVar(&hasHeader, "header", true, "Does the input file have a header that needs to be skipped?")
-	flag.StringVar(&sourceOverride, "column_name", "", "Optional. If set, overrides the default column name (derived from the PRS filename) with this value.")
+	flag.BoolVar(&hasHeader, "header", true, "(Optional) Does the input file have a header that needs to be skipped?")
+	flag.StringVar(&sourceOverride, "column_name", "", "(Optional) If set, overrides the default 'source' column name (derived from the PRS filename) with this value.")
 	flag.IntVar(&variantsPerJob, "variants_per_job", 0, "Maximum number of variants to be processed by each individual worker")
 	flag.Parse()
 
