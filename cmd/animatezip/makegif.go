@@ -10,7 +10,7 @@ import (
 
 func makeOneGifFromImageMap(dicomNames []string, imgMap map[string]image.Image, outName string, delay int) error {
 
-	outGif, err := bulkprocess.MakeOneGIFFromMap(dicomNames, imgMap, delay)
+	outGif, err := bulkprocess.MakeOneGIFFromMap(dicomNames, imgMap, delay, false)
 	if err != nil {
 		return err
 	}
