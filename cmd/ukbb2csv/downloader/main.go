@@ -26,6 +26,11 @@ func main() {
 
 	log.Println("Note: This tool only checks for pre-existing files in the order specified by the bulk file.")
 
+	if bulkPath == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	f, err := os.Open(bulkPath)
 	if err != nil {
 		log.Fatalln(err)
@@ -82,9 +87,9 @@ func main() {
 			defer func() { <-sem }()
 
 			if out, err := exec.Command(ukbFetch, fmt.Sprintf("-a%s", ukbKey), fmt.Sprintf("-e%s", row[0]), fmt.Sprintf("-d%s", row[1])).CombinedOutput(); err != nil {
-				log.Println(fmt.Errorf("Output: %s | Error: %s", string(out), err.Error()))
-				log.Println("Sleeping 30 seconds and retrying")
-				time.Sleep(30 * time.Second)
+				log.Println(fmt.Errorf("Output: %s | Error: %s | Row %v", string(out), err.Error(), row))
+				log.Println("Skipping")
+				time.Sleep(2 * time.Second)
 			}
 		}(append([]string{}, row...))
 
