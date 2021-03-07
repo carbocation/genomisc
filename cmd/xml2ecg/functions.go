@@ -26,19 +26,24 @@ func BandPassFilter(vals []float64, signalHz, highPassHz, lowPassHz, timepointsT
 	filtL := butter.NewLowPass1(lowPassHz * wcBase)
 
 	if filt == nil {
-		return nil, fmt.Errorf("Invalid high-pass filter (attempted wc=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*highPassHz)
+		return nil, fmt.Errorf("Invalid high-pass filter (attempted wc=%f for highPassHz=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*highPassHz, highPassHz)
 	}
 
 	if filtL == nil {
-		return nil, fmt.Errorf("Invalid low-pass filter (attempted wc=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*lowPassHz)
+		return nil, fmt.Errorf("Invalid low-pass filter (attempted wc=%f for lowPassHz=%f, but expect .0001 < wc && wc < 3.1415)", wcBase*lowPassHz, lowPassHz)
 	}
 
 	valsFloat := make([]float64, 0, len(vals))
 	compressor := make([]float64, 0)
 
 	for _, vf := range vals {
+		if timepointsToCompress < 2 {
+			valsFloat = append(valsFloat, filt.Next(filtL.Next(vf)))
+			continue
+		}
+
+		compressor = append(compressor, vf)
 		if float64(len(compressor)) < timepointsToCompress {
-			compressor = append(compressor, vf)
 			continue
 		}
 

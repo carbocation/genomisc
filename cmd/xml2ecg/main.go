@@ -17,9 +17,27 @@ import (
 )
 
 const (
+	// SamplingHz is the frequency, in cycles per second, at which the signal is
+	// sampled. TODO: fetch from the data itself.
 	SamplingHz = 500.0
-	LowPassHz  = 0.4
-	HighPassHz = 40.0
+
+	// PointsCompression represents the number of points to compress together.
+	// When <= 1.0, it will allow all points to be individually represented. If
+	// 2.0 or greater (N), it will average N points together.
+	PointsCompression = 1.0
+)
+
+// See https://www.ahajournals.org/doi/pdf/10.1161/CIRCULATIONAHA.106.180200 for
+// recommendations
+
+var (
+	// LowPassHz represents the frequency above which signals will be blocked
+	// (i.e., 'pass' signals lower than this frequency, in cycles per second)
+	LowPassHz float64
+
+	// HighPassHz represents the frequency below which signals will be blocked
+	// (i.e., 'pass' signals higher than this frequency, in cycles per second)
+	HighPassHz float64
 )
 
 func main() {
@@ -33,6 +51,8 @@ func main() {
 	flag.IntVar(&widthPx, "width", 256, "(Optional) If creating PNGs, what pixel width?")
 	flag.IntVar(&heightPx, "height", 256, "(Optional) If creating PNGs, what pixel height?")
 	flag.BoolVar(&debug, "debug", false, "Print extra metadata during processing?")
+	flag.Float64Var(&LowPassHz, "low_pass_hz", 150.0, "Only permit frequencies below this many cycles per second")
+	flag.Float64Var(&HighPassHz, "high_pass_hz", 0.05, "Only permit frequencies above this many cycles per second")
 	flag.Parse()
 
 	if filename == "" {
@@ -222,7 +242,7 @@ func processFullDisclosureStrip(filename string, doc CardiologyXML, createPNG bo
 				vf[i] *= voltageCorrection
 			}
 
-			valsFloat, err := BandPassFilter(vf, SamplingHz, LowPassHz, HighPassHz, 1)
+			valsFloat, err := BandPassFilter(vf, SamplingHz, HighPassHz, LowPassHz, PointsCompression)
 			if err != nil {
 				return err
 			}
