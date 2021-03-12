@@ -8,7 +8,6 @@ import (
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/prsparser"
 	"github.com/carbocation/pfx"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // FindPRSSiteInBGI reads any variant(s) in the BGI whose positions match that
