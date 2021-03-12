@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"github.com/carbocation/bgen"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {

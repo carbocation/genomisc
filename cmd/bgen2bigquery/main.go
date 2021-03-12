@@ -15,7 +15,6 @@ import (
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/applyprsgcp"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
