@@ -7,7 +7,6 @@ import (
 
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/applyprsgcp/prsworker"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func BGENPreprocessor(bgenPath, chromosome string) ([]bgen.VariantIndex, error) {
