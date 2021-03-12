@@ -42,7 +42,7 @@ func ImportBGIFromGoogleStorage(bgiPath string, client *storage.Client) (memfsBI
 
 	rc, err := handle.NewReader(context.Background())
 	if err != nil {
-		return "", pfx.Err(err)
+		return "", pfx.Err(fmt.Sprintf("%v (%s)", err, bgiPath))
 	}
 	defer rc.Close()
 
