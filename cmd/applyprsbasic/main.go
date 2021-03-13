@@ -59,6 +59,7 @@ func main() {
 		customLayout     string
 		samplePath       string
 		alwaysIncrement  bool
+		maxConcurrency   int
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
@@ -68,6 +69,7 @@ func main() {
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
 	flag.StringVar(&samplePath, "sample", "", "Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
 	flag.BoolVar(&alwaysIncrement, "alwaysincrement", true, "If true, flips effect (and effect allele) at sites with negative effect sizes so that scores will always be > 0.")
+	flag.IntVar(&maxConcurrency, "maxconcurrency", 0, "(Optional) If greater than 0, will only parallelize to maxConcurrency parallel processes, insted of 2*number of cores (the default).")
 	flag.Parse()
 
 	if sourceFile == "" {
@@ -186,6 +188,12 @@ func main() {
 	log.Println("Desire about", desiredChunks, "chunks of length", desiredChunks, "(", len(currentVariantScoreLookup), ") in total. NCPU ==", runtime.NumCPU())
 	if desiredChunks > 2*runtime.NumCPU() {
 		desiredChunks = 2 * runtime.NumCPU()
+	}
+	if desiredChunks > maxConcurrency && maxConcurrency > 0 {
+		desiredChunks = maxConcurrency
+	}
+	if desiredChunks < 1 {
+		desiredChunks = 1
 	}
 	chunkSize := len(currentVariantScoreLookup) / desiredChunks
 
