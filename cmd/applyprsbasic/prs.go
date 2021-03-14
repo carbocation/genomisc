@@ -18,6 +18,7 @@ var currentVariantScoreLookup map[ChrPos]prsparser.PRS
 type ChrPos struct {
 	Chromosome string
 	Position   uint32
+	SNP        string
 }
 
 // LoadPRS is ***not*** safe for concurrent access from multiple goroutines
@@ -75,6 +76,7 @@ func LoadPRS(prsPath, layout string, alwaysIncrement bool) error {
 			Allele1:      val.Allele1,
 			Allele2:      val.Allele2,
 			Score:        val.Score,
+			SNP:          val.SNP,
 		}
 
 		if p.EffectAllele != p.Allele1 && p.EffectAllele != p.Allele2 {
@@ -92,14 +94,14 @@ func LoadPRS(prsPath, layout string, alwaysIncrement bool) error {
 			}
 		}
 
-		currentVariantScoreLookup[ChrPos{p.Chromosome, uint32(p.Position)}] = p
+		currentVariantScoreLookup[ChrPos{p.Chromosome, uint32(p.Position), p.SNP}] = p
 	}
 
 	return nil
 }
 
-func LookupPRS(chromosome string, position uint32) *prsparser.PRS {
-	if prs, exists := currentVariantScoreLookup[ChrPos{chromosome, position}]; exists {
+func LookupPRS(chromosome string, position uint32, snp string) *prsparser.PRS {
+	if prs, exists := currentVariantScoreLookup[ChrPos{chromosome, position, snp}]; exists {
 		return &prs
 	} else {
 		// See if we have missed a leading zero
@@ -112,7 +114,7 @@ func LookupPRS(chromosome string, position uint32) *prsparser.PRS {
 
 		// We parsed as an integer. Now recheck without the leading zero to see
 		// if we can match.
-		if prs, exists := currentVariantScoreLookup[ChrPos{strconv.Itoa(chrInt), position}]; exists {
+		if prs, exists := currentVariantScoreLookup[ChrPos{strconv.Itoa(chrInt), position, snp}]; exists {
 			return &prs
 		}
 	}

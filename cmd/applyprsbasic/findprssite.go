@@ -22,8 +22,26 @@ func FindPRSSiteInBGI(bgi *bgen.BGIIndex, siteScore prsparser.PRS) ([]bgen.Varia
 
 	// Note: BGENIX stores chromosome 1 as "01", etc., in the UK Biobank.
 	sitesTemp := make([]bgen.VariantIndex, 0, len(currentVariantScoreLookup))
-	if err := bgi.DB.Select(&sitesTemp, "SELECT * FROM Variant WHERE position=?", siteScore.Position); err != nil {
-		return nil, pfx.Err(err)
+	if siteScore.UseSNP() {
+		// Our PRS does not contain position information. Explicitly fetch every
+		// field except "position", since we need to *not* know that in order to
+		// match based on how UseSNP() is defined.
+		if err := bgi.DB.Select(&sitesTemp, "SELECT chromosome, rsid, number_of_alleles, allele1, allele2, file_start_position, size_in_bytes FROM Variant WHERE rsid=?", siteScore.SNP); err != nil {
+			return nil, pfx.Err(err)
+		}
+	} else if siteScore.AllowSNP() {
+		// Our PRS contains both SNP and position information, so we can fetch
+		// all fields. Will choose based on position, but this is arbitrary.
+		if err := bgi.DB.Select(&sitesTemp, "SELECT * FROM Variant WHERE position=?", siteScore.Position); err != nil {
+			return nil, pfx.Err(err)
+		}
+	} else {
+		// Our PRS does not contain SNP information, just position information.
+		// Explicitly exclude the "rsid" field, since we need to *not* know that
+		// in order to match based on how UseSNP() is defined.
+		if err := bgi.DB.Select(&sitesTemp, "SELECT chromosome, position, number_of_alleles, allele1, allele2, file_start_position, size_in_bytes FROM Variant WHERE position=?", siteScore.Position); err != nil {
+			return nil, pfx.Err(err)
+		}
 	}
 
 	// Does the bgi use a chr prefix? Just test the first one.
@@ -33,6 +51,7 @@ func FindPRSSiteInBGI(bgi *bgen.BGIIndex, siteScore prsparser.PRS) ([]bgen.Varia
 			bgiUsesCHR = true
 		}
 
+		// Just check the first entry then terminate the loop
 		break
 	}
 
@@ -62,7 +81,7 @@ func FindPRSSiteInBGI(bgi *bgen.BGIIndex, siteScore prsparser.PRS) ([]bgen.Varia
 		}
 
 		// Don't keep the variant if it's not part of the risk score
-		if LookupPRS(site.Chromosome, site.Position) == nil {
+		if LookupPRS(site.Chromosome, site.Position, site.RSID) == nil {
 			continue
 		}
 		sites = append(sites, site)
@@ -74,10 +93,10 @@ func FindPRSSiteInBGI(bgi *bgen.BGIIndex, siteScore prsparser.PRS) ([]bgen.Varia
 		// The BGEN has sites here, but the PRS doesn't cover any variants in
 		// this region. There is nothing to process. So, why did you create a
 		// job for this?
-		return nil, pfx.Err(fmt.Errorf("There are no PRS sites to process at site range %s:%d-%d", siteScore.Chromosome, siteScore.Position, siteScore.Position))
+		return nil, pfx.Err(fmt.Errorf("There are no PRS sites to process at site range %s:%d-%d (SNP %s)", siteScore.Chromosome, siteScore.Position, siteScore.Position, siteScore.SNP))
 	} else if len(sites) < 1 {
 		// The BGEN has no sites here, which is probably an error.
-		return nil, pfx.Err(fmt.Errorf("There are no BGEN sites in range %s:%d-%d (file %s)", siteScore.Chromosome, siteScore.Position, siteScore.Position, bgi.Metadata.Filename))
+		return nil, pfx.Err(fmt.Errorf("There are no BGEN sites in range %s:%d-%d (SNP %s; file %s)", siteScore.Chromosome, siteScore.Position, siteScore.Position, siteScore.SNP, bgi.Metadata.Filename))
 	}
 
 	// There are some sites

@@ -49,20 +49,27 @@ func DefaultParseRow(layout *Layout, row []string) (PRS, error) {
 	p.Allele2 = Allele(row[layout.ColAllele2])
 	p.Chromosome = row[layout.ColChromosome]
 
-	if pos, err := strconv.Atoi(row[layout.ColPosition]); err != nil {
-		return p, pfx.Err(fmt.Errorf("Error at ColPosition (%d): %v", layout.ColPosition, err))
+	// If position is set, prefer that over SNP
+	if layout.ColPosition >= 0 {
+		if pos, err := strconv.Atoi(row[layout.ColPosition]); err != nil {
+			return p, pfx.Err(fmt.Errorf("error at ColPosition (%d): %v", layout.ColPosition, err))
+		} else {
+			p.Position = pos
+		}
+	} else if layout.ColSNP >= 0 {
+		p.SNP = row[layout.ColSNP]
 	} else {
-		p.Position = pos
+		return p, pfx.Err(fmt.Errorf("either a column for genomic position or for SNP ID must be set"))
 	}
 
 	if score, err := strconv.ParseFloat(row[layout.ColScore], 64); err != nil {
-		return p, pfx.Err(fmt.Errorf("Error at ColScore (%d): %v", layout.ColScore, err))
+		return p, pfx.Err(fmt.Errorf("error at ColScore (%d): %v", layout.ColScore, err))
 	} else {
 		p.Score = score
 	}
 
 	if p.EffectAllele != p.Allele1 && p.EffectAllele != p.Allele2 {
-		return p, pfx.Err(fmt.Errorf("Effect allele %v is neither allele1 (%s) nor alleles2 (%s)", p.EffectAllele, p.Allele1, p.Allele2))
+		return p, pfx.Err(fmt.Errorf("effect allele %v is neither allele1 (%s) nor allele2 (%s)", p.EffectAllele, p.Allele1, p.Allele2))
 	}
 
 	// Align all alleles such that the effect allele is risk-increasing. This

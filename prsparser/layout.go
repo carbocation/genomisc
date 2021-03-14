@@ -11,6 +11,7 @@ type Layout struct {
 	ColChromosome   int
 	ColPosition     int
 	ColScore        int
+	ColSNP          int
 	Parser          *func(layout *Layout, row []string) (PRS, error)
 }
 
@@ -24,6 +25,7 @@ var Layouts = map[string]Layout{
 		ColChromosome:   3,
 		ColPosition:     4,
 		ColScore:        2,
+		ColSNP:          -1,
 		Parser:          &defaultParseRow,
 	},
 	"LDPRED": {
@@ -35,6 +37,7 @@ var Layouts = map[string]Layout{
 		ColChromosome:   0,
 		ColPosition:     1,
 		ColScore:        6,
+		ColSNP:          -1,
 		Parser:          &ldpredParseRow,
 	},
 	"BOLTBGEN": {
@@ -46,6 +49,7 @@ var Layouts = map[string]Layout{
 		ColChromosome:   1,
 		ColPosition:     2,
 		ColScore:        10,
+		ColSNP:          -1,
 		Parser:          &defaultParseRow,
 	},
 }

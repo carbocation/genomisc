@@ -61,7 +61,7 @@ func main() {
 		alwaysIncrement  bool
 		maxConcurrency   int
 	)
-	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol")
+	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol,SNPCol. Either PositionCol or SNPCol (but not both) may be set to -1, indicating that it is not present.")
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
 	flag.StringVar(&bgiTemplatePath, "bgi-template", "", "Optional: Templated path to bgi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.bgi'")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
@@ -100,8 +100,8 @@ func main() {
 		layout = "CUSTOM"
 
 		cols := strings.Split(customLayout, ",")
-		if x := len(cols); x != 6 {
-			log.Fatalf("--custom-layout was toggled; 6 column numbers were expected, but %d were given\n", x)
+		if x := len(cols); x != 6 && x != 7 {
+			log.Fatalf("--custom-layout was toggled; 6 or 7 column numbers were expected, but %d were given\n", x)
 		}
 		intCols := make([]int, 0, len(cols))
 		for i, col := range cols {
@@ -132,9 +132,14 @@ func main() {
 			ColAllele1:      intCols[1],
 			ColAllele2:      intCols[2],
 			ColChromosome:   intCols[3],
-			ColPosition:     intCols[4],
+			ColPosition:     intCols[4], // May be set to -1 if the user is setting ColSNP
 			ColScore:        intCols[5],
+			ColSNP:          -1,
 			Parser:          &parseRule,
+		}
+
+		if len(intCols) > 6 && intCols[6] >= 0 {
+			udf.ColSNP = intCols[6]
 		}
 
 		log.Println("Using custom parser:")
