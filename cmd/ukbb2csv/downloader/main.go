@@ -20,7 +20,7 @@ func main() {
 	flag.StringVar(&bulkPath, "bulk", "", "Path to *.bulk file, as specified by UKBB.")
 	flag.StringVar(&ukbFetch, "ukbfetch", "ukbfetch", "Path to the ukbfetch utility (if not already in your PATH as ukbfetch).")
 	flag.StringVar(&ukbKey, "ukbkey", ".ukbkey", "Path to the .ukbkey file with the app ID and special key.")
-	flag.IntVar(&concurrency, "concurrency", 10, "Number of simultaneous connections to UK Biobank servers.")
+	flag.IntVar(&concurrency, "concurrency", 20, "Number of simultaneous connections to UK Biobank servers.")
 
 	flag.Parse()
 
