@@ -67,8 +67,8 @@ github.com/brentp/irelate v0.0.1/go.mod h1:Ct+JzyZC+JSi9WUkw3IGWc/j0yYEt4235wKCf
 github.com/brentp/vcfgo v0.0.0-20190824021612-654ed2e5945d h1:i2XBjlwhjIhi3Bsca7w6IBWA108Pf+JWZMtCyKrnhco=
 github.com/brentp/vcfgo v0.0.0-20190824021612-654ed2e5945d/go.mod h1:nN0Qx/D3CzwA4yLg2N7jbtSfJ7AUFU2I3J7gq/CmNfc=
 github.com/carbocation/bgen v0.0.0-20210108225046-c4af259fd9d9/go.mod h1:5+3ek+df6GDa54YoixyywWmUTc02waGNH1TbvmMoCgk=
-github.com/carbocation/bgen v0.0.0-20210318181410-8426602eb299 h1:eJTIstY+Z8kqhZTicQJbZ7OkZBYu/WW8iuoWOhNnp20=
-github.com/carbocation/bgen v0.0.0-20210318181410-8426602eb299/go.mod h1:OurdCRZRgd6FXO41hgosoKGh6G1j0sqz0MYzYVAnU9I=
+github.com/carbocation/bgen v0.0.0-20210318182738-fda1a0f352b0 h1:70QWb8TUIAq+ZilL1bN3gSBi3FF/aX/4xE1TKTFjPuQ=
+github.com/carbocation/bgen v0.0.0-20210318182738-fda1a0f352b0/go.mod h1:OurdCRZRgd6FXO41hgosoKGh6G1j0sqz0MYzYVAnU9I=
 github.com/carbocation/genomisc v0.0.0-20210307150845-e2efad427558/go.mod h1:+Asxoja1vk3weUjSbVoiGcoKqT/tsrcYzc19whQebsk=
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e h1:Fi7/u0OMfE/HYfoN4JGYi77OXI1uC6Cg4YQ7XbCovyc=
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=

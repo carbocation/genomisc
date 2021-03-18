@@ -44,6 +44,9 @@ var (
 
 func main() {
 
+	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
+	log.Println(bgen.WhichSQLiteDriver())
+
 	defer STDOUT.Flush()
 
 	defer func() {
