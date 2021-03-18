@@ -33,6 +33,7 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
+	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5

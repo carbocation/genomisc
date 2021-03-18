@@ -12,7 +12,7 @@ import (
 // you'll run into i/o errors that can be overcome by waiting a bit.
 func OpenBGIAndBGEN(bgenPath, bgiPath string) (bgi *bgen.BGIIndex, b *bgen.BGEN, err error) {
 	for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
-		bgi, err = bgen.OpenBGI(bgiPath + "?mode=ro")
+		bgi, err = OpenBGI(bgiPath + "?mode=ro")
 		if err != nil && loadAttempts == maxLoadAttempts {
 			// Ongoing failure at maxLoadAttempts is a terminal error
 			return nil, nil, err
