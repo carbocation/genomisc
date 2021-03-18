@@ -3,7 +3,6 @@ module github.com/carbocation/genomisc
 go 1.16
 
 require (
-	cloud.google.com/go v0.79.0 // indirect
 	cloud.google.com/go/bigquery v1.8.0
 	cloud.google.com/go/storage v1.14.0
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
@@ -34,7 +33,6 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
-	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
@@ -43,11 +41,9 @@ require (
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030
-	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
 	gonum.org/v1/gonum v0.8.2
 	google.golang.org/api v0.42.0
 	google.golang.org/genproto v0.0.0-20210318145829-90b20ab00860 // indirect
 	gopkg.in/guregu/null.v3 v3.5.0
-	modernc.org/strutil v1.1.1 // indirect
 )
