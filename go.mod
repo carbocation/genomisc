@@ -11,7 +11,7 @@ require (
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
 	github.com/brentp/bix v0.0.0-20190718140914-00aa7a7f205d
 	github.com/brentp/irelate v0.0.1
-	github.com/carbocation/bgen v0.0.0-20210312192055-f7ce2db33f07
+	github.com/carbocation/bgen v0.0.0-20210318181410-8426602eb299
 	github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e
 	github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea
 	github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d
@@ -22,6 +22,7 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
+	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/gorilla/mux v1.8.0
 	github.com/grd/histogram v0.0.0-20130107163446-074cc51e7eea
@@ -43,13 +44,10 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
-	golang.org/x/oauth2 v0.0.0-20210311163135-5366d9dc1934 // indirect
-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
 	gonum.org/v1/gonum v0.8.2
-	google.golang.org/api v0.41.0
-	google.golang.org/genproto v0.0.0-20210312152112-fc591d9ea70f // indirect
+	google.golang.org/api v0.42.0
+	google.golang.org/genproto v0.0.0-20210318145829-90b20ab00860 // indirect
 	gopkg.in/guregu/null.v3 v3.5.0
-	modernc.org/cc/v3 v3.32.0 // indirect
 	modernc.org/strutil v1.1.1 // indirect
 )
