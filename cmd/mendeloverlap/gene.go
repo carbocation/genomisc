@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -10,8 +11,10 @@ import (
 	"strings"
 
 	"github.com/carbocation/pfx"
-	"github.com/gobuffalo/packr/v2"
 )
+
+//go:embed lookups/*
+var embeddedTemplates embed.FS
 
 const (
 	GeneStableID int = iota
@@ -64,13 +67,13 @@ func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
 // span of transcript start - transcript end, so there is just one entry per
 // gene.
 func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error) {
-	lookups := packr.New("Human Genome Assembly", "./lookups")
 
-	file, err := lookups.Find("ensembl.grch37.p13.genes")
+	fileBytes, err := embeddedTemplates.ReadFile("lookups/ensembl.grch37.p13.genes")
 	if err != nil {
 		return nil, pfx.Err(err)
 	}
-	buf := bytes.NewBuffer(file)
+
+	buf := bytes.NewReader(fileBytes)
 	cr := csv.NewReader(buf)
 	cr.Comma = '\t'
 	cr.Comment = '#'
