@@ -19,6 +19,7 @@ func main() {
 		overrideMissing     bool
 		transcriptStartOnly bool
 		repeat              int
+		faumanMethod        bool
 	)
 
 	fmt.Println("This program uses GRCh37")
@@ -29,6 +30,7 @@ func main() {
 	flag.BoolVar(&overrideMissing, "overridemissing", false, "If not every gene on your gene list can be mapped, proceed anyway?")
 	flag.BoolVar(&transcriptStartOnly, "transcriptstart", false, "Measure radius to the transcript start site only? If false, will measure radius to start or end of the transcript (whichever is closer).")
 	flag.IntVar(&repeat, "repeat", 1, "Iterate over the SNPSnap input this many times.")
+	flag.BoolVar(&faumanMethod, "faumanmethod", false, "If true, will count at most 1 gene per locus. Due to paralogs, counting multiple genes at a locus can be misleading.")
 	flag.Parse()
 
 	if mendelianGeneFile == "" || SNPsnapFile == "" || radius < 0 {
@@ -51,6 +53,10 @@ func main() {
 		log.Fatalln("You may re-run with --overridemissing if you are confident that missing these genes is acceptable")
 	} else if err != nil && overrideMissing {
 		fmt.Printf("Because --overridemissing is enabled, proceeding despite the following error: %s\n", err.Error())
+	}
+
+	if faumanMethod {
+		fmt.Println("Will only count 1 gene per locus.")
 	}
 
 	permutations, err := ReadSNPsnap(SNPsnapFile, true)
@@ -76,5 +82,5 @@ func main() {
 	permutations.MendelianGenes = mendelianTranscripts
 	permutations.Radius = radius
 
-	permutations.Summarize(repeat, transcriptStartOnly, mendelianGeneFile, SNPsnapFile, radius)
+	permutations.Summarize(repeat, transcriptStartOnly, mendelianGeneFile, SNPsnapFile, radius, faumanMethod)
 }

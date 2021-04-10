@@ -21,11 +21,13 @@ type Hist struct {
 
 type geneWithLoci struct {
 	Gene
-	Loci Loci
+	Loci    Loci
+	Counted bool
 }
 
-func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFile, SNPsnapFile string, radius float64) {
-	origValue := e.Permutations[0].MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
+func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFile, SNPsnapFile string, radius float64, faumanMethod bool) {
+	mappedGenes := e.Permutations[0].MendelianGeneNamesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly, faumanMethod)
+	origValue := len(mappedGenes)
 
 	mendelianCounts := make(map[int]Hist)
 	for i := 0; i < repeat; i++ {
@@ -34,10 +36,13 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFi
 				// Only visit the truth case once
 				continue
 			}
-			val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
+			val := permutation.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly, faumanMethod)
 			hist := mendelianCounts[val]
 			hist.Value = val
 			hist.Count++
+			if val == origValue {
+				hist.Original = true
+			}
 			mendelianCounts[val] = hist
 		}
 	}
@@ -86,9 +91,17 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFi
 					continue
 				}
 
+				// If we are only counting one gene per locus, we need to see
+				// whether this gene actually contributed to the score.
+				counted := true
+				if _, exists := mappedGenes[v.Symbol]; !exists && faumanMethod {
+					counted = false
+				}
+
 				geneLoc := geneWithLoci{
-					Gene: v,
-					Loci: []Locus{locus},
+					Gene:    v,
+					Loci:    []Locus{locus},
+					Counted: counted,
 				}
 
 				yourMgenes = append(yourMgenes, geneLoc)
@@ -99,23 +112,45 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFi
 	fmt.Printf("%d Mendelian genes overlapped with your original SNP list:\n", len(yourMgenes))
 	sort.Slice(yourMgenes, func(i, j int) bool { return yourMgenes[i].Symbol < yourMgenes[j].Symbol })
 	for i, v := range yourMgenes {
-		fmt.Printf("%d) %s %s\n", i+1, v.Symbol, v.Loci)
+		if !v.Counted {
+			fmt.Printf("%d) %s [not counted towards score] %s\n", i+1, v.Symbol, v.Loci)
+		} else {
+			fmt.Printf("%d) %s %s\n", i+1, v.Symbol, v.Loci)
+		}
 	}
 
+	maxCount := origValue
+	for _, v := range histslice {
+		if v.Value > maxCount {
+			maxCount = v.Value
+		}
+	}
+
+	equallyOrMoreExtreme := 0
 	fmt.Println()
 	fmt.Println("Examined", repeat*len(e.Permutations), "permutations")
 	fmt.Printf("N_Overlapping_Loci\tN_Permutations\tContains_Original_Dataset\n")
-	equallyOrMoreExtreme := 0
-	for _, v := range histslice {
-		fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
-		if v.Original {
-			equallyOrMoreExtreme += v.Count
-		} else if equallyOrMoreExtreme > 0 {
-			// Once we have hit our original value, we add the count from every
-			// subsequent entry with that much overlap or higher.
-			equallyOrMoreExtreme += v.Count
+	for i := 0; i <= maxCount; i++ {
+		// Sometimes there are gaps at the extreme high overlap value range.
+		// When that happens, just indicate that the locus count for a certain
+		// overlap value is 0.
+		v, exists := mendelianCounts[i]
+		if !exists {
+			fmt.Printf("%v\t%v\t%v\n", i, 0, false)
+		} else {
+
+			if v.Original {
+				equallyOrMoreExtreme += v.Count
+			} else if equallyOrMoreExtreme > 0 {
+				// Once we have hit our original value, we add the count from every
+				// subsequent entry with that much overlap or higher.
+				equallyOrMoreExtreme += v.Count
+			}
+
+			fmt.Printf("%v\t%v\t%v\n", v.Value, v.Count, v.Original)
 		}
 	}
+
 	pVal := float64(equallyOrMoreExtreme) / float64(repeat*len(e.Permutations))
 
 	fmt.Println()
@@ -124,7 +159,7 @@ func (e Results) Summarize(repeat int, transcriptStartOnly bool, mendelianGeneFi
 	fmt.Printf("TABLE|%2.g|%s|%s|%.1e\n", radius, mendelianGeneFile, SNPsnapFile, pVal)
 }
 
-func (e Results) FisherExactTest(nAllGenes int, transcriptStartOnly bool) float64 {
+func (e Results) FisherExactTest(nAllGenes int, transcriptStartOnly, faumanMethod bool) float64 {
 	// FisherExactTest computes Fisher's Exact Test for
 	//  contigency tables. Nomenclature:
 	//
@@ -144,11 +179,11 @@ func (e Results) FisherExactTest(nAllGenes int, transcriptStartOnly bool) float6
 	nAllMendelianGenes := len(e.MendelianGenes)
 
 	// Mendelian genes that we did not find in this permutation
-	notfoundMendelianGenes := nAllMendelianGenes - e.MendelianGeneCount(transcriptStartOnly)
+	notfoundMendelianGenes := nAllMendelianGenes - e.MendelianGeneCount(transcriptStartOnly, faumanMethod)
 
-	residualGenes := nAllGenes - e.NonMendelianGeneCount() - e.MendelianGeneCount(transcriptStartOnly)
+	residualGenes := nAllGenes - e.NonMendelianGeneCount() - e.MendelianGeneCount(transcriptStartOnly, faumanMethod)
 
-	_, _, _, twop := fet.FisherExactTest(e.MendelianGeneCount(transcriptStartOnly), notfoundMendelianGenes, e.NonMendelianGeneCount(), residualGenes)
+	_, _, _, twop := fet.FisherExactTest(e.MendelianGeneCount(transcriptStartOnly, faumanMethod), notfoundMendelianGenes, e.NonMendelianGeneCount(), residualGenes)
 
 	return twop
 }
@@ -162,10 +197,10 @@ func (e Results) NonMendelianGeneCount() int {
 	return n
 }
 
-func (e Results) MendelianGeneCount(transcriptStartOnly bool) int {
+func (e Results) MendelianGeneCount(transcriptStartOnly, faumanMethod bool) int {
 	n := 0
 	for _, v := range e.Permutations {
-		n += v.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly)
+		n += v.MendelianGenesNearLoci(e.MendelianGenes, e.Radius, transcriptStartOnly, faumanMethod)
 	}
 
 	return n
