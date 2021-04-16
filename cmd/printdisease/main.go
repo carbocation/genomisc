@@ -51,10 +51,12 @@ func main() {
 	var override bool
 	var allowUndated bool
 	var verbose bool
+	var simplified bool
 
 	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL or path to tab-delimited file with the UKBB data encodings, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL or path to tab-delimited file with the UKBB data dictionary, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
+	flag.BoolVar(&simplified, "simplified", false, "Simplify the output to avoid listing the same codes separately for primary/secondary/death?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
@@ -88,8 +90,6 @@ func main() {
 		}
 	}
 
-	fmt.Fprintln(STDOUT, "Disease", diseaseName)
-
 	missingFields, err := tabs.CheckSensibility()
 	if err != nil && !override {
 		log.Println(err)
@@ -110,8 +110,111 @@ func main() {
 		log.Printf("%s: Overriding failed undated field check and continuing.\n", diseaseName)
 	}
 
+	if simplified {
+		printTabEntryTabular(diseaseName, "include", tabs.AllIncluded(), dict, coding)
+		printTabEntryTabular(diseaseName, "exclude", tabs.AllExcluded(), dict, coding)
+
+		return
+	}
+
+	fmt.Fprintln(STDOUT, "Disease", diseaseName)
+
 	fmt.Fprintln(STDOUT, "Including:")
-	for _, v := range tabs.AllIncluded() {
+	printTabEntry(tabs.AllIncluded(), dict, coding)
+
+	fmt.Fprintln(STDOUT, "Excluding:")
+	if len(tabs.AllExcluded()) > 0 {
+		printTabEntry(tabs.AllExcluded(), dict, coding)
+	} else {
+		fmt.Fprintf(STDOUT, "\t(No exclusion criteria)\n")
+	}
+
+}
+
+func printTabEntryTabular(diseaseName, prefix string, entries []TabEntry, dict map[int]UKBField, coding map[string]map[string]string) {
+	seen := make(map[string]struct{})
+
+	for _, v := range entries {
+		dictEntry := dict[v.FieldID]
+		codingEntry, exists := coding[dictEntry.Coding.String()]
+
+		if _, exists := seen[dictEntry.Coding.String()]; exists {
+			continue
+		} else {
+			seen[dictEntry.Coding.String()] = struct{}{}
+		}
+
+		// Try to print just the chunk with the ICD label or OPCS label.
+		fieldText := ""
+
+		chunks := strings.Split(dictEntry.Field, " ")
+		foundChunk := false
+		for _, chunk := range chunks {
+			if strings.Contains(chunk, "ICD") || strings.Contains(chunk, "OPCS") {
+				foundChunk = true
+				fieldText = chunk
+			}
+		}
+
+		if !foundChunk {
+			fieldText = dictEntry.Field
+		}
+
+		if exists {
+			for _, entryValue := range v.FormattedValues() {
+				fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\n", diseaseName, prefix, fieldText, codingEntry[entryValue])
+			}
+		} else {
+			fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\n", diseaseName, prefix, fieldText, strings.Join(v.Values, ", "))
+		}
+
+	}
+}
+
+func printTabEntrySimplified(entries []TabEntry, dict map[int]UKBField, coding map[string]map[string]string) {
+	seen := make(map[string]struct{})
+
+	for _, v := range entries {
+		dictEntry := dict[v.FieldID]
+		codingEntry, exists := coding[dictEntry.Coding.String()]
+
+		if _, exists := seen[dictEntry.Coding.String()]; exists {
+			continue
+		} else {
+			seen[dictEntry.Coding.String()] = struct{}{}
+		}
+
+		// Try to print just the chunk with the ICD label or OPCS label.
+		chunks := strings.Split(dictEntry.Field, " ")
+		foundChunk := false
+		for _, chunk := range chunks {
+			if strings.Contains(chunk, "ICD") || strings.Contains(chunk, "OPCS") {
+				foundChunk = true
+				fmt.Fprintf(STDOUT, "\t%s\n", chunk)
+			}
+		}
+
+		if !foundChunk {
+			fmt.Fprintf(STDOUT, "\t%s\n", dictEntry.Field)
+		}
+
+		if exists {
+			for _, entryValue := range v.FormattedValues() {
+				fmt.Fprintf(STDOUT, "\t\t%s\n", codingEntry[entryValue])
+			}
+			fmt.Fprintf(STDOUT, "\n")
+		} else {
+			fmt.Fprintf(STDOUT, "\t\t")
+			fmt.Fprintf(STDOUT, "%s", strings.Join(v.Values, ", "))
+			fmt.Fprintf(STDOUT, "\n")
+		}
+
+	}
+	fmt.Fprintf(STDOUT, "\n")
+}
+
+func printTabEntry(entries []TabEntry, dict map[int]UKBField, coding map[string]map[string]string) {
+	for _, v := range entries {
 		dictEntry := dict[v.FieldID]
 
 		fmt.Fprintf(STDOUT, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
@@ -130,26 +233,4 @@ func main() {
 
 	}
 	fmt.Fprintf(STDOUT, "\n")
-
-	fmt.Fprintln(STDOUT, "Excluding:")
-	for _, v := range tabs.AllExcluded() {
-		dictEntry := dict[v.FieldID]
-
-		fmt.Fprintf(STDOUT, "\t%s (FieldID %v) values:\n", dictEntry.Field, v.FieldID)
-
-		codingEntry, exists := coding[dictEntry.Coding.String()]
-		if exists {
-			for _, entryValue := range v.FormattedValues() {
-				fmt.Fprintf(STDOUT, "\t\t%s\n", codingEntry[entryValue])
-			}
-		} else {
-			fmt.Fprintf(STDOUT, "\t\t")
-			fmt.Fprintf(STDOUT, "%s", strings.Join(v.Values, ", "))
-			fmt.Fprintf(STDOUT, "\n")
-		}
-	}
-	if len(tabs.AllExcluded()) < 1 {
-		fmt.Fprintf(STDOUT, "\t(No exclusion criteria)\n")
-	}
-
 }
