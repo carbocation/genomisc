@@ -44,6 +44,8 @@ var (
 
 func main() {
 
+	// defer profile.Start().Stop()
+
 	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
 	log.Println(bgen.WhichSQLiteDriver())
 
