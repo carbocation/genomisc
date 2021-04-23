@@ -350,12 +350,14 @@ func accumulateLoop(chromosome string, chromosomalSites []prsparser.PRS, bgenTem
 	// Repeatedly reading SQLite files over-the-wire is slow. So localize
 	// them.
 	if strings.HasPrefix(bgiPath, "gs://") {
-		bgiFilePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
+		bgiFilePath, newDownload, err := applyprsgcp.ImportBGIFromGoogleStorageLocked(bgiPath, client)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		log.Printf("Copied BGI file from %s to %s\n", bgiPath, bgiFilePath)
+		if newDownload {
+			log.Printf("Copied BGI file from %s to %s\n", bgiPath, bgiFilePath)
+		}
 
 		bgiPath = bgiFilePath
 	}
