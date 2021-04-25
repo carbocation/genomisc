@@ -65,6 +65,8 @@ func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, 
 	var grayCol color.Color
 	var col color.Color
 
+	fmt.Printf("sample_id\tdicom_file\tb_slice\tinstance_number\theight_mm\twidth_mm\tdepth_mm\tinstance\n")
+
 	// March forward in time
 	for t := 0; t < tm; t++ {
 		// And down the stack
@@ -109,7 +111,8 @@ func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, 
 				return err
 			}
 			// Emit metadata about each PNG
-			fmt.Printf("%s\t%d\t%d\t%g\t%g\t%g\n", fmt.Sprintf("%s.z%06d_t%06d", prefix, z, t), z, t, niftiHeader.Pixdim[1], niftiHeader.Pixdim[2], niftiHeader.Pixdim[3])
+			sampleID := strings.Split(prefix, "_")[0]
+			fmt.Printf("%s\t%s\t%d\t%d\t%g\t%g\t%g\t%d\n", sampleID, fmt.Sprintf("%s.z%06d_t%06d", prefix, z, t), z, t, niftiHeader.Pixdim[1], niftiHeader.Pixdim[2], niftiHeader.Pixdim[3], 0)
 
 			fw.Flush()
 			f.Close()
