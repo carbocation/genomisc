@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
+	"github.com/carbocation/pfx"
 )
 
 func makeOneGrid(dicomNames []string, outName string, delay int, withTransparency bool) error {
@@ -13,7 +14,7 @@ func makeOneGrid(dicomNames []string, outName string, delay int, withTransparenc
 	// Fetch the images based on the dicom names and shove them into a map
 	sortedPngs, err := bulkprocess.FetchGIFComponents(dicomNames, client)
 	if err != nil {
-		return nil
+		return pfx.Err(err)
 	}
 	imgMap := make(map[string]image.Image)
 	for k, dicomName := range dicomNames {
@@ -24,39 +25,39 @@ func makeOneGrid(dicomNames []string, outName string, delay int, withTransparenc
 	// cycle. Extremely hacky.
 	newDicomNames, newImageMap, err := bulkprocess.ImageGrid(dicomNames, imgMap, "", nil, 50, 4)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	// Create the GIF
-	outGif, err := bulkprocess.MakeOneGIFFromMap(newDicomNames, newImageMap, 2, withTransparency)
+	outGif, err := bulkprocess.MakeOneGIFFromMap(newDicomNames, newImageMap, delay, withTransparency)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	// Save file
 	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	defer f.Close()
 
-	return gif.EncodeAll(f, outGif)
+	return pfx.Err(gif.EncodeAll(f, outGif))
 }
 
 func makeOneGif(pngs []string, outName string, delay int, withTransparency bool) error {
 	outGif, err := bulkprocess.MakeOneGIFFromPaths(pngs, delay, withTransparency, client)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	// Save file
 	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return err
+		return pfx.Err(err)
 	}
 
 	defer f.Close()
 
-	return gif.EncodeAll(f, outGif)
+	return pfx.Err(gif.EncodeAll(f, outGif))
 }
