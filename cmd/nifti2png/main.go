@@ -17,12 +17,13 @@ import (
 )
 
 func main() {
-	var filename, output string
+	var filename, output, imageSuffix string
 	var isGrayscale bool
 
 	flag.StringVar(&filename, "file", "", "Name of .nii or .nii.gz file to convert to PNGs. ")
 	flag.StringVar(&output, "out", "", "Name of folder where the pngs will be emitted. Filenames will be {orig_filename}.z{z depth}_t{time}.png.")
 	flag.BoolVar(&isGrayscale, "grayscale", false, "If true, creates a grayscale image. Otherwise creates a color image.")
+	flag.StringVar(&imageSuffix, "suffix", ".png", "Generally, use .png for raw images and .png.mask.png for annotations. Note that this does not determine filetype - files are always png.")
 	flag.Parse()
 
 	if filename == "" || output == "" {
@@ -50,12 +51,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if err := nifti2png(niftiImage, niftiHeader, prefix, output, isGrayscale); err != nil {
+	if err := nifti2png(niftiImage, niftiHeader, prefix, output, imageSuffix, isGrayscale); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, output string, isGrayscale bool) error {
+func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, output, imageSuffix string, isGrayscale bool) error {
 	dims := input.GetDims()
 	xm, ym, zm, tm := dims[0], dims[1], dims[2], dims[3]
 
@@ -96,7 +97,7 @@ func nifti2png(input nifti.Nifti1Image, niftiHeader nifti.Nifti1Header, prefix, 
 				}
 			}
 
-			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.z%06d_t%06d.png", prefix, z, t)))
+			f, err := os.Create(filepath.Join(output, fmt.Sprintf("%s.z%06d_t%06d%s", prefix, z, t, imageSuffix)))
 			if err != nil {
 				return err
 			}
