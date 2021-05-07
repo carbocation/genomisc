@@ -23,7 +23,7 @@ func main() {
 	)
 
 	fmt.Println("This program uses GRCh37")
-	flag.StringVar(&mendelianGeneFile, "mendel", "", "Filename containing one gene symbol per line representing your Mendelian disease genes.")
+	flag.StringVar(&mendelianGeneFile, "mendel", "", "Filename containing one gene symbol per line representing your Mendelian disease genes. (No header expected.)")
 	flag.StringVar(&SNPsnapFile, "snpsnap", "", "Filename containing SNPsnap output.")
 	flag.StringVar(&truthLociFile, "truthloci", "", "Optional. Filename containing truth loci (one chr:pos per line). If set, overrides the first column in --snpsnap file as the representative of the real loci from your study. Must *not* contain a header.")
 	flag.Float64Var(&radius, "radius", 250, "Radius, in kilobases, to define whether part of a transcript is 'within' a given locus.")
