@@ -2,15 +2,19 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/carbocation/pfx"
-	"github.com/gobuffalo/packr/v2"
 )
+
+//go:embed lookups/*
+var embeddedTemplates embed.FS
 
 const (
 	GeneStableID int = iota
@@ -77,15 +81,12 @@ func ReadSitesFile(fileName string) ([]string, error) {
 
 // FetchGenes pulls in all transcripts
 func FetchGenes() ([]Gene, error) {
-	lookups := packr.New("Human Genome Assembly", "./lookups")
-
-	file, err := lookups.Find(BioMartFilename)
+	fileBytes, err := embeddedTemplates.ReadFile(fmt.Sprintf("lookups/%s", BioMartFilename))
 	if err != nil {
 		return nil, pfx.Err(err)
 	}
 
-	buf := bytes.NewBuffer(file)
-	cr := csv.NewReader(buf)
+	cr := csv.NewReader(bytes.NewReader(fileBytes))
 	cr.Comma = '\t'
 	cr.Comment = '#'
 
