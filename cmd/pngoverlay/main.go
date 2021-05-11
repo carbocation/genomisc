@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -106,11 +107,15 @@ func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, 
 		return err
 	}
 
+	errorWrap := func(err error) error {
+		return fmt.Errorf("%s: %w", overlayPath, err)
+	}
+
 	// Use the JSONConfig to identify the desired human-visible colors for the
 	// overlay:
 	overlayImg, err := config.Labels.DecodeImageFromImageSegment(rawOverlayImg, transparentBackground)
 	if err != nil {
-		return err
+		return errorWrap(err)
 	}
 
 	// Perform overlay
@@ -127,13 +132,13 @@ func run(config overlay.JSONConfig, basePath, overlayPath, outputFolder string, 
 	// Create your output image file
 	of, err := os.Create(outputFolder + "/" + filepath.Base(basePath) + ".overlay.png")
 	if err != nil {
-		return err
+		return errorWrap(err)
 	}
 	defer of.Close()
 
 	// Write the PNG representation of your output image to the file
 	if err := png.Encode(of, oImg); err != nil {
-		return err
+		return errorWrap(err)
 	}
 
 	return nil
