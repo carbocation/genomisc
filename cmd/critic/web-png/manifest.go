@@ -71,7 +71,12 @@ func (m *AnnotationTracker) WriteAnnotationsToDisk(imagePath string) error {
 			v.Annotation.Path = imagePath
 		}
 
-		fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\n", v.SampleID, v.Dicom, v.Annotation.Value, v.Annotation.Date, v.Annotation.Path)
+		dicomName := v.Annotation.Dicom
+		if dicomName == "" {
+			dicomName = v.Dicom
+		}
+
+		fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\n", v.SampleID, dicomName, v.Annotation.Value, v.Annotation.Date, v.Annotation.Path)
 	}
 
 	return nil
@@ -172,7 +177,9 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 			intInstance = 0
 		}
 
-		anno, _ := annotations[DicomFilename(cols[header.Dicom]+assumedMergedImageSuffix)]
+		anno, _ := annotations[DicomFilename(cols[header.Dicom])]
+		// Set the annotation DICOM name to be the raw dicom name
+		anno.Dicom = cols[header.Dicom]
 
 		output = append(output, ManifestEntry{
 			SampleID:       cols[header.SampleID],
@@ -236,6 +243,7 @@ func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath, nestedSuf
 		for _, cols := range lines {
 			entry := cols[0]
 			anno, _ := annotations[DicomFilename(entry)]
+			anno.Dicom = entry
 
 			output = append(output, ManifestEntry{
 				Dicom:      entry,

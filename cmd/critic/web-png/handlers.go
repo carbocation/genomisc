@@ -150,7 +150,11 @@ func (h *handler) CriticPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write to disk. Can consider launching in a goroutine to reduce delay.
-	if err := h.Global.manifest.WriteAnnotationsToDisk(h.Global.OutputPath); err != nil {
+	notedPath := h.Global.MergedRoot
+	if notedPath == "" {
+		notedPath = h.Global.RawRoot
+	}
+	if err := h.Global.manifest.WriteAnnotationsToDisk(notedPath); err != nil {
 		HTTPError(h, w, r, err)
 		return
 	}
