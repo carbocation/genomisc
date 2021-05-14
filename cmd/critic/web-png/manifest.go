@@ -124,11 +124,11 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 		Series         int
 		InstanceNumber int
 	}{
+		0,
 		-1,
 		-1,
-		-1,
-		-1,
-		-1,
+		0,
+		0,
 	}
 
 	for i, cols := range recs {
@@ -149,12 +149,9 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 			continue
 		}
 
-		if header.SampleID == -1 ||
-			header.Zip == -1 ||
-			header.Dicom == -1 ||
-			header.Series == -1 ||
-			header.InstanceNumber == -1 {
-			return nil, fmt.Errorf("header columns were not detected")
+		if header.Zip == -1 ||
+			header.Dicom == -1 {
+			return nil, fmt.Errorf("header column 'zip_file' or 'dicom_file' (or both) not detected")
 		}
 
 		intInstance, err := strconv.Atoi(cols[header.InstanceNumber])
