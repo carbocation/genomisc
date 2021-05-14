@@ -90,6 +90,8 @@ type ManifestEntry struct {
 // necessary when the image files are nested within a container.
 func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*AnnotationTracker, error) {
 
+	mayBeNested := true
+
 	// We assume that the Dicom filename for the merged image file has this
 	// suffix. TODO: Make configurable.
 	assumedMergedImageSuffix := ".png.overlay.png"
@@ -149,9 +151,19 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 			continue
 		}
 
-		if header.Zip == -1 ||
-			header.Dicom == -1 {
-			return nil, fmt.Errorf("header column 'zip_file' or 'dicom_file' (or both) not detected")
+		if header.Dicom == -1 {
+			return nil, fmt.Errorf("header column 'dicom_file' not detected")
+		}
+
+		// If Zip isn't found, this isn't an error, unless you intended to use a
+		// nested structure
+		if header.Zip == -1 {
+			mayBeNested = false
+			header.Zip = 0
+
+			if nestedSuffix != "" {
+				return nil, fmt.Errorf("header column 'zip_file' not detected")
+			}
 		}
 
 		intInstance, err := strconv.Atoi(cols[header.InstanceNumber])
@@ -175,7 +187,7 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 	// For now, don't sort manifests - permits you to arrange them in a preprocessing step
 	// sort.Slice(output, generateManifestSorter(output))
 
-	return &AnnotationTracker{Entries: output, Nested: true, AnnotationPath: annotationPath}, nil
+	return &AnnotationTracker{Entries: output, Nested: mayBeNested, AnnotationPath: annotationPath}, nil
 }
 
 // CreateManifestAndOutput lists all files in your main input directory and your
