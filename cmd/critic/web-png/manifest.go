@@ -163,7 +163,7 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 			intInstance = 0
 		}
 
-		anno, _ := annotations[DicomFilename(cols[header.Dicom])]
+		anno, _ := annotations[DicomFilename(cols[header.Dicom]+assumedMergedImageSuffix)]
 
 		output = append(output, ManifestEntry{
 			SampleID:       cols[header.SampleID],
