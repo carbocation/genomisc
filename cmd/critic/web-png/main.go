@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	global       *Global
-	addSuffix    string
-	removeSuffix string
+	global             *Global
+	addSuffix          string
+	removeSuffix       string
+	onlyRawIsAvailable bool
 )
 
 func init() {
@@ -40,21 +41,26 @@ func main() {
 		//syscall.SIGINFO,
 	)
 
-	var rawRoot, mergedRoot, outputPath, labelsFile, manifestPath string
+	var rawRoot, mergedRoot, outputPath, labelsFile, manifestPath, nestedSuffix string
 	var port int
 	flag.StringVar(&addSuffix, "add_suffix", "", "(Optional) Suffix to add after the /merged/ filename to obtain the correct filename from the /raw/ data.")
 	flag.StringVar(&removeSuffix, "remove_suffix", "", "(Optional) Suffix to remove from the /merged/ filename to obtain the correct filename from the /raw/ data.")
-	flag.StringVar(&rawRoot, "raw", "", "(Optional) Path under which all secondary (usually raw/no-overlay) images sit.")
+	flag.StringVar(&rawRoot, "raw", "", "(Optional) Path under which all secondary (usually raw/no-overlay) images sit. If --manifest is set, this may be a gs:// URL. Either raw or merged (or both) must be set.")
 	flag.StringVar(&manifestPath, "manifest", "", "(Optional) Path with a file whose first column is the file names of the images of interest from the --merged folder.")
-	flag.StringVar(&mergedRoot, "merged", "", "Path under which all main images of interest sit. If --manifest is set, this may be a gs:// URL.")
+	flag.StringVar(&mergedRoot, "merged", "", "(Optional) Path under which all main images of interest sit. If --manifest is set, this may be a gs:// URL. Either raw or merged (or both) must be set.")
 	flag.StringVar(&outputPath, "output", "", "Path to a local file where all output will be written. Will be created if it does not yet exist.")
+	flag.StringVar(&nestedSuffix, "nested-suffix", "", "If images are nested within .tar.gz files, how is the zip file name modified?")
 	flag.IntVar(&port, "port", 9019, "Port for HTTP server")
 	flag.StringVar(&labelsFile, "labels", "", "(Optional) json file with labels. E.g.: {Labels: [{'name':'Label 1', 'value':'l1'}]}")
 	flag.Parse()
 
-	if mergedRoot == "" || outputPath == "" {
+	// We permit passing either
+	if (mergedRoot == "" && rawRoot == "") || outputPath == "" {
 		flag.PrintDefaults()
 		return
+	}
+	if mergedRoot == "" {
+		onlyRawIsAvailable = true
 	}
 
 	mergedRoot = strings.TrimSuffix(mergedRoot, "/")
@@ -63,7 +69,9 @@ func main() {
 	var sclient *storage.Client
 	var err error
 
-	if strings.HasPrefix(mergedRoot, "gs://") {
+	if strings.HasPrefix(mergedRoot, "gs://") ||
+		strings.HasPrefix(manifestPath, "gs://") ||
+		strings.HasPrefix(rawRoot, "gs://") {
 		sclient, err = storage.NewClient(context.Background())
 		if err != nil {
 			log.Fatalln(err)
@@ -86,7 +94,13 @@ func main() {
 		Labels:     []Label{{DisplayName: "Bad Image", Value: "bad-image"}, {DisplayName: "Mistraced Segmentation", Value: "mistrace"}, {DisplayName: "Good", Value: "good"}},
 	}
 
-	sortedAnnotatedManifest, err := CreateManifestAndOutput(mergedRoot, outputPath, manifestPath)
+	var sortedAnnotatedManifest *AnnotationTracker
+
+	if nestedSuffix != "" {
+		sortedAnnotatedManifest, err = ReadNestedManifest(manifestPath, outputPath, nestedSuffix)
+	} else {
+		sortedAnnotatedManifest, err = CreateManifestAndOutput(mergedRoot, outputPath, manifestPath, nestedSuffix)
+	}
 	if err != nil {
 		log.Fatalln(err)
 	}

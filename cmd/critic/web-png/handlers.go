@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/gorilla/mux"
 )
 
@@ -70,17 +69,12 @@ func (h *handler) CriticHandler(w http.ResponseWriter, r *http.Request) {
 	if overlay := r.Form.Get("overlay"); overlay == "off" {
 		showOverlay = false
 	}
-
-	var imReader bulkprocess.ReaderAtCloser
-	var filename string
-
-	if showOverlay {
-		filename = manifestEntry.Dicom
-		imReader, _, err = bulkprocess.MaybeOpenFromGoogleStorage(h.Global.MergedRoot+"/"+filename, h.Global.storageClient)
-	} else {
-		filename = MergedNameToRawName(manifestEntry.Dicom, addSuffix, removeSuffix)
-		imReader, _, err = bulkprocess.MaybeOpenFromGoogleStorage(h.Global.RawRoot+"/"+filename, h.Global.storageClient)
+	// If raw is default, never show the overlay
+	if onlyRawIsAvailable {
+		showOverlay = false
 	}
+
+	imReader, filename, err := h.FetchImageFromContainer(manifestEntry, showOverlay)
 	if err != nil {
 		HTTPError(h, w, r, err)
 		return

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ type DicomFilename string
 
 type AnnotationTracker struct {
 	AnnotationPath string
+	Nested         bool
 
 	m       sync.RWMutex
 	Entries []ManifestEntry
@@ -84,11 +86,117 @@ type ManifestEntry struct {
 	Annotation     Annotation
 }
 
+// ReadNestedManifest will attempt to parse a classical manifest. This is
+// necessary when the image files are nested within a container.
+func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*AnnotationTracker, error) {
+
+	// We assume that the Dicom filename for the merged image file has this
+	// suffix. TODO: Make configurable.
+	assumedMergedImageSuffix := ".png.overlay.png"
+
+	// Fetch any annotations that already exist, or create a file to hold them
+	// if none yet do.
+	annotations, err := OpenOrCreateAnnotationFile(annotationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now open the full manifest of files we want to critique.
+	f, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	cr := csv.NewReader(f)
+	cr.Comma = '\t'
+	recs, err := cr.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	output := make([]ManifestEntry, 0, len(recs))
+
+	header := struct {
+		SampleID       int
+		Zip            int
+		Dicom          int
+		Series         int
+		InstanceNumber int
+	}{
+		-1,
+		-1,
+		-1,
+		-1,
+		-1,
+	}
+
+	for i, cols := range recs {
+		if i == 0 {
+			for j, col := range cols {
+				if col == "zip_file" {
+					header.Zip = j
+				} else if col == "dicom_file" {
+					header.Dicom = j
+				} else if col == "series" {
+					header.Series = j
+				} else if col == "instance_number" {
+					header.InstanceNumber = j
+				} else if col == "sample_id" {
+					header.SampleID = j
+				}
+			}
+			continue
+		}
+
+		if header.SampleID == -1 ||
+			header.Zip == -1 ||
+			header.Dicom == -1 ||
+			header.Series == -1 ||
+			header.InstanceNumber == -1 {
+			return nil, fmt.Errorf("header columns were not detected")
+		}
+
+		intInstance, err := strconv.Atoi(cols[header.InstanceNumber])
+		if err != nil {
+			// Ignore the error
+			intInstance = 0
+		}
+
+		anno, _ := annotations[DicomFilename(cols[header.Dicom])]
+
+		output = append(output, ManifestEntry{
+			SampleID:       cols[header.SampleID],
+			Zip:            MergedNameToRawName(cols[header.Zip], nestedSuffix, ".zip"),
+			Dicom:          cols[header.Dicom] + assumedMergedImageSuffix, // Total hack
+			Series:         cols[header.Series],
+			InstanceNumber: intInstance,
+			Annotation:     anno,
+		})
+	}
+
+	// For now, don't sort manifests - permits you to arrange them in a preprocessing step
+	// sort.Slice(output, generateManifestSorter(output))
+
+	return &AnnotationTracker{Entries: output, Nested: true, AnnotationPath: annotationPath}, nil
+}
+
 // CreateManifestAndOutput lists all files in your main input directory and your
 // output directory. It checks to see if the output file has already been
 // created. If so, it reads the output and matches it with the input, returning
 // pre-populated values.
-func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath string) (*AnnotationTracker, error) {
+func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath, nestedSuffix string) (*AnnotationTracker, error) {
+
+	// First, if we happen to be given a complete manifest, read it. If that
+	// conforms to our old manifest format, use it. Just mark it non-nested.
+	tracker, err := ReadNestedManifest(manifestPath, annotationPath, nestedSuffix)
+	if err == nil {
+		tracker.Nested = false
+		return tracker, nil
+	}
+
+	// If we don't have an old-style manifest, process either the new simplified
+	// manifest or, if none is given, process the folder contents.
 
 	output := make([]ManifestEntry, 0)
 
