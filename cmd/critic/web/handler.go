@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"html/template"
 	"sync"
@@ -13,6 +14,9 @@ import (
 const (
 	BaseFilename = "_base.html"
 )
+
+//go:embed templates/*
+var embeddedTemplates embed.FS
 
 // handler provides global values that must be
 // safe for concurrent use from multiple goroutines
@@ -89,7 +93,7 @@ func (h *handler) Template(templateFilename string) *template.Template {
 				"noescape": func(s string) template.HTML {
 					return template.HTML(s)
 				},
-			}).ParseGlob(fmt.Sprintf(`%s/templates/%s`, h.Folder(), "_*.html"))
+			}).ParseFS(embeddedTemplates, "templates/_*.html")
 			//}).ParseFiles(fmt.Sprintf(`%s/templates/%s`, h.Folder(), BaseFilename))
 
 			if err != nil {
@@ -115,7 +119,7 @@ func (h *handler) Template(templateFilename string) *template.Template {
 	// Generate a clone of the base template so you don't contaminate it with the
 	// derivative template's `define` statements.
 	h.Global.log.Println("Initializing HTML template for", templateFilename)
-	tpl, err := template.Must(h.template[BaseFilename].Clone()).ParseFiles(fmt.Sprintf(`%s/templates/%s`, h.Folder(), templateFilename))
+	tpl, err := template.Must(h.template[BaseFilename].Clone()).ParseFS(embeddedTemplates, fmt.Sprintf(`templates/%s`, templateFilename))
 	if err != nil {
 		panic(fmt.Errorf(`handlers.go:Template: %s`, err))
 	}
