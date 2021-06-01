@@ -168,43 +168,18 @@ func main() {
 			return false
 		})
 
-		onTranscript := false
-		if between(sitePosInt, transcripts[0].EarliestTranscriptStart, transcripts[0].LatestTranscriptEnd) {
-			onTranscript = true
-		}
-
 		for _, transcript := range transcripts {
+
+			onTranscript := false
+			if between(sitePosInt, transcript.EarliestTranscriptStart, transcript.LatestTranscriptEnd) {
+				onTranscript = true
+			}
 
 			if transcript.Chromosome != siteChr {
 				break
 			}
 
-			if tss {
-				if !between(sitePosInt, transcript.EarliestTranscriptStart-radius, transcript.EarliestTranscriptStart+radius) {
-					// sitePosInt isn't within radius of TranscriptStart. Since this
-					// is sorted, we know we're done.
-					continue
-				}
-			} else {
-				ok := false
-				if between(sitePosInt, transcript.EarliestTranscriptStart-radius, transcript.LatestTranscriptEnd+radius) {
-					// tss is within radius of TranscriptStart. Since this is
-					// sorted, we know we're done.
-					ok = true
-				}
-
-				if !ok {
-					continue
-				}
-			}
-
-			// if !((transcript.EarliestTranscriptStart+radius > sitePosInt) && (transcript.EarliestTranscriptStart-radius < sitePosInt)) {
-			// 	// sitePosInt isn't within radius of TranscriptStart. Since this
-			// 	// is sorted, we know we're done.
-			// 	break
-			// }
-
-			output = append(output, outputType{
+			newEntry := outputType{
 				Site:                    site,
 				Chromosome:              siteChr,
 				Position:                sitePosInt,
@@ -213,16 +188,20 @@ func main() {
 				TranscriptEnd:           transcript.LatestTranscriptEnd,
 				DistanceTranscriptStart: int(math.Abs(float64(transcript.EarliestTranscriptStart) - sitePos)),
 				DistanceTranscriptEnd:   int(math.Abs(float64(transcript.LatestTranscriptEnd) - sitePos)),
-				Distance:                int(math.Abs(float64(transcript.EarliestTranscriptStart) - sitePos)),
+				Distance:                0,
 				OnTranscript:            onTranscript,
-			})
-		}
-
-		if !tss {
-			output[len(output)-1].Distance = int(math.Min(float64(output[len(output)-1].DistanceTranscriptStart), float64(output[len(output)-1].DistanceTranscriptEnd)))
-			if onTranscript {
-				output[len(output)-1].Distance = 0
 			}
+
+			newEntry.Distance = int(math.Min(float64(newEntry.DistanceTranscriptEnd), float64(newEntry.DistanceTranscriptStart)))
+			if onTranscript && !tss {
+				newEntry.Distance = 0
+			}
+
+			if newEntry.Distance > radius {
+				break
+			}
+
+			output = append(output, newEntry)
 		}
 
 		i++
