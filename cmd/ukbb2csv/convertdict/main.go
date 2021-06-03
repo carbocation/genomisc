@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -20,7 +21,7 @@ func main() {
 		dictPath string
 	)
 
-	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv", "URL to CSV file with the UKBB data dictionary")
+	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL to TSV file with the UKBB data dictionary")
 	flag.Parse()
 
 	if dictPath == "" {
@@ -36,12 +37,19 @@ func main() {
 func ImportDictionary(url string) error {
 	log.Printf("Importing from %s\n", url)
 
-	resp, err := http.Get(url)
+	var br io.ReadCloser
+	var err error
+	if strings.HasPrefix(url, "http") {
+		br, err = bodyReader(url)
+	} else {
+		br, err = os.Open(url)
+	}
 	if err != nil {
 		return err
 	}
-	reader := csv.NewReader(resp.Body)
-	reader.Comma = ','
+
+	reader := csv.NewReader(br)
+	reader.Comma = '\t'
 	reader.LazyQuotes = true
 
 	header := make([]string, 0)
@@ -49,11 +57,12 @@ func ImportDictionary(url string) error {
 	for ; ; j++ {
 		row, err := reader.Read()
 		if err != nil && err == io.EOF {
-			resp.Body.Close()
+			log.Println("Exiting on line", j)
+			br.Close()
 			break
 		} else if err != nil {
 			buf := bytes.NewBuffer(nil)
-			io.Copy(buf, resp.Body)
+			io.Copy(buf, br)
 			if strings.Contains(buf.String(), "internal error") {
 				log.Println("Dictionary File is not permitted to be downloaded from the UKBB")
 				continue
@@ -81,12 +90,23 @@ func ImportDictionary(url string) error {
 		}
 
 		// Handle the entries
-		if len(row) == ExpectedRows {
+		if x := len(row); x == ExpectedRows {
 			fmt.Println(strings.Join(row, "\t"))
+		} else {
+			log.Println("Row", j, "had", x, "rows, expecte", ExpectedRows)
 		}
 	}
 
 	log.Println("Created dictionary file with", j, "entries")
 
 	return nil
+}
+
+func bodyReader(url string) (io.ReadCloser, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
