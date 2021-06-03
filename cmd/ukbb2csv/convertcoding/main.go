@@ -20,7 +20,7 @@ func main() {
 		codingPath string
 	)
 
-	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings_Showcase.csv", "URL to CSV file with the UKBB data encodings")
+	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL to CSV file with the UKBB data encodings")
 	flag.Parse()
 
 	if codingPath == "" {
@@ -41,7 +41,7 @@ func ImportCoding(url string) error {
 		return err
 	}
 	reader := csv.NewReader(resp.Body)
-	reader.Comma = ','
+	reader.Comma = '\t'
 	reader.LazyQuotes = true
 
 	header := make([]string, 0)
