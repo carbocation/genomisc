@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/carbocation/genomisc/ukbb"
 )
 
 const (
@@ -21,7 +23,7 @@ func main() {
 		dictPath string
 	)
 
-	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL to TSV file with the UKBB data dictionary")
+	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv", "URL to TSV file with the UKBB data dictionary")
 	flag.Parse()
 
 	if dictPath == "" {
@@ -48,8 +50,8 @@ func ImportDictionary(url string) error {
 		return err
 	}
 
-	reader := csv.NewReader(br)
-	reader.Comma = '\t'
+	reader := csv.NewReader(ukbb.NewCSVQuoteFixReadCloser(br))
+	reader.Comma = ','
 	reader.LazyQuotes = true
 
 	header := make([]string, 0)

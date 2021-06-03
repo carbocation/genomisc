@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/carbocation/genomisc/ukbb"
 )
 
 const (
@@ -20,7 +22,7 @@ func main() {
 		codingPath string
 	)
 
-	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL to CSV file with the UKBB data encodings")
+	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.csv", "URL to CSV file with the UKBB data encodings")
 	flag.Parse()
 
 	if codingPath == "" {
@@ -40,8 +42,8 @@ func ImportCoding(url string) error {
 	if err != nil {
 		return err
 	}
-	reader := csv.NewReader(resp.Body)
-	reader.Comma = '\t'
+	reader := csv.NewReader(ukbb.NewCSVQuoteFixReadCloser(resp.Body))
+	reader.Comma = ','
 	reader.LazyQuotes = true
 
 	header := make([]string, 0)
@@ -84,8 +86,15 @@ func ImportCoding(url string) error {
 		}
 
 		// Handle the entries
-		if len(row) == ExpectedRows {
+		if x := len(row); x == ExpectedRows {
+			for _, v := range row {
+				if strings.Contains(v, "\n") {
+					log.Println("Newline")
+				}
+			}
 			fmt.Println(strings.Join(row, "\t"))
+		} else {
+			log.Println("Row", j, "had", x, "rows, expecte", ExpectedRows)
 		}
 	}
 
