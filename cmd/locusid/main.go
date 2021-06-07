@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-var snpFile, chr, pos, comma string
+var snpFile, chr, pos, comma, locusIDName string
 var distanceThreshold float64
 
 func main() {
@@ -21,6 +21,7 @@ func main() {
 	flag.StringVar(&chr, "chr", "CHR", "Chromosome column.")
 	flag.StringVar(&pos, "pos", "BP", "Position column.")
 	flag.StringVar(&comma, "delimiter", "\t", "Delimiter.")
+	flag.StringVar(&locusIDName, "locusid_name", "GlobalLocusID", "Name of 'GlobalLocusID' column.")
 	flag.Parse()
 
 	if snpFile == "" {
@@ -76,7 +77,7 @@ func run() error {
 		snps = append(snps, v)
 	}
 
-	header = append(header, "LocusID")
+	header = append(header, locusIDName)
 
 	IDCol := len(header) - 1
 
