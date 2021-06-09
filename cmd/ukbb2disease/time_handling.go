@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -22,6 +23,18 @@ func TimesToFractionalYears(earlier, later time.Time) string {
 	y, m, d, h, min, sec := time_diff(earlier, later)
 
 	return fmt.Sprintf("%.6f", float64(y)+float64(m)/12+float64(d)/(12*30)+float64(h)/(24*365)+float64(min)/(60*24*365)+float64(sec)/(60*60*24*365))
+}
+
+func TimesToDays(earlier, later time.Time) string {
+	if later.Before(earlier) {
+		return NullMarker
+	}
+
+	// Round to the nearest day-difference
+	days := math.Round(later.Sub(earlier).Hours() / 24.0)
+
+	// Return day as, essentially, an integer
+	return fmt.Sprintf("%.0f", days)
 }
 
 // Taken directly from https://stackoverflow.com/a/36531443/199475
