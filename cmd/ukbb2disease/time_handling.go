@@ -73,8 +73,7 @@ func time_diff(a, b time.Time) (year, month, day, hour, min, sec int) {
 	}
 	if day < 0 {
 		// days in month:
-		t := time.Date(y1, M1, 32, 0, 0, 0, 0, time.UTC)
-		day += 32 - t.Day()
+		day += time.Date(y2, M2, 0, 0, 0, 0, 0, time.UTC).Day()
 		month--
 	}
 	if month < 0 {
