@@ -158,7 +158,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	}
 
 	// Print
-	fmt.Printf("sample_id\tsex\tethnicity\tbirthdate\tenroll_date\tenroll_age\tdeath_date\tdeath_age\tdeath_censor_date\tdeath_censor_age\tphenotype_censor_date\tphenotype_censor_age\tlost_to_followup_date\tlost_to_followup_age\tcomputed_date\tmissing_fields\thas_gp_data\n")
+	fmt.Printf("sample_id\tsex\tethnicity\tbirthdate\tenroll_date\tenroll_age\tenroll_age_days\tdeath_date\tdeath_age\tdeath_age_days\tdeath_censor_date\tdeath_censor_age\tdeath_censor_age_days\tphenotype_censor_date\tphenotype_censor_age\tphenotype_censor_age_days\tlost_to_followup_date\tlost_to_followup_age\tlost_to_followup_age_days\tcomputed_date\tmissing_fields\thas_gp_data\n")
 	for _, v := range out {
 
 		// Some samples have been removed
@@ -166,21 +166,26 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			continue
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n",
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n",
 			v.SampleID,
 			v.Sex,
 			v.Ethnicity,
 			TimeToUKBDate(v.Born()),
 			TimeToUKBDate(v.enrolled),
 			TimesToFractionalYears(v.Born(), v.enrolled),
+			TimesToDays(v.Born(), v.enrolled),
 			TimeToUKBDate(v.died.Time),
 			TimesToFractionalYears(v.Born(), v.died.Time),
+			TimesToDays(v.Born(), v.died.Time),
 			TimeToUKBDate(v.DeathCensored()),
 			TimesToFractionalYears(v.Born(), v.DeathCensored()),
+			TimesToDays(v.Born(), v.DeathCensored()),
 			TimeToUKBDate(v.PhenoCensored()),
 			TimesToFractionalYears(v.Born(), v.PhenoCensored()),
+			TimesToDays(v.Born(), v.PhenoCensored()),
 			TimeToUKBDate(v.lost.Time),
 			TimesToFractionalYears(v.Born(), v.lost.Time),
+			TimesToDays(v.Born(), v.lost.Time),
 			TimeToUKBDate(v.computed),
 			v.MissingToString(),
 			BoolToInt(v.hasPrimaryCareData),
