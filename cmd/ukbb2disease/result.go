@@ -21,15 +21,15 @@ type Result struct {
 	MetExclusion            bigquery.NullInt64   `bigquery:"met_exclusion"`
 	PhenotypeDateCensor     bigquery.NullDate    `bigquery:"date_censor"`
 	RoughPhenotypeAgeCensor bigquery.NullFloat64 `bigquery:"age_censor"`      // Note: just uses days/365. Don't use.
-	PhenotypeAgeCensorDays  bigquery.NullInt64   `bigquery:"age_censor_days"` // This one uses proper days and is directly reliable.
+	PhenotypeAgeCensorDays  bigquery.NullFloat64 `bigquery:"age_censor_days"` // This one uses proper days and is directly reliable.
 	BirthDate               bigquery.NullDate    `bigquery:"birthdate"`
 	EnrollDate              bigquery.NullDate    `bigquery:"enroll_date"`
 	EnrollAge               bigquery.NullFloat64 `bigquery:"enroll_age"`
-	EnrollAgeDays           bigquery.NullInt64   `bigquery:"enroll_age_days"`
+	EnrollAgeDays           bigquery.NullFloat64 `bigquery:"enroll_age_days"`
 	HasDied                 bigquery.NullInt64   `bigquery:"has_died"`
 	DeathDate               bigquery.NullDate    `bigquery:"death_date"`
 	DeathAge                bigquery.NullFloat64 `bigquery:"death_age"`
-	DeathAgeDays            bigquery.NullInt64   `bigquery:"death_age_days"`
+	DeathAgeDays            bigquery.NullFloat64 `bigquery:"death_age_days"`
 	ComputedDate            bigquery.NullDate    `bigquery:"computed_date"`
 	MissingFields           bigquery.NullString  `bigquery:"missing_fields"`
 }
