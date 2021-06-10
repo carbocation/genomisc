@@ -20,13 +20,16 @@ type Result struct {
 	PrevalentDisease        bigquery.NullInt64   `bigquery:"prevalent_disease"`
 	MetExclusion            bigquery.NullInt64   `bigquery:"met_exclusion"`
 	PhenotypeDateCensor     bigquery.NullDate    `bigquery:"date_censor"`
-	RoughPhenotypeAgeCensor bigquery.NullFloat64 `bigquery:"age_censor"` // Note: just uses days/365. Don't use.
+	RoughPhenotypeAgeCensor bigquery.NullFloat64 `bigquery:"age_censor"`      // Note: just uses days/365. Don't use.
+	PhenotypeAgeCensorDays  bigquery.NullFloat64 `bigquery:"age_censor_days"` // This one uses proper days and is directly reliable.
 	BirthDate               bigquery.NullDate    `bigquery:"birthdate"`
 	EnrollDate              bigquery.NullDate    `bigquery:"enroll_date"`
 	EnrollAge               bigquery.NullFloat64 `bigquery:"enroll_age"`
+	EnrollAgeDays           bigquery.NullFloat64 `bigquery:"enroll_age_days"`
 	HasDied                 bigquery.NullInt64   `bigquery:"has_died"`
 	DeathDate               bigquery.NullDate    `bigquery:"death_date"`
 	DeathAge                bigquery.NullFloat64 `bigquery:"death_age"`
+	DeathAgeDays            bigquery.NullFloat64 `bigquery:"death_age_days"`
 	ComputedDate            bigquery.NullDate    `bigquery:"computed_date"`
 	MissingFields           bigquery.NullString  `bigquery:"missing_fields"`
 }
@@ -94,7 +97,7 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 	}
 	todayDate := time.Now().Format("2006-01-02")
 	missing := strings.Join(missingFields, ",")
-	fmt.Fprintf(STDOUT, "disease\tsample_id\thas_disease\tincident_disease\tprevalent_disease\tmet_exclusion\tcensor_date\tcensor_age\tbirthdate\tenroll_date\tenroll_age\thas_died\tdeath_censor_date\tdeath_censor_age\tcensor_computed_date\tcensor_missing_fields\tcomputed_date\tmissing_fields\n")
+	fmt.Fprintf(STDOUT, "disease\tsample_id\thas_disease\tincident_disease\tprevalent_disease\tmet_exclusion\tcensor_date\tcensor_age\tcensor_age_days\tbirthdate\tenroll_date\tenroll_age\tenroll_age_days\thas_died\tdeath_censor_date\tdeath_censor_age\tdeath_censor_age_days\tcensor_computed_date\tcensor_missing_fields\tcomputed_date\tmissing_fields\n")
 	for {
 		var r Result
 		err := itr.Next(&r)
@@ -131,8 +134,8 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			r.DeathDate = r.EnrollDate
 		}
 
-		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			diseaseName, r.SampleID, NA(r.HasDisease), NA(r.IncidentDisease), NA(r.PrevalentDisease), NA(r.MetExclusion), NA(r.PhenotypeDateCensor), NA(censoredPhenoAge), NA(r.BirthDate), NA(r.EnrollDate), NA(r.EnrollAge), NA(r.HasDied), NA(r.DeathDate), NA(censoredDeathAge), NA(r.ComputedDate), NA(r.MissingFields), todayDate, missing)
+		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			diseaseName, r.SampleID, NA(r.HasDisease), NA(r.IncidentDisease), NA(r.PrevalentDisease), NA(r.MetExclusion), NA(r.PhenotypeDateCensor), NA(censoredPhenoAge), NA(r.PhenotypeAgeCensorDays), NA(r.BirthDate), NA(r.EnrollDate), NA(r.EnrollAge), NA(r.EnrollAgeDays), NA(r.HasDied), NA(r.DeathDate), NA(censoredDeathAge), NA(r.DeathAgeDays), NA(r.ComputedDate), NA(r.MissingFields), todayDate, missing)
 	}
 
 	return nil

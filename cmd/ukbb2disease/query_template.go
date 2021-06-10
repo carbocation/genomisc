@@ -35,12 +35,15 @@ SELECT
 	incident_disease, 
 	prevalent_disease, 
 	date_censor, 
-	DATE_DIFF(date_censor,birthdate, DAY)/365.0 age_censor, 
+	DATE_DIFF(date_censor,birthdate, DAY)/365.25 age_censor, 
+	DATE_DIFF(date_censor,birthdate, DAY) age_censor_days,
 	birthdate, 
 	enroll_date, 
 	enroll_age, 
+	enroll_age_days,
 	death_date, 
 	death_age, 
+	death_age_days,
 	computed_date, 
 	missing_fields
 FROM (
@@ -67,8 +70,10 @@ FROM (
 		MIN(c.birthdate) birthdate,
 		MIN(c.enroll_date) enroll_date,
 		MIN(c.enroll_age) enroll_age,
+		MIN(c.enroll_age_days) enroll_age_days,
 		MIN(c.death_date) death_date,
 		MIN(c.death_age) death_age,
+		MIN(c.death_age_days) death_age_days,
 		MIN(c.computed_date) computed_date,
 		MIN(c.missing_fields) missing_fields
 	FROM ` + "`{{.g.database}}.censor`" + ` c
@@ -184,23 +189,35 @@ SELECT
 		ELSE io.date_censor
 	END date_censor, 
 
+	-- If you modify age_censor, don't forget to modify age_censor_days equivalently
 	CASE
 		-- Enrollment occurred after exclusion:
-		WHEN eo.has_disease = 1 AND SAFE.DATE_DIFF(c.enroll_date, eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.0
+		WHEN eo.has_disease = 1 AND SAFE.DATE_DIFF(c.enroll_date, eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.25
 		-- Exclusion occurred after enrollment and prior to disease onset; we will exclude:
-		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(io.date_censor,eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.0
+		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(io.date_censor,eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.25
 		-- Exclusion occurred after disease onset; we'll allow it:
-		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(eo.date_censor,io.date_censor, DAY) > 0 THEN DATE_DIFF(io.date_censor,c.birthdate, DAY)/365.0 
+		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(eo.date_censor,io.date_censor, DAY) > 0 THEN DATE_DIFF(io.date_censor,c.birthdate, DAY)/365.25 
 		-- Met exclusion but no inclusion
-		WHEN eo.has_disease = 1 AND (io.has_disease = 0 OR io.has_disease IS NULL) THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.0
+		WHEN eo.has_disease = 1 AND (io.has_disease = 0 OR io.has_disease IS NULL) THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)/365.25
 		-- Didn't meet exclusion or inclusion means we censor at the date given by UKBB:
 		WHEN io.has_disease IS NULL THEN c.phenotype_censor_age
-		ELSE DATE_DIFF(io.date_censor,c.birthdate, DAY)/365.0 
+		ELSE DATE_DIFF(io.date_censor,c.birthdate, DAY)/365.25 
 	END age_censor, 
+
+	-- Designed to be a duplicate of age_censor but with days instead of years
+	CASE
+		WHEN eo.has_disease = 1 AND SAFE.DATE_DIFF(c.enroll_date, eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)
+		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(io.date_censor,eo.date_censor, DAY) > 0 THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)
+		WHEN eo.has_disease = 1 AND io.has_disease = 1 AND SAFE.DATE_DIFF(eo.date_censor,io.date_censor, DAY) > 0 THEN DATE_DIFF(io.date_censor,c.birthdate, DAY)
+		WHEN eo.has_disease = 1 AND (io.has_disease = 0 OR io.has_disease IS NULL) THEN DATE_DIFF(eo.date_censor,c.birthdate, DAY)
+		WHEN io.has_disease IS NULL THEN c.phenotype_censor_age_days
+		ELSE DATE_DIFF(io.date_censor,c.birthdate, DAY)
+	END age_censor_days, 
 
 	c.birthdate, 
 	c.enroll_date, 
 	c.enroll_age, 
+	c.enroll_age_days,
 	CASE 
 		WHEN c.death_date IS NULL THEN 0 
 		ELSE 1 
@@ -212,6 +229,9 @@ SELECT
 	CASE WHEN c.death_date IS NULL THEN c.death_censor_age 
 		ELSE c.death_age 
 	END death_age, 
+	CASE WHEN c.death_date IS NULL THEN c.death_censor_age_days 
+		ELSE c.death_age_days 
+	END death_age_days, 
 	c.computed_date, 
 	c.missing_fields
 FROM ` + "`{{.database}}.censor`" + ` c
