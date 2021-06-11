@@ -53,8 +53,8 @@ func main() {
 	var verbose bool
 	var simplified bool
 
-	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.tsv", "URL or path to tab-delimited file with the UKBB data encodings, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
-	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.tsv", "URL or path to tab-delimited file with the UKBB data dictionary, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
+	flag.StringVar(&codingPath, "coding", "https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.csv", "URL or path to comma-delimited file with the UKBB data encodings, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
+	flag.StringVar(&dictPath, "dict", "https://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv", "URL or path to comma-delimited file with the UKBB data dictionary, specified at http://biobank.ctsu.ox.ac.uk/crystal/exinfo.cgi?src=AccessingData")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
 	flag.BoolVar(&simplified, "simplified", false, "Simplify the output to avoid listing the same codes separately for primary/secondary/death?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")

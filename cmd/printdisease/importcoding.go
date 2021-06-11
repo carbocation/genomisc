@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/carbocation/genomisc/ukbb"
 	"github.com/gocarina/gocsv"
 )
 
@@ -26,8 +27,9 @@ func ImportCoding(url string) (map[string]map[string]string, error) {
 
 	// Tell gocsv to use tab as the delimiter
 	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
-		r := csv.NewReader(in)
-		r.Comma = '\t'
+		inCloser := io.NopCloser(in)
+		r := csv.NewReader(ukbb.NewCSVQuoteFixReadCloser(inCloser))
+		r.Comma = ','
 		r.LazyQuotes = true
 		return r
 	})
