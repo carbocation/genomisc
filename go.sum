@@ -60,8 +60,9 @@ github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/biogo/boom v0.0.0-20150317015657-28119bc1ffc1 h1:LAHY5JxqhOgJDeDBGKsQ4300qd3sG8C0j5CQS8gD+Kw=
 github.com/biogo/boom v0.0.0-20150317015657-28119bc1ffc1/go.mod h1:fwtxkutinkQcME9Zlywh66T0jZLLjgrwSLY2WxH2N3U=
-github.com/biogo/hts v1.2.2 h1:n+o6v+oWMfPR4oksDJndEDxgL7ee53Pltn7V9PxqXzc=
 github.com/biogo/hts v1.2.2/go.mod h1:6C9MdMt9ALD5PsluK5n0B0svHOpmVse3UjQQx/cTgOw=
+github.com/biogo/hts v1.4.0 h1:ArS2PExdQpGnUbLYpfQYXIAZHbMQRQPOlF5TP9xZncE=
+github.com/biogo/hts v1.4.0/go.mod h1:3D5xDsTeUqVtI5hFFIAKUL2sUPtXmbRTGyzhfuExWMQ=
 github.com/brentp/bix v0.0.0-20190718140914-00aa7a7f205d/go.mod h1:l0g9nyO24iJMuPEQecNZryJPKfcNgHJQY5cDEB8mBaQ=
 github.com/brentp/irelate v0.0.1 h1:uVK5yw9XaDzi+04zbob4q9K6u2e5dcdqH7UO1+6Keo0=
 github.com/brentp/irelate v0.0.1/go.mod h1:Ct+JzyZC+JSi9WUkw3IGWc/j0yYEt4235wKCfLOKN54=
@@ -71,10 +72,12 @@ github.com/carbocation/bgen v0.0.0-20210108225046-c4af259fd9d9/go.mod h1:5+3ek+d
 github.com/carbocation/bgen v0.0.0-20210318182738-fda1a0f352b0/go.mod h1:OurdCRZRgd6FXO41hgosoKGh6G1j0sqz0MYzYVAnU9I=
 github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a h1:giragQfLPxC66SHxj5RCdJh4FQUfzsmZpWqhRlZ8QAk=
 github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a/go.mod h1:zvAgoK93GYljFc1AbKw0vZdr6jsfdHV0XkbvASM5INA=
-github.com/carbocation/bix v0.0.0-20190718140914-00aa7a7f205d h1:IgsZ7TWU2nDWlhGLy0n0ZAnJLOAtVbCXw1UjHI+hXb4=
 github.com/carbocation/bix v0.0.0-20190718140914-00aa7a7f205d/go.mod h1:CjCTMv/8p/YjBBcRQn6aIQLCdaDPaoFuHpLCHlpDT5o=
+github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec h1:+qwVX4erqf/l/Mgdo3+mLRwLu117Q/jYsEkK0v52I5I=
+github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec/go.mod h1:fpiSXT6oBN2lM74yztgukSvusvABmpJoi3R0+IggHGE=
 github.com/carbocation/genomisc v0.0.0-20210307150845-e2efad427558/go.mod h1:+Asxoja1vk3weUjSbVoiGcoKqT/tsrcYzc19whQebsk=
 github.com/carbocation/genomisc v0.0.0-20210612014916-fa04c732f4ae/go.mod h1:QJ7f6mZoAWwYT31nxt8owdP8M9nV21gijG676uVLTB4=
+github.com/carbocation/genomisc v0.0.0-20210612175623-de3deb62b137/go.mod h1:yrEMXHgL1VorSnQuDqE+1Dh7UBccQP46v5Br6P+QUn0=
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e h1:Fi7/u0OMfE/HYfoN4JGYi77OXI1uC6Cg4YQ7XbCovyc=
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5drFRIyAaihze9ceRMpTt1FW6Q5jjpc2u4c=
@@ -307,8 +310,9 @@ github.com/konsorten/go-windows-terminal-sequences v1.0.2/go.mod h1:T0+1ngSBFLxv
 github.com/kortschak/utter v0.0.0-20190412033250-50fe362e6560/go.mod h1:oDr41C7kH9wvAikWyFhr6UFr8R7nelpmCF5XR5rL7I8=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
-github.com/kr/pretty v0.2.0 h1:s5hAObm+yFO5uHYt5dYjxi2rXrsnmRpJx4OYvIWUaQs=
 github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
+github.com/kr/pretty v0.2.1 h1:Fmg33tUaq4/8ym9TJN1x7sLJnHVwhP33CNkpYV/7rwI=
+github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
@@ -340,8 +344,9 @@ github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/phyber/negroni-gzip v1.0.0 h1:ru1uBeaUeoAXYgZRE7RsH7ftj/t5v/hkufXv1OYbNK8=
 github.com/phyber/negroni-gzip v1.0.0/go.mod h1:poOYjiFVKpeib8SnUpOgfQGStKNGLKsM8l09lOTNeyw=
-github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
@@ -789,8 +794,9 @@ google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQ
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 h1:YR8cESwS4TdDjEe65xsg0ogRM/Nc3DYOhEAlW+xobZo=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
+gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
 gopkg.in/errgo.v2 v2.1.0/go.mod h1:hNsd1EY+bozCKY1Ytp96fpM3vjJbqLJn88ws8XvfDNI=
 gopkg.in/guregu/null.v3 v3.5.0 h1:xTcasT8ETfMcUHn0zTvIYtQud/9Mx5dJqD554SZct0o=
 gopkg.in/guregu/null.v3 v3.5.0/go.mod h1:E4tX2Qe3h7QdL+uZ3a0vqvYwKQsRSQKM5V4YltdgH9Y=
