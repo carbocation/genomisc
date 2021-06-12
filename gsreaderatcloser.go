@@ -11,11 +11,23 @@ type GSReaderAtCloser struct {
 	*storage.ObjectHandle
 	Context context.Context
 	Closer  *func() error
+	Reader  *storage.Reader
+}
+
+func (o *GSReaderAtCloser) Read(p []byte) (n int, err error) {
+	if o.Reader == nil {
+		o.Reader, err = o.NewReader(o.Context)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return o.Reader.Read(p)
 }
 
 // ReadAt satisfies io.ReaderAt. Note that this is dependent upon making p a
 // buffer of the desired length to be read by NewRangeReader.
-func (o GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
+func (o *GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
 	rdr, err := o.NewRangeReader(o.Context, offset, int64(len(p)))
 	if err != nil {
 		return 0, err
@@ -43,7 +55,7 @@ func (o GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
 }
 
 // Satisfies io.Closer. If o.close is not set, this is a nop.
-func (o GSReaderAtCloser) Close() error {
+func (o *GSReaderAtCloser) Close() error {
 	if o.Closer != nil {
 		return (*o.Closer)()
 	}

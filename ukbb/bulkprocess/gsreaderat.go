@@ -3,63 +3,21 @@ package bulkprocess
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/carbocation/genomisc"
 	"github.com/carbocation/pfx"
 	"google.golang.org/api/iterator"
 )
 
-type ReaderAtCloser interface {
-	io.Reader
-	io.ReaderAt
-	io.Closer
-}
+// Deprecated: Use github.com/carbocation/genomisc.ReaderAtCloser instead
+type ReaderAtCloser = genomisc.ReaderAtCloser
 
-// Decorates a Google Storage object handle with ReadAt
-type GSReaderAtCloser struct {
-	*storage.ObjectHandle
-	Context context.Context
-	Closer  *func() error
-	Reader  *storage.Reader
-}
-
-func (o *GSReaderAtCloser) Read(p []byte) (n int, err error) {
-	if o.Reader == nil {
-		o.Reader, err = o.NewReader(o.Context)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	return o.Reader.Read(p)
-}
-
-// ReadAt satisfies io.ReaderAt. Note that this is dependent upon making p a
-// buffer of the desired length to be read by NewRangeReader.
-func (o *GSReaderAtCloser) ReadAt(p []byte, offset int64) (n int, err error) {
-	rdr, err := o.NewRangeReader(o.Context, offset, int64(len(p)))
-	if err != nil {
-		return 0, err
-	}
-	defer rdr.Close()
-
-	return rdr.Read(p)
-}
-
-// Satisfies io.Closer. If o.close is not set, this is a nop.
-func (o *GSReaderAtCloser) Close() error {
-	var err error
-
-	if o.Closer != nil {
-		err = (*o.Closer)()
-	}
-
-	return err
-}
+// Deprecated: Use github.com/carbocation/genomisc.GSReaderAtCloser instead
+type GSReaderAtCloser = genomisc.GSReaderAtCloser
 
 func ListFromGoogleStorage(path string, client *storage.Client) ([]string, error) {
 
