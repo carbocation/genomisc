@@ -11,22 +11,18 @@ import (
 	"github.com/carbocation/pfx"
 )
 
-type ReadSeekCloser interface {
-	io.Reader
-	io.Seeker
-	io.Closer
-}
-
-// Decorates a Google Storage object handle with io.Reader, io.Seeker and
-// io.Closer. Derived from
+// Decorates a Google Storage object handle with an io.ReadSeekCloser. Derived
+// from
 // https://github.com/googleapis/google-cloud-go/issues/1124#issuecomment-419070541
 type GSReadSeekCloser struct {
 	*storage.ObjectHandle
 	Context context.Context
-	r       *storage.Reader
-	offset  int64 // initial offset
-	pos     int64 // current position (like 'seen' in storage.Reader)
 	Closer  *func() error
+
+	r        *storage.Reader
+	offset   int64 // initial offset
+	pos      int64 // current position (like 'seen' in storage.Reader)
+	filesize int64 // if this is known and set, it enables io.SeekEnd
 }
 
 func (s *GSReadSeekCloser) Read(buf []byte) (int, error) {
@@ -54,27 +50,37 @@ func (s *GSReadSeekCloser) Seek(offset int64, whence int) (int64, error) {
 	// connection, reset the reader, and reset the offset.
 	var newOffset int64
 
+	// Set the offset for the next Read or Write to offset, interpreted
+	// according to whence
 	switch whence {
 	case io.SeekStart:
-		// Redundant, but being explicit:
-		newOffset = 0
+		// Set our new offset relative to 0
+		newOffset = offset
 	case io.SeekCurrent:
-		newOffset = s.offset
+		// Set our new offset relative to our current offset
+		newOffset = s.offset + offset
 	case io.SeekEnd:
-		return 0, fmt.Errorf("io.Seeker 'whence' value %d is not implemented", whence)
+		// Set our new offset relative to the end of the file. If the end of the
+		// file is not known, fail.
+		if s.filesize == 0 {
+			return 0, fmt.Errorf("GSReadSeekCloser.Seek: io.Seeker 'whence' value %d is not implemented", whence)
+		}
+
+		newOffset = s.filesize - offset
 	}
 
-	// Close the reader and remove it.
+	// Close the current reader and remove it.
 	s.r.Close()
 	s.r = nil
 
 	// Update our offset
 	s.offset = newOffset
 
-	// Not sure that this is the correct thing to do for pos:
-	// s.pos = s.offset
+	// Not sure that this is the correct thing to do for pos. (Treating this as
+	// how many bytes we have read from the current offset.)
 	s.pos = 0
 
+	// Return the new offset relative to the start of the file
 	return s.offset, nil
 }
 
@@ -87,12 +93,12 @@ func (o *GSReadSeekCloser) Close() error {
 	return nil
 }
 
-func MaybeOpenSeekerFromGoogleStorage(path string, client *storage.Client) (ReadSeekCloser, int64, error) {
+func MaybeOpenSeekerFromGoogleStorage(path string, client *storage.Client) (io.ReadSeekCloser, error) {
 	if client != nil && strings.HasPrefix(path, "gs://") {
 		// Detect the bucket and the path to the actual file
 		pathParts := strings.SplitN(strings.TrimPrefix(path, "gs://"), "/", 2)
 		if len(pathParts) != 2 {
-			return nil, 0, fmt.Errorf("Tried to split your google storage path into 2 parts, but got %d: %v", len(pathParts), pathParts)
+			return nil, fmt.Errorf("tried to split your google storage path on 'gs://', but got %d: %v", len(pathParts), pathParts)
 		}
 		bucketName := pathParts[0]
 		pathName := pathParts[1]
@@ -112,19 +118,14 @@ func MaybeOpenSeekerFromGoogleStorage(path string, client *storage.Client) (Read
 		// Make a hard call to get the filesize
 		attrs, err := wrappedHandle.ObjectHandle.Attrs(wrappedHandle.Context)
 		if err != nil {
-			return nil, 0, pfx.Err(fmt.Errorf("%s: %s", path, err))
+			return nil, pfx.Err(fmt.Errorf("%s: %s", path, err))
 		}
 
-		return wrappedHandle, attrs.Size, nil // wrappedHandle.storageReader.Attrs.Size, nil
+		// Enables io.SeekEnd
+		wrappedHandle.filesize = attrs.Size
+
+		return wrappedHandle, nil
 	}
 
-	f, err := os.Open(path)
-	if err != nil {
-		return f, 0, err
-	}
-	fstat, err := f.Stat()
-	if err != nil {
-		return f, 0, err
-	}
-	return f, fstat.Size(), nil
+	return os.Open(path)
 }

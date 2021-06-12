@@ -8,9 +8,9 @@ require (
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
-	github.com/brentp/bix v0.0.0-20190718140914-00aa7a7f205d
 	github.com/brentp/irelate v0.0.1
 	github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a
+	github.com/carbocation/bix v0.0.0-20190718140914-00aa7a7f205d
 	github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e
 	github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea
 	github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d
