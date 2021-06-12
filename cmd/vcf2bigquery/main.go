@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -13,8 +14,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/brentp/bix"
+	"cloud.google.com/go/storage"
 	"github.com/brentp/irelate/interfaces"
+	"github.com/carbocation/bix"
+	"github.com/carbocation/genomisc"
 	"github.com/carbocation/vcfgo"
 )
 
@@ -26,6 +29,7 @@ var builddate string
 var (
 	BufferSize = 4096 * 32
 	STDOUT     = bufio.NewWriterSize(os.Stdout, BufferSize)
+	client     *storage.Client
 )
 
 var (
@@ -122,9 +126,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if strings.HasPrefix(vcfFile, "gs://") {
+		var err error
+		client, err = storage.NewClient(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 	// Prime the VCF reader
 
-	fraw, err := os.Open(vcfFile)
+	fraw, err := genomisc.MaybeOpenSeekerFromGoogleStorage(vcfFile, client)
 	if err != nil {
 		log.Fatalf("Error opening VCF: %s\n", err)
 	}
@@ -209,7 +221,7 @@ func main() {
 
 func ReadTabixVCF(rdr *vcfgo.Reader, vcfFile string, loci []TabixLocus, concurrencyLimit chan struct{}, pool *sync.WaitGroup, completedWork chan Work, sampleFields []string) error {
 
-	tbx, err := bix.New(vcfFile)
+	tbx, err := bix.NewGCP(vcfFile, client)
 	if err != nil {
 		return err
 	}
