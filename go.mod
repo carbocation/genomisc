@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	cloud.google.com/go/bigquery v1.8.0
-	cloud.google.com/go/storage v1.14.0
+	cloud.google.com/go/storage v1.15.0
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
@@ -21,7 +21,6 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
-	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/gorilla/mux v1.8.0
 	github.com/grd/histogram v0.0.0-20130107163446-074cc51e7eea
@@ -43,7 +42,6 @@ require (
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030
 	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
 	gonum.org/v1/gonum v0.8.2
-	google.golang.org/api v0.42.0
-	google.golang.org/genproto v0.0.0-20210318145829-90b20ab00860 // indirect
+	google.golang.org/api v0.45.0
 	gopkg.in/guregu/null.v3 v3.5.0
 )
