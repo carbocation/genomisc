@@ -58,13 +58,12 @@ const (
 )
 
 func main() {
-	log.Println("regenie2bolt")
-
 	var regenie string
 	flag.StringVar(&regenie, "regenie", "", "Path to REGENIE result file that you want to convert to BOLT format.")
 	flag.Parse()
 
 	if regenie == "" {
+		log.Println("regenie2bolt")
 		fmt.Fprintln(os.Stderr,
 			`Consumes a REGENIE output summary stats file and reorients it so that it behaves like a BOLT-LMM summary stats file.
   1. Zeroes preceding the CHR will be removed.
