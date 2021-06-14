@@ -127,7 +127,7 @@ func negLogPToScientificNotationP(negLogPString string) (string, error) {
 	}
 
 	mantissa := math.Pow(10.0, math.Mod(-1*negLogP, 1.0))
-	exponent := math.Floor((-1 * negLogP) / 1.0)
+	exponent := math.Ceil((-1 * negLogP) / 1.0)
 
 	// Make it pretty (should get mantissa into the 1-10 range)
 	if mantissa < 1.0 {
