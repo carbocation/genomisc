@@ -130,8 +130,10 @@ func negLogPToScientificNotationP(negLogPString string) (string, error) {
 	exponent := math.Floor((-1 * negLogP) / 1.0)
 
 	// Make it pretty (should get mantissa into the 1-10 range)
-	mantissa *= 10.0
-	exponent -= 1.0
+	if mantissa < 1.0 {
+		mantissa *= 10.0
+		exponent -= 1.0
+	}
 
 	return fmt.Sprintf("%.1fE%.0f", mantissa, exponent), nil
 }
