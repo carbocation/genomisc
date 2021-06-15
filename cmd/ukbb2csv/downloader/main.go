@@ -16,15 +16,21 @@ func main() {
 
 	var bulkPath, ukbKey, ukbFetch string
 	var concurrency int
+	var exhaustiveDupeCheck bool
 
 	flag.StringVar(&bulkPath, "bulk", "", "Path to *.bulk file, as specified by UKBB.")
 	flag.StringVar(&ukbFetch, "ukbfetch", "ukbfetch", "Path to the ukbfetch utility (if not already in your PATH as ukbfetch).")
 	flag.StringVar(&ukbKey, "ukbkey", ".ukbkey", "Path to the .ukbkey file with the app ID and special key.")
 	flag.IntVar(&concurrency, "concurrency", 20, "Number of simultaneous connections to UK Biobank servers.")
+	flag.BoolVar(&exhaustiveDupeCheck, "exhaustive-dupe-check", false, "Do an exhausive dupe check? Not recommended if downloading directly to a network filesystem.")
 
 	flag.Parse()
 
-	log.Println("Note: This tool only checks for pre-existing files in the order specified by the bulk file.")
+	if exhaustiveDupeCheck {
+		log.Println("Note: Performing an exhaustive check for pre-existing files in the folder. If this is slow (e.g., due to network file system), disable this option.")
+	} else {
+		log.Println("Note: Only checking for pre-existing files in the order specified by the bulk file.")
+	}
 
 	if bulkPath == "" {
 		flag.PrintDefaults()
@@ -78,7 +84,11 @@ func main() {
 			continue
 		}
 
-		finishedCheckingExisting = true
+		// If we are not doing an exhaustive dupe check, stop using an os.Stat
+		// call now.
+		if !exhaustiveDupeCheck {
+			finishedCheckingExisting = true
+		}
 
 		log.Println(i, len(entries), "Downloading", zipFile)
 
