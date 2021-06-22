@@ -81,6 +81,9 @@ var (
 		// cancer codes would be counterproductive. TODO: recognize specific ICD
 		// codes and make the prompt if the user includes cancer-specific codes
 		// but not the cancer registry.
+		//
+		// TODO: Add FieldID 41270 - perhaps optionally? The date for this
+		// FieldID is given in 41280
 	}
 
 	OPCS = map[int]struct{}{
