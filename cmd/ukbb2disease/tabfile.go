@@ -307,6 +307,7 @@ func ParseTabFile(tabPath string) (*TabFile, error) {
 
 	fileCSV := csv.NewReader(f)
 	fileCSV.Comma = '\t'
+	fileCSV.Comment = '#'
 
 	recs, err := fileCSV.ReadAll()
 	if err != nil {
