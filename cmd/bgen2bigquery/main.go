@@ -39,9 +39,10 @@ var (
 func main() {
 	defer STDOUT.Flush()
 
-	var bgenTemplatePath, assembly, snpfile, samplePath string
+	var bgenTemplatePath, bgiTemplatePath, assembly, snpfile, samplePath string
 
 	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated full path to bgens, with %s in place of its chromosome number. If all SNPs are on the same chromosome, an explicit full path without %s is permissible. Index file is assumed to be .bgi at the same path. May be a gs:// path.")
+	flag.StringVar(&bgiTemplatePath, "bgi-template", "", "Optional: Templated path to bgi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.bgi'")
 	flag.StringVar(&snpfile, "snps", "", "Tab-delimited SNP file containing rsid and chromosome (in that order). No header is expected. May be a gs:// path.")
 	flag.StringVar(&assembly, "assembly", "", "Name of assembly. Must be grch37 or grch38.")
 	flag.StringVar(&samplePath, "sample", "", "(Optional): Path to the BGEN .sample file. If not provided, sample_row ids will be provided instead of sample_id. May be a gs:// path.")
@@ -62,7 +63,14 @@ func main() {
 		log.Fatalln("Please specify assembly version")
 	}
 
-	if strings.HasPrefix(snpfile, "gs://") || strings.HasPrefix(samplePath, "gs://") || strings.HasPrefix(bgenTemplatePath, "gs://") {
+	if bgiTemplatePath == "" {
+		bgiTemplatePath = bgenTemplatePath + ".bgi"
+	}
+
+	if strings.HasPrefix(snpfile, "gs://") ||
+		strings.HasPrefix(samplePath, "gs://") ||
+		strings.HasPrefix(bgenTemplatePath, "gs://") ||
+		strings.HasPrefix(bgiTemplatePath, "gs://") {
 		var err error
 		client, err = storage.NewClient(context.Background())
 		if err != nil {
@@ -102,7 +110,12 @@ func main() {
 			// Permit explicit paths (e.g., when all data is in one BGEN)
 			bgenPath = bgenTemplatePath
 		}
-		bgiPath := bgenPath + ".bgi"
+
+		bgiPath := fmt.Sprintf(bgiTemplatePath, row[CHR])
+		if !strings.Contains(bgiTemplatePath, "%s") {
+			// Permit explicit paths (e.g., when all data is in one BGEN)
+			bgiPath = bgiTemplatePath
+		}
 
 		// Load sample data if provided
 		var sampleFileContents [][]string
@@ -138,12 +151,14 @@ func PrintOneVariant(rsID string, bgenPath, bgiPath string, sampleFileContents [
 	// Open the BGI
 	var bgi *bgen.BGIIndex
 	if strings.HasPrefix(bgiPath, "gs://") {
-		filePath, err := applyprsgcp.ImportBGIFromGoogleStorage(bgiPath, client)
+		filePath, freshDownload, err := applyprsgcp.ImportBGIFromGoogleStorageLocked(bgiPath, client)
 		if err != nil {
 			return err
 		}
 
-		log.Printf("Copied file from %s to %s\n", bgiPath, filePath)
+		if freshDownload {
+			log.Printf("Copied file from %s to %s\n", bgiPath, filePath)
+		}
 
 		bgiPath = filePath
 	}
