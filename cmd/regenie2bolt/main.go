@@ -101,10 +101,11 @@ func main() {
 }
 
 func PrintBOLTHeader() {
-	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		"SNP",
 		"CHR",
-		"POS",
+		"BP",
+		"GENPOS",
 		"ALLELE1",
 		"ALLELE0",
 		"A1FREQ",
@@ -150,10 +151,11 @@ func PrintLine(line []string) error {
 	}
 	line[P_BOLT_LMM] = Pstring
 
-	_, err = fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	_, err = fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		line[SNP],
 		line[CHR],
 		line[POS],
+		"NA",
 		line[ALLELE1],
 		line[ALLELE0],
 		line[A1FREQ],
