@@ -3,7 +3,6 @@ package bulkprocess
 import (
 	"image"
 	"io"
-	"os"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -15,19 +14,9 @@ import (
 )
 
 // ExtractImageFromLocalFile pulls an image with the specified suffix (derived
-// from the DICOM name) from a local folder
+// from the DICOM name) from a local folder. Now just a wrapper.
 func ExtractImageFromLocalFile(dicomName, suffix, folderPath string) (image.Image, error) {
-	f, err := os.Open(folderPath + "/" + dicomName + suffix)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	// Extract and decode the image. Must be PNG, GIF, BMP, or JPEG formatted
-	// (based on the decoders we have imported)
-	img, _, err := image.Decode(f)
-
-	return img, err
+	return ExtractImageFromGoogleStorage(dicomName, suffix, folderPath, nil)
 }
 
 // ExtractImageFromGoogleStorage is now just a deprecated wrapper around
