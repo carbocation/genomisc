@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"os"
 	"strconv"
 
 	"cloud.google.com/go/storage"
@@ -40,32 +39,12 @@ func ExtractDicomFromGoogleStorage(zipPath, dicomName string, includeOverlay boo
 	return ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
 }
 
-// ExtractDicomFromLocalFile constructs a native go Image type from the dicom image with the
-// given name in the given zip file.
+// ExtractDicomFromLocalFile constructs a native go Image type from the dicom
+// image with the given name in the given zip file. Now just wraps the
+// GoogleStorage variant, since it has the capability of loading local files as
+// well as remote ones.
 func ExtractDicomFromLocalFile(zipPath, dicomName string, includeOverlay bool) (image.Image, error) {
-	f, err := os.Open(zipPath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	// the zip reader wants to know the # of bytes in advance
-	nBytes, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	rc, err := zip.NewReader(f, nBytes.Size())
-	if err != nil {
-		return nil, err
-	}
-
-	img, err := ExtractDicomFromZipReader(rc, dicomName, includeOverlay)
-	if err != nil {
-		return nil, fmt.Errorf("Err parsing zip %s: %s", zipPath, err.Error())
-	}
-
-	return img, nil
+	return ExtractDicomFromGoogleStorage(zipPath, dicomName, includeOverlay, nil)
 }
 
 // ExtractDicomFromZipReader consumes a zip reader of the UK Biobank format,
