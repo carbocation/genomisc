@@ -1,8 +1,13 @@
 package bulkprocess
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"fmt"
 	"image"
 	"io"
+	"io/ioutil"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -12,6 +17,56 @@ import (
 
 	"cloud.google.com/go/storage"
 )
+
+// ExtractImageFromTarGzMaybeFromGoogleStorage looks for tarGz (a fully
+// qualified path to a .tar.gz file, which may optionally be a Google Storage
+// path). If that succeeds, it then looks for imageFilename within the ungzipped
+// untarred file and processes that into an image.Image.
+func ExtractImageFromTarGzMaybeFromGoogleStorage(tarGz, imageFilename string, client *storage.Client) (image.Image, error) {
+	imReader, _, err := MaybeOpenFromGoogleStorage(tarGz, client)
+	if err != nil {
+		return nil, err
+	}
+	defer imReader.Close()
+
+	gzr, err := gzip.NewReader(imReader)
+	if err != nil {
+		return nil, err
+	}
+
+	tarReader := tar.NewReader(gzr)
+
+	return ExtractImageFromTarReader(tarReader, imageFilename)
+}
+
+// ExtractImageFromTarReader consumes a .tar reader, loops over all files until
+// it finds the image with the specified name, and returns that image. TODO: If
+// extracting more than one file this way, it would be good to loop once to
+// create a map, and index into the right position in the tar file, if that is
+// possible.
+func ExtractImageFromTarReader(tarReader *tar.Reader, imageFilename string) (image.Image, error) {
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		if header.Name == imageFilename && header.Typeflag == tar.TypeReg {
+			imageBytes, err := ioutil.ReadAll(tarReader)
+			if err != nil {
+				return nil, err
+			}
+
+			br := bytes.NewReader(imageBytes)
+			return DecodeImageFromReader(br)
+		}
+	}
+
+	return nil, fmt.Errorf("ExtractImageFromTarGz: file %s not found", imageFilename)
+}
 
 // ExtractImageFromLocalFile pulls an image with the specified suffix (derived
 // from the DICOM name) from a local folder. Now just a wrapper.
