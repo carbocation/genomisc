@@ -18,11 +18,26 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// ExtractImageFromTarGzMaybeFromGoogleStorage looks for tarGz (a fully
-// qualified path to a .tar.gz file, which may optionally be a Google Storage
-// path). If that succeeds, it then looks for imageFilename within the ungzipped
-// untarred file and processes that into an image.Image.
+// ExtractImageFromTarGzMaybeFromGoogleStorage is now a thin wrapper over
+// ExtractImagesFromTarGzMaybeFromGoogleStorage.
 func ExtractImageFromTarGzMaybeFromGoogleStorage(tarGz, imageFilename string, client *storage.Client) (image.Image, error) {
+	imgMap := make(map[string]struct{})
+	imgMap[imageFilename] = struct{}{}
+
+	imgs, err := ExtractImagesFromTarGzMaybeFromGoogleStorage(tarGz, imgMap, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return imgs[imageFilename], nil
+}
+
+// ExtractImagesFromTarGzMaybeFromGoogleStorage looks for tarGz (a fully
+// qualified path to a .tar.gz file, which may optionally be a Google Storage
+// path). If that succeeds, it then looks for imageFilenames within the
+// ungzipped untarred file and processes them into image.Image files, which it
+// returns in a map with the same names as the input map.
+func ExtractImagesFromTarGzMaybeFromGoogleStorage(tarGz string, imageFilenames map[string]struct{}, client *storage.Client) (map[string]image.Image, error) {
 	imReader, _, err := MaybeOpenFromGoogleStorage(tarGz, client)
 	if err != nil {
 		return nil, err
@@ -36,15 +51,32 @@ func ExtractImageFromTarGzMaybeFromGoogleStorage(tarGz, imageFilename string, cl
 
 	tarReader := tar.NewReader(gzr)
 
-	return ExtractImageFromTarReader(tarReader, imageFilename)
+	return ExtractImagesFromTarReader(tarReader, imageFilenames)
 }
 
 // ExtractImageFromTarReader consumes a .tar reader, loops over all files until
-// it finds the image with the specified name, and returns that image. TODO: If
-// extracting more than one file this way, it would be good to loop once to
-// create a map, and index into the right position in the tar file, if that is
-// possible.
+// it finds the image with the specified name, and returns that image. This is
+// now a thin wrapper over ExtractImagesFromTarReader.
 func ExtractImageFromTarReader(tarReader *tar.Reader, imageFilename string) (image.Image, error) {
+	imgMap := make(map[string]struct{})
+	imgMap[imageFilename] = struct{}{}
+
+	imgs, err := ExtractImagesFromTarReader(tarReader, imgMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return imgs[imageFilename], nil
+}
+
+// ExtractImagesFromTarReader consumes a .tar reader, loops over all files until
+// it finds all images with the specified names, and returns those images in a
+// named map. If it fails to find all requested files, it still returns the
+// files it found, but also returns an error.
+func ExtractImagesFromTarReader(tarReader *tar.Reader, imageFilenames map[string]struct{}) (map[string]image.Image, error) {
+
+	lenImageFilenames := len(imageFilenames)
+	out := make(map[string]image.Image)
 
 	for {
 		header, err := tarReader.Next()
@@ -54,18 +86,30 @@ func ExtractImageFromTarReader(tarReader *tar.Reader, imageFilename string) (ima
 			return nil, err
 		}
 
-		if header.Name == imageFilename && header.Typeflag == tar.TypeReg {
+		if _, isWanted := imageFilenames[header.Name]; isWanted && header.Typeflag == tar.TypeReg {
 			imageBytes, err := ioutil.ReadAll(tarReader)
 			if err != nil {
 				return nil, err
 			}
 
 			br := bytes.NewReader(imageBytes)
-			return DecodeImageFromReader(br)
+			newImg, err := DecodeImageFromReader(br)
+			if err != nil {
+				return nil, err
+			}
+			out[header.Name] = newImg
+
+			if len(out) == lenImageFilenames {
+				break
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("ExtractImageFromTarGz: file %s not found", imageFilename)
+	if len(out) != lenImageFilenames {
+		return out, fmt.Errorf("ExtractImagesFromTarGz: found %d images but expected %d", len(out), lenImageFilenames)
+	}
+
+	return out, nil
 }
 
 // ExtractImageFromLocalFile pulls an image with the specified suffix (derived

@@ -28,6 +28,8 @@ var bulkColName = "zip_file"
 var fileColName = "dicom_file"
 
 func main() {
+	var presetFlag string
+
 	flag.StringVar(&manifestPath, "manifest", "", "Path to manifest file. May be on Google Storage.")
 	flag.StringVar(&filesPath, "files", "", "Folder path where bulk files reside. May be on Google Storage.")
 	flag.StringVar(&outputPath, "output", "", "Local path into which the extracted files will go.")
@@ -35,6 +37,7 @@ func main() {
 	flag.StringVar(&bulkSuffixAdd, "bs_add", "", "Suffix to add to the manifest->bulk column.")
 	flag.StringVar(&fileSuffixDel, "fs_del", "", "Suffix to delete from the manifest->image file column.")
 	flag.StringVar(&fileSuffixAdd, "fs_add", "", "Suffix to add to the manifest->image file column.")
+	flag.StringVar(&presetFlag, "preset", "", "If not empty, may be 'image' or 'overlay' to override the fs_* settings with defaults.")
 	flag.Parse()
 
 	var err error
@@ -44,6 +47,16 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
+	}
+
+	if presetFlag == "image" {
+		bulkSuffixDel = ".zip"
+		bulkSuffixAdd = ".png.tar.gz"
+		fileSuffixAdd = ".png"
+	} else if presetFlag == "overlay" {
+		bulkSuffixDel = ".zip"
+		bulkSuffixAdd = ".overlay.tar.gz"
+		fileSuffixAdd = ".png.mask.png"
 	}
 
 	if err := run(); err != nil {
@@ -76,6 +89,8 @@ func run() error {
 
 	sem := make(chan struct{}, runtime.NumCPU())
 
+	lastBulk := ""
+	accumulatedImageNames := make(map[string]struct{})
 	for i, cols := range recs {
 		if i == 0 {
 			for j, col := range cols {
@@ -99,13 +114,44 @@ func run() error {
 		bulkFileName := FormatSuffix(cols[header.Zip], bulkSuffixDel, bulkSuffixAdd)
 		fileName := FormatSuffix(cols[header.Dicom], fileSuffixDel, fileSuffixAdd)
 
+		if i == 1 {
+			lastBulk = bulkFileName
+			accumulatedImageNames[fileName] = struct{}{}
+		} else if bulkFileName != lastBulk {
+
+			// Safely reference the images we have accumulated so far
+			safeMap := make(map[string]struct{})
+			for k, v := range accumulatedImageNames {
+				safeMap[k] = v
+			}
+
+			// Track the bulk file that those came from
+			safeBulk := lastBulk
+
+			sem <- struct{}{}
+			go func(filesPath, bulkFileName string, fileNames map[string]struct{}, outputPath string) {
+				if err := DownloadFiles(filesPath, bulkFileName, fileNames, outputPath); err != nil {
+					log.Println(err)
+				}
+				<-sem
+			}(filesPath, safeBulk, safeMap, outputPath)
+
+			// Now set the new image map and bulk file
+			lastBulk = bulkFileName
+			accumulatedImageNames = make(map[string]struct{})
+			accumulatedImageNames[fileName] = struct{}{}
+		}
+	}
+
+	// We most likely have additional accumulated files that need to be processed
+	if len(accumulatedImageNames) > 0 {
 		sem <- struct{}{}
-		go func(filesPath, bulkFileName, fileName, outputPath string) {
-			if err := DownloadFile(filesPath, bulkFileName, fileName, outputPath); err != nil {
+		go func(filesPath, bulkFileName string, fileNames map[string]struct{}, outputPath string) {
+			if err := DownloadFiles(filesPath, bulkFileName, fileNames, outputPath); err != nil {
 				log.Println(err)
 			}
 			<-sem
-		}(filesPath, bulkFileName, fileName, outputPath)
+		}(filesPath, lastBulk, accumulatedImageNames, outputPath)
 	}
 
 	// Make sure we finish all the reads before we exit, otherwise we'll lose
@@ -117,30 +163,37 @@ func run() error {
 	return nil
 }
 
-func DownloadFile(filesPath, bulkFileName, fileName, outputPath string) error {
+func DownloadFiles(filesPath, bulkFileName string, fileNames map[string]struct{}, outputPath string) error {
 	if !strings.HasSuffix(bulkFileName, ".tar.gz") {
 		return fmt.Errorf("currently only supports .tar.gz bulk files")
 	}
 
 	sourcePath := fmt.Sprintf("%s/%s", filesPath, bulkFileName)
-	// log.Printf("Fetching %s::%s", sourcePath, fileName)
+	// log.Printf("Fetching %s::(%d files)", sourcePath, len(fileNames))
 
-	img, err := bulkprocess.ExtractImageFromTarGzMaybeFromGoogleStorage(sourcePath, fileName, sclient)
+	imgs, err := bulkprocess.ExtractImagesFromTarGzMaybeFromGoogleStorage(sourcePath, fileNames, sclient)
 	if err != nil {
 		return err
 	}
 
-	// Save the BMP to disk under your project folder, using the ID-encoding.
-	outFile := fmt.Sprintf("%s/%s", outputPath, fileName)
-	// log.Println(outFile)
-	f, err := os.Create(outFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	// Save the images to disk
+	for fileName, img := range imgs {
+		outFile := fmt.Sprintf("%s/%s", outputPath, fileName)
+		// log.Println(outFile)
+		f, err := os.Create(outFile)
+		if err != nil {
+			return err
+		}
 
-	// Write the PNG representation of our ID-encoded image to disk
-	return png.Encode(f, img)
+		// Write the PNG representation of our ID-encoded image to disk
+		if err := png.Encode(f, img); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+	}
+
+	return nil
 }
 
 func FormatSuffix(word, remove, add string) string {
