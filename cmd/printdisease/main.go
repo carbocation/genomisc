@@ -5,9 +5,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"cloud.google.com/go/bigquery"
@@ -78,6 +80,30 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	if info, err := os.Stat(tabfile); err == nil && info.IsDir() {
+		// Tabfile is a directory
+		var files []string
+		err := filepath.WalkDir(tabfile, func(path string, d fs.DirEntry, err error) error {
+			if !strings.HasSuffix(d.Name(), ".tab") {
+				return nil
+			}
+
+			files = append(files, path)
+			return nil
+		})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		for _, file := range files {
+			handleOneTabfile(file, diseaseName, dict, coding, override, allowUndated, simplified)
+		}
+	} else {
+		// Tabfile is a literal tabfile path
+		handleOneTabfile(tabfile, diseaseName, dict, coding, override, allowUndated, simplified)
+	}
+}
+
+func handleOneTabfile(tabfile, diseaseName string, dict map[int]UKBField, coding map[string]map[string]string, override, allowUndated, simplified bool) error {
 	tabs, err := ParseTabFile(tabfile)
 	if err != nil {
 		log.Fatalln(err)
@@ -114,7 +140,7 @@ func main() {
 		printTabEntryTabular(diseaseName, "include", tabs.AllIncluded(), dict, coding)
 		printTabEntryTabular(diseaseName, "exclude", tabs.AllExcluded(), dict, coding)
 
-		return
+		return nil
 	}
 
 	fmt.Fprintln(STDOUT, "Disease", diseaseName)
@@ -129,6 +155,7 @@ func main() {
 		fmt.Fprintf(STDOUT, "\t(No exclusion criteria)\n")
 	}
 
+	return nil
 }
 
 func printTabEntryTabular(diseaseName, prefix string, entries []TabEntry, dict map[int]UKBField, coding map[string]map[string]string) {
