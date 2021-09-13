@@ -48,6 +48,10 @@ func run() error {
 		return err
 	}
 
+	if len(rows) < 1 {
+		return fmt.Errorf("No entries found")
+	}
+
 	chrCol := -1
 	posCol := -1
 	header := rows[0]
