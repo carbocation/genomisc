@@ -79,6 +79,11 @@ func ManifestFor12LeadEKG(path string) error {
 
 	fmt.Fprintln(STDOUT, strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
 
+	// Ensure a path separator if we are using a path
+	if path != "" && !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
 	for _, file := range files {
 
 		// Will block after `concurrency` simultaneous goroutines are running
@@ -100,7 +105,7 @@ func ManifestFor12LeadEKG(path string) error {
 
 			ekg := bulkprocess.EKG12Lead{}
 
-			f, err := os.Open(file.Name())
+			f, err := os.Open(path + file.Name())
 			if err != nil {
 				log.Println(err)
 				return

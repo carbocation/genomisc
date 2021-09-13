@@ -75,6 +75,11 @@ func ManifestForExerciseEKG(path string) error {
 
 	fmt.Fprintln(STDOUT, strings.ReplaceAll(strings.Join(header, "\t"), ".", "_"))
 
+	// Ensure a path separator if we are using a path
+	if path != "" && !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
 	semaphore := make(chan struct{}, concurrency)
 
 	for _, file := range files {
@@ -98,7 +103,7 @@ func ManifestForExerciseEKG(path string) error {
 
 			ekg := bulkprocess.EKGExercise{}
 
-			f, err := os.Open(file.Name())
+			f, err := os.Open(path + file.Name())
 			if err != nil {
 				log.Println(err)
 				return
