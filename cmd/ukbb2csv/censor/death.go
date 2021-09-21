@@ -89,9 +89,13 @@ func (BQ *WrappedBigQuery) AddDiedDate(out map[int64]CensorResult) (int, error) 
 			continue
 		}
 
-		// Extract the year, month, and day from the civil.Date object returned
+		// Extract the year, month, and day from the null.Date object returned
 		// by BigQuery
-		entry.died.Time = time.Date(v.DeathDate.Date.Year, v.DeathDate.Date.Month, v.DeathDate.Date.Day, 0, 0, 0, 0, timeZone)
+
+		// Previous approach failed to trigger entry.died.Valid to become true
+		// entry.died.Time = time.Date(v.DeathDate.Date.Year, v.DeathDate.Date.Month, v.DeathDate.Date.Day, 0, 0, 0, 0, timeZone)
+
+		entry.died.Scan(time.Date(v.DeathDate.Date.Year, v.DeathDate.Date.Month, v.DeathDate.Date.Day, 0, 0, 0, 0, timeZone))
 
 		out[k] = entry
 	}
