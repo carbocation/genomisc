@@ -20,6 +20,11 @@ import (
 // # BOLT (tab-delim)
 // # SNP	CHR	BP	GENPOS	ALLELE1	ALLELE0	A1FREQ	INFO	CHISQ_LINREG	P_LINREG	BETA	SE	CHISQ_BOLT_LMM_INF	P_BOLT_LMM_INF	CHISQ_BOLT_LMM	P_BOLT_LMM
 
+// # REGENIE-v2.2.4 (space-delim)
+// # CHROM GENPOS ID ALLELE0 ALLELE1 A1FREQ INFO N TEST BETA SE CHISQ LOG10P EXTRA
+// # REGENIE-v2.2.4 (space-delim) binary trait with --af-cc flag
+// # CHROM GENPOS ID ALLELE0 ALLELE1 A1FREQ A1FREQ_CASES A1FREQ_CONTROLS INFO N TEST BETA SE CHISQ LOG10P EXTRA
+
 // {print $3 OFS $1 OFS $2 OFS "NA" OFS $5 OFS $4 OFS $6 OFS $7 OFS $12 OFS 10 ^ (-1 * $13) OFS $10 OFS $11 OFS $12 OFS 10 ^ (-1 * $13) OFS $12 OFS 10 ^ (-1 * $13) }' -
 
 // REGENIE header that we expect
@@ -35,11 +40,33 @@ var expectedHeader = map[int]string{
 	10: "SE",
 	11: "CHISQ",
 	12: "LOG10P",
+	// New:
+	13: "EXTRA",
+}
+
+var expectedHeaderCaseControl = map[int]string{
+	0: "CHROM",
+	1: "GENPOS",
+	2: "ID",
+	3: "ALLELE0",
+	4: "ALLELE1",
+	5: "A1FREQ",
+	// New:
+	6: "A1FREQ_CASES",
+	7: "A1FREQ_CONTROLS",
+	// Different locations:
+	8:  "INFO",
+	11: "BETA",
+	12: "SE",
+	13: "CHISQ",
+	14: "LOG10P",
+	// New
+	15: "EXTRA",
 }
 
 // Mapping between BOLT column name and its corresponding column number from
 // REGENIE file
-const (
+var (
 	SNP                = 2
 	CHR                = 0
 	POS                = 1
@@ -173,13 +200,37 @@ func PrintLine(line []string) error {
 }
 
 func validateHeader(header []string) error {
+	var err error
 	for key, observed := range header {
 		if expected, exists := expectedHeader[key]; exists && expected != observed {
-			return fmt.Errorf("for column %d, expected %s but saw %s", key, expected, observed)
+			// We'll just keep the last error
+			err = fmt.Errorf("for column %d, expected %s but saw %s", key, expected, observed)
 		}
 	}
 
-	return nil
+	if err != nil {
+		// Perhaps we're using the new case-control header instead
+		err = nil
+
+		INFO = 8
+		CHISQ_LINREG = 13
+		P_LINREG = 14
+		BETA = 11
+		SE = 12
+		CHISQ_BOLT_LMM_INF = 13
+		P_BOLT_LMM_INF = 14
+		CHISQ_BOLT_LMM = 13
+		P_BOLT_LMM = 14
+
+		for key, observed := range header {
+			if expected, exists := expectedHeaderCaseControl[key]; exists && expected != observed {
+				// We'll just keep the last error
+				err = fmt.Errorf("for column %d, expected %s but saw %s", key, expected, observed)
+			}
+		}
+	}
+
+	return err
 }
 
 func OpenDelimited(inputFile string) ([]string, *csv.Reader, func() error, error) {
