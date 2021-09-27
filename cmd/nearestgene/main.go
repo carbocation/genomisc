@@ -118,6 +118,7 @@ func main() {
 		sitePos := float64(sitePosInt)
 
 		sort.Slice(transcripts, func(i, j int) bool {
+			// Disfavor transcripts on the wrong chromosome, obviously
 			if transcripts[i].PlinkChromosome() != siteChr && transcripts[i].Chromosome != siteChr {
 				return false
 			}
@@ -129,7 +130,23 @@ func main() {
 				return true
 			}
 
-			// If it is on a transcript of one but not the other, keep the one where it's on the transcript.
+			// If the site is in one genic region but not the other, keep the
+			// one where it's in the genic region
+			onGeneI, onGeneJ := false, false
+			if between(sitePosInt, transcripts[i].GeneStart, transcripts[i].GeneEnd) {
+				onGeneI = true
+			}
+			if between(sitePosInt, transcripts[j].GeneStart, transcripts[j].GeneEnd) {
+				onGeneJ = true
+			}
+			if onGeneI && !onGeneJ {
+				return true
+			} else if onGeneJ && !onGeneI {
+				return false
+			}
+
+			// If the site is on one transcript but not the other, keep the one
+			// where it's on the transcript.
 			onTranscriptI, onTranscriptJ := false, false
 			if between(sitePosInt, transcripts[i].TranscriptStart, transcripts[i].TranscriptEnd) {
 				onTranscriptI = true

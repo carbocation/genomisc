@@ -35,6 +35,8 @@ type Gene struct {
 	Chromosome      string
 	TranscriptStart int
 	TranscriptEnd   int
+	GeneStart       int
+	GeneEnd         int
 }
 
 // PlinkChromosome prints chromosomal values as numbers in the Plink numbering
@@ -127,12 +129,29 @@ func FetchGenes() ([]Gene, error) {
 			return nil, err
 		}
 
+		geneStart, err := strconv.Atoi(rec[GeneStartOneBased])
+		if err != nil {
+			return nil, err
+		}
+
+		geneEnd, err := strconv.Atoi(rec[GeneEndOneBased])
+		if err != nil {
+			return nil, err
+		}
+
 		// Reverse start and end for minus strand
 		if rec[Strand] == "-1" {
 			start, end = end, start
 		}
 
-		results = append(results, Gene{Symbol: rec[GeneName], Chromosome: rec[Chromosome], TranscriptStart: start, TranscriptEnd: end})
+		results = append(results, Gene{
+			Symbol:          rec[GeneName],
+			Chromosome:      rec[Chromosome],
+			TranscriptStart: start,
+			TranscriptEnd:   end,
+			GeneStart:       geneStart,
+			GeneEnd:         geneEnd,
+		})
 	}
 
 	return results, nil
