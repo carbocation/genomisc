@@ -229,12 +229,18 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 		fmt.Println(populatedQuery.String())
 		fmt.Println("Query parameters:")
 
+		lastV := ""
 		for _, v := range params {
+			if v.Name[:4] != lastV {
+				fmt.Printf("==%s==\n", v.Name[:4])
+				lastV = v.Name[:4]
+			}
+
 			if x, ok := v.Value.([]string); ok {
-				fmt.Printf("%v: (\"%s\")\n", v.Name, strings.Join(x, `","`))
+				fmt.Printf("AND hd.value IN UNNEST([\"%s\"]) )\n", strings.Join(x, `","`))
 				continue
 			}
-			fmt.Printf("%v: %v\n", v.Name, v.Value)
+			fmt.Printf("OR (hd.FieldID = %v ", v.Value)
 		}
 		return nil, nil
 	}
