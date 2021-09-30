@@ -322,9 +322,13 @@ diffed AS (
 		query.sample_id, 
 		query.incident_number, 
 		CASE 
+			WHEN query.incident_number = 0 THEN query.enroll_date
+			ELSE comparator.date_censor
+		END date_start,
+		CASE 
 			WHEN query.incident_number = 0 THEN SAFE.DATE_DIFF(query.date_censor, query.enroll_date, DAY)
 			ELSE SAFE.DATE_DIFF(query.date_censor, comparator.date_censor, DAY)
-		END days_since_prior,
+		END days_elapsed,
 		query.* EXCEPT(sample_id, incident_number)
 	FROM full_res query
 	LEFT JOIN full_res comparator ON 
