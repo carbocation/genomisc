@@ -140,6 +140,11 @@ WITH censor_table AS (
 	WHERE TRUE
 	  -- Only keep dates that are incident from the perspective of enrollment
 		AND query.event_date > query.enroll_date
+  ),
+  sample_count AS (
+	  SELECT sample_id, COUNT(*) N
+	  FROM full_res
+	  GROUP BY sample_id
   )
   
   SELECT 
@@ -162,11 +167,15 @@ WITH censor_table AS (
 	  WHEN start_date < c.enroll_date AND end_date > c.enroll_date THEN SAFE.DATE_DIFF(c.enroll_date, start_date, DAY)
 	  ELSE days_since_start_date
 	END days_since_start_date,
+	SAFE.DATE_DIFF(COALESCE(start_date, c.enroll_date), birthdate, DAY) start_age_days,
+  	SAFE.DATE_DIFF(end_date, birthdate, DAY) end_age_days,
 	start_date start_date_unedited,
 	days_since_start_date days_since_start_date_unedited,
 	days_since_enroll_date,
+	(sc.N-1) = incident_number is_final_record,
   FROM diffed
   JOIN censor_table c USING(sample_id)
+  JOIN sample_count sc USING(sample_id)
   WHERE TRUE
   ORDER BY sample_id, incident_number
 `))

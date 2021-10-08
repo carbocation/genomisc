@@ -39,8 +39,13 @@ require (
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
+	github.com/yuin/goldmark v1.4.1 // indirect
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030
-	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
+	golang.org/x/mod v0.5.1 // indirect
+	golang.org/x/net v0.0.0-20211006190231-62292e806868
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/tools v0.1.7 // indirect
 	gonum.org/v1/gonum v0.8.2
 	google.golang.org/api v0.45.0
 	gopkg.in/guregu/null.v3 v3.5.0
