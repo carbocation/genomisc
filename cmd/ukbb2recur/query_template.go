@@ -141,6 +141,13 @@ WITH censor_table AS (
 	  -- Only keep dates that are incident from the perspective of enrollment
 		AND query.event_date > query.enroll_date
   ),
+  first_event_date AS (
+	-- (Note: this makes no assumption about the type of event)
+	SELECT sample_id, event_date
+	FROM full_res
+	WHERE TRUE
+	  AND incident_number = 0
+  ),
   sample_count AS (
 	  SELECT sample_id, COUNT(*) N
 	  FROM full_res
@@ -173,9 +180,13 @@ WITH censor_table AS (
 	days_since_start_date days_since_start_date_unedited,
 	days_since_enroll_date,
 	(sc.N-1) = incident_number is_final_record,
+	fed.event_date first_event_date,
+	SAFE.DATE_DIFF(fed.event_date, birthdate, DAY) first_event_age_days,
+	SAFE.DATE_DIFF(end_date, fed.event_date, DAY) days_since_first_event_date,
   FROM diffed
   JOIN censor_table c USING(sample_id)
   JOIN sample_count sc USING(sample_id)
+  JOIN first_event_date fed USING(sample_id)
   WHERE TRUE
   ORDER BY sample_id, incident_number
 `))
