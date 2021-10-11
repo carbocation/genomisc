@@ -14,12 +14,11 @@ import (
 )
 
 type WrappedBigQuery struct {
-	Context        context.Context
-	Client         *bigquery.Client
-	Project        string
-	Database       string
-	MaterializedDB string
-	UseGP          bool
+	Context  context.Context
+	Client   *bigquery.Client
+	Project  string
+	Database string
+	UseGP    bool
 }
 
 // Special value that is to be set using ldflags
@@ -53,15 +52,16 @@ func main() {
 	var allowUndated bool
 	var diseaseName string
 	var verbose bool
+	var timeVaryingDays int
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
 	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
 	flag.StringVar(&tabfile, "tabfile", "", "Tabfile-formatted phenotype definition")
-	flag.StringVar(&BQ.MaterializedDB, "materialized", "", "(Deprecated, not used - will be removed in future versions)")
 	flag.BoolVar(&displayQuery, "display-query", false, "Display the constructed query and exit?")
 	flag.BoolVar(&override, "override", false, "Force run, even if this tool thinks your tabfile is inadequate?")
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
 	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
+	flag.IntVar(&timeVaryingDays, "time-varying-days", 0, "If >0, each follow-up interval greater than time-varying-days days will be broken up into censored chunks of, at most, time-varying-days duration.")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
 	flag.BoolVar(&BQ.UseGP, "usegp", false, "")
 	flag.Parse()
@@ -70,10 +70,6 @@ func main() {
 		flag.PrintDefaults()
 		describeDateFields(verbose)
 	}
-
-	// Deprecating BQ.MaterializedDB - adds unnecessary complexity; reasonable
-	// to assume that all data is in the same database
-	BQ.MaterializedDB = BQ.Database
 
 	if BQ.Project == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --project")
@@ -89,12 +85,6 @@ func main() {
 
 	if tabfile == "" {
 		fmt.Fprintln(os.Stderr, "Please provide --tabfile")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if BQ.MaterializedDB == "" {
-		fmt.Fprintln(os.Stderr, "Please provide --materialized")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -168,7 +158,7 @@ func main() {
 		return
 	}
 
-	if err := ExecuteQuery(BQ, query, diseaseName, missingFields); err != nil {
+	if err := ExecuteQuery(BQ, query, diseaseName, missingFields, timeVaryingDays); err != nil {
 		log.Fatalln(diseaseName, err)
 	}
 

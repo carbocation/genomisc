@@ -17,9 +17,11 @@ type Result struct {
 	StatusEnd               StatusEnum         `bigquery:"status_end"`
 	StartDate               bigquery.NullDate  `bigquery:"start_date"`
 	EndDate                 bigquery.NullDate  `bigquery:"end_date"`
+	BirthDate               bigquery.NullDate  `bigquery:"birthdate"`
 	StartAgeDays            bigquery.NullInt64 `bigquery:"start_age_days"`
 	EndAgeDays              bigquery.NullInt64 `bigquery:"end_age_days"`
 	SurvivalDays            bigquery.NullInt64 `bigquery:"days_since_start_date"`
+	EnrollDate              bigquery.NullDate  `bigquery:"enroll_date"`
 	DaysSinceEnrollDate     bigquery.NullInt64 `bigquery:"days_since_enroll_date"`
 	IsFinalRecord           bigquery.NullBool  `bigquery:"is_final_record"`
 	FirstEventDate          bigquery.NullDate  `bigquery:"first_event_date"`
@@ -27,7 +29,7 @@ type Result struct {
 	DaysSinceFirstEventDate bigquery.NullInt64 `bigquery:"days_since_first_event_date"`
 }
 
-func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string) error {
+func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays int) error {
 	defer STDOUT.Flush()
 
 	itr, err := query.Read(BQ.Context)
@@ -47,32 +49,87 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			return pfx.Err(err)
 		}
 
-		fmt.Fprintf(STDOUT, "%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			diseaseName,
-			r.SampleID,
-			NA(r.IncidentNumber),
-			r.StatusStart.Simplify().String(),
-			r.StatusEnd.Simplify().String(),
-			NA(r.IsFinalRecord),
-			int(r.StatusStart.Simplify()),
-			int(r.StatusEnd.Simplify()),
-			NA(r.StartDate),
-			NA(r.EndDate),
-			NA(r.StartAgeDays),
-			NA(r.EndAgeDays),
-			NA(r.SurvivalDays),
-			r.StatusStart.String(),
-			r.StatusEnd.String(),
-			NA(r.DaysSinceEnrollDate),
-			NA(r.FirstEventDate),
-			NA(r.FirstEventAgeDays),
-			NA(r.DaysSinceFirstEventDate),
-			todayDate,
-			missing,
-		)
+		// Special case: we are not doing any time-varying
+		if timeVaryingDays <= 0 {
+			printRow(r, diseaseName, todayDate, missing)
+			continue
+		}
+
+		// Copy the result; we may mutate this copy
+		mutableR := r
+
+		for {
+
+			// If the survival time represented by this row is less than or
+			// equal to the time-varying duration that we are trying to achieve,
+			// we are done.
+			if int(mutableR.SurvivalDays.Int64) <= timeVaryingDays {
+				printRow(mutableR, diseaseName, todayDate, missing)
+				break
+			}
+
+			// If the row represent a longer survival time than we want, split
+			// up the period and create new rows.
+			timeVaryingEntry := mutableR
+
+			// Most fields are simply copied forward, explicitly including
+			// start_date, incident_number, and status_start.
+
+			// The end status becomes censored
+			timeVaryingEntry.StatusEnd = NoDisease
+			timeVaryingEntry.IsFinalRecord.Bool = false
+
+			// The end status becomes set to timeVaryingDays after the start
+			// date, and all end-date-related fields need to be updated to match
+			// that.
+			timeVaryingEntry.EndDate.Date = timeVaryingEntry.StartDate.Date.AddDays(timeVaryingDays)
+			timeVaryingEntry.SurvivalDays.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.StartDate.Date))
+			timeVaryingEntry.DaysSinceFirstEventDate.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.FirstEventDate.Date))
+			timeVaryingEntry.DaysSinceEnrollDate.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.EnrollDate.Date))
+			timeVaryingEntry.EndAgeDays.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.BirthDate.Date))
+
+			// Emit the updated row
+			printRow(timeVaryingEntry, diseaseName, todayDate, missing)
+
+			// Finally, modify start values in the parent row (moving them
+			// forward beyond the end values of the child row we just created)
+			// and then run the loop again until we have created enough time
+			// chunks to complete the period of time.
+			mutableR.StartDate.Date = mutableR.StartDate.Date.AddDays(timeVaryingDays)
+			mutableR.StartAgeDays.Int64 = int64(mutableR.StartDate.Date.DaysSince(mutableR.BirthDate.Date))
+			mutableR.SurvivalDays.Int64 = int64(mutableR.EndDate.Date.DaysSince(mutableR.StartDate.Date))
+		}
 	}
 
 	return nil
+}
+
+func printRow(r Result, diseaseName, todayDate, missing string) (int, error) {
+
+	return fmt.Fprintf(STDOUT,
+		"%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		diseaseName,
+		r.SampleID,
+		NA(r.IncidentNumber),
+		r.StatusStart.Simplify().String(),
+		r.StatusEnd.Simplify().String(),
+		NA(r.IsFinalRecord),
+		int(r.StatusStart.Simplify()),
+		int(r.StatusEnd.Simplify()),
+		NA(r.StartDate),
+		NA(r.EndDate),
+		NA(r.StartAgeDays),
+		NA(r.EndAgeDays),
+		NA(r.SurvivalDays),
+		r.StatusStart.String(),
+		r.StatusEnd.String(),
+		NA(r.DaysSinceEnrollDate),
+		NA(r.FirstEventDate),
+		NA(r.FirstEventAgeDays),
+		NA(r.DaysSinceFirstEventDate),
+		todayDate,
+		missing,
+	)
 }
 
 // NA emits an empty string instead of "NULL" since this plays better with

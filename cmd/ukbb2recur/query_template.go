@@ -178,6 +178,8 @@ WITH censor_table AS (
   	SAFE.DATE_DIFF(end_date, birthdate, DAY) end_age_days,
 	start_date start_date_unedited,
 	days_since_start_date days_since_start_date_unedited,
+	birthdate,
+	c.enroll_date,
 	days_since_enroll_date,
 	(sc.N-1) = incident_number is_final_record,
 	fed.event_date first_event_date,
