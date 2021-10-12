@@ -30,7 +30,7 @@ type Result struct {
 	StartDaysSinceLastEventDate int                // Will always be 0 unless using time-varying covariates
 }
 
-func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays int) error {
+func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays, timeVaryingDaysAfterEvent int) error {
 	defer STDOUT.Flush()
 
 	itr, err := query.Read(BQ.Context)
@@ -59,12 +59,23 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 		// Copy the result; we may mutate this copy
 		mutableR := r
 
+		// For most states, we will increment by `timeVaryingDays`.
+		timeInterval := timeVaryingDays
+
+		// If the last event was a disease event, then, if set, we will advance
+		// the clock by a different, shorter amount of time. This will decay by
+		// 2x every iteration over the loop (e.g., 30d, 60d, 120d) and is also
+		// capped such that it will never be greater than `timeVaryingDays`.
+		if mutableR.StatusStart == Disease {
+			timeInterval = timeVaryingDaysAfterEvent
+		}
+
 		for {
 
 			// If the survival time represented by this row is less than or
 			// equal to the time-varying duration that we are trying to achieve,
 			// we are done.
-			if int(mutableR.SurvivalDays.Int64) <= timeVaryingDays {
+			if int(mutableR.SurvivalDays.Int64) <= timeInterval {
 				printRow(mutableR, diseaseName, todayDate, missing)
 				break
 			}
@@ -80,10 +91,10 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			timeVaryingEntry.StatusEnd = NoDisease
 			timeVaryingEntry.IsFinalRecord.Bool = false
 
-			// The end status becomes set to timeVaryingDays after the start
+			// The end status becomes set to timeInterval after the start
 			// date, and all end-date-related fields need to be updated to match
 			// that.
-			timeVaryingEntry.EndDate.Date = timeVaryingEntry.StartDate.Date.AddDays(timeVaryingDays)
+			timeVaryingEntry.EndDate.Date = timeVaryingEntry.StartDate.Date.AddDays(timeInterval)
 			timeVaryingEntry.SurvivalDays.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.StartDate.Date))
 			timeVaryingEntry.DaysSinceFirstEventDate.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.FirstEventDate.Date))
 			timeVaryingEntry.DaysSinceEnrollDate.Int64 = int64(timeVaryingEntry.EndDate.Date.DaysSince(timeVaryingEntry.EnrollDate.Date))
@@ -96,7 +107,7 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			// forward beyond the end values of the child row we just created)
 			// and then run the loop again until we have created enough time
 			// chunks to complete the period of time.
-			mutableR.StartDate.Date = mutableR.StartDate.Date.AddDays(timeVaryingDays)
+			mutableR.StartDate.Date = mutableR.StartDate.Date.AddDays(timeInterval)
 			mutableR.StartAgeDays.Int64 = int64(mutableR.StartDate.Date.DaysSince(mutableR.BirthDate.Date))
 			mutableR.SurvivalDays.Int64 = int64(mutableR.EndDate.Date.DaysSince(mutableR.StartDate.Date))
 
@@ -104,6 +115,14 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 				// Reach back into the unmodified row, since the unmodified
 				// start date is the same as the event date of the last event.
 				mutableR.StartDaysSinceLastEventDate = mutableR.StartDate.Date.DaysSince(r.StartDate.Date)
+
+				// Decay the interval over time so we don't constantly deal with
+				// 30-day chunks forever after the first disease instance, but
+				// never go longer than the user-set timeVaryingDays interval
+				timeInterval *= 2
+				if timeInterval > timeVaryingDays {
+					timeInterval = timeVaryingDays
+				}
 			}
 		}
 	}
