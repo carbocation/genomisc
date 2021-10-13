@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ type Result struct {
 	StartDaysSinceLastEventDate int                // Will always be 0 unless using time-varying covariates
 }
 
-func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays, timeVaryingDaysAfterEvent int) error {
+func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays, timeVaryingDaysAfterEvent int, timeVaryingDaysAfterEventDecayMultiplier float64) error {
 	defer STDOUT.Flush()
 
 	itr, err := query.Read(BQ.Context)
@@ -119,7 +120,7 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 				// Decay the interval over time so we don't constantly deal with
 				// 30-day chunks forever after the first disease instance, but
 				// never go longer than the user-set timeVaryingDays interval
-				timeInterval *= 2
+				timeInterval = int(math.Ceil(float64(timeInterval) * timeVaryingDaysAfterEventDecayMultiplier))
 				if timeInterval > timeVaryingDays {
 					timeInterval = timeVaryingDays
 				}

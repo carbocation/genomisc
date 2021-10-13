@@ -54,6 +54,7 @@ func main() {
 	var verbose bool
 	var timeVaryingDays int
 	var timeVaryingDaysAfterEvent int
+	var timeVaryingDaysAfterEventDecayMultiplier float64
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
 	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
@@ -64,6 +65,7 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
 	flag.IntVar(&timeVaryingDays, "time-varying-days", 0, "If >0, each follow-up interval greater than time-varying-days days will be broken up into censored chunks of, at most, time-varying-days duration.")
 	flag.IntVar(&timeVaryingDaysAfterEvent, "time-varying-days-after-event", 30, "If >0, each follow-up interval greater than time-varying-days-after-event days will be broken up into censored chunks of, at most, time-varying-days-after-event duration after a disease event. This will decay by 2x per censored interval (i.e., not terminated by disease or death), but is capped so that it will never exceed time-varying-days.")
+	flag.Float64Var(&timeVaryingDaysAfterEventDecayMultiplier, "time-varying-days-after-event-multiplier", 2.0, "If >= 1.0, after each time-varying-days-after-event days, the time-varying-days-after-event value will be multiplied by time-varying-days-after-event-multiplier. Allows less frequent checks over time after an event.")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
 	flag.BoolVar(&BQ.UseGP, "usegp", false, "")
 	flag.Parse()
@@ -75,6 +77,10 @@ func main() {
 
 	if timeVaryingDaysAfterEvent <= 0 {
 		timeVaryingDaysAfterEvent = timeVaryingDays
+	}
+
+	if timeVaryingDaysAfterEventDecayMultiplier < 1.0 {
+		timeVaryingDaysAfterEventDecayMultiplier = 1.0
 	}
 
 	if BQ.Project == "" {
@@ -164,7 +170,7 @@ func main() {
 		return
 	}
 
-	if err := ExecuteQuery(BQ, query, diseaseName, missingFields, timeVaryingDays, timeVaryingDaysAfterEvent); err != nil {
+	if err := ExecuteQuery(BQ, query, diseaseName, missingFields, timeVaryingDays, timeVaryingDaysAfterEvent, timeVaryingDaysAfterEventDecayMultiplier); err != nil {
 		log.Fatalln(diseaseName, err)
 	}
 
