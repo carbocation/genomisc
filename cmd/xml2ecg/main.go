@@ -101,7 +101,7 @@ func run(filename string, createPNG, printDiagnoses bool, widthPx, heightPx int,
 }
 
 func processDiagnoses(filename string, doc CardiologyXML) error {
-	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_diagnoses.csv")
+	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_diagnoses.tsv")
 	if err != nil {
 		return err
 	}
@@ -120,39 +120,47 @@ func processDiagnoses(filename string, doc CardiologyXML) error {
 	for i, val := range doc.Interpretation.Diagnosis.DiagnosisText {
 		if val == "---" {
 			aboveDash = "dash"
-		} else if aboveDash == "dash" {
+		} else if val == "Arrhythmia results of the full-disclosure ECG" {
+			aboveDash = "arotfde"
+		} else if aboveDash != "above" {
 			aboveDash = "below"
 		}
 
 		fmt.Fprintln(OUTFILE, strings.Join([]string{
 			sampleID,
 			instance,
+			doc.ClinicalInfo.DeviceInfo.SoftwareVer,
 			doc.RestingECGMeasurements.DiagnosisVersion,
 			"diagnosis",
 			strconv.Itoa(i),
 			strconv.Itoa(nDiags),
 			aboveDash,
-			val}, ","))
+			strings.TrimSpace(val),
+		}, "\t"))
 	}
 
 	nConclusions := len(doc.Interpretation.Conclusion.ConclusionText)
-	aboveDash = "true"
+	aboveDash = "above"
 	for i, val := range doc.Interpretation.Conclusion.ConclusionText {
 		if val == "---" {
 			aboveDash = "dash"
-		} else if aboveDash == "dash" {
+		} else if val == "Arrhythmia results of the full-disclosure ECG" {
+			aboveDash = "arotfde"
+		} else if aboveDash != "above" {
 			aboveDash = "below"
 		}
 
 		fmt.Fprintln(OUTFILE, strings.Join([]string{
 			sampleID,
 			instance,
+			doc.ClinicalInfo.DeviceInfo.SoftwareVer,
 			doc.RestingECGMeasurements.DiagnosisVersion,
 			"conclusion",
 			strconv.Itoa(i),
 			strconv.Itoa(nConclusions),
 			aboveDash,
-			val}, ","))
+			strings.TrimSpace(val),
+		}, "\t"))
 	}
 
 	return nil
