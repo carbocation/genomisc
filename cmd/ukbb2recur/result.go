@@ -12,23 +12,24 @@ import (
 )
 
 type Result struct {
-	SampleID                    int64              `bigquery:"sample_id"`
-	IncidentNumber              bigquery.NullInt64 `bigquery:"incident_number"`
-	StatusStart                 StatusEnum         `bigquery:"status_start"`
-	StatusEnd                   StatusEnum         `bigquery:"status_end"`
-	StartDate                   bigquery.NullDate  `bigquery:"start_date"`
-	EndDate                     bigquery.NullDate  `bigquery:"end_date"`
-	BirthDate                   bigquery.NullDate  `bigquery:"birthdate"`
-	StartAgeDays                bigquery.NullInt64 `bigquery:"start_age_days"`
-	EndAgeDays                  bigquery.NullInt64 `bigquery:"end_age_days"`
-	SurvivalDays                bigquery.NullInt64 `bigquery:"days_since_start_date"`
-	EnrollDate                  bigquery.NullDate  `bigquery:"enroll_date"`
-	DaysSinceEnrollDate         bigquery.NullInt64 `bigquery:"days_since_enroll_date"`
-	IsFinalRecord               bigquery.NullBool  `bigquery:"is_final_record"`
-	FirstEventDate              bigquery.NullDate  `bigquery:"first_event_date"`
-	FirstEventAgeDays           bigquery.NullInt64 `bigquery:"first_event_age_days"`
-	DaysSinceFirstEventDate     bigquery.NullInt64 `bigquery:"days_since_first_event_date"`
-	StartDaysSinceLastEventDate int                // Will always be 0 unless using time-varying covariates
+	SampleID                    int64               `bigquery:"sample_id"`
+	IncidentNumber              bigquery.NullInt64  `bigquery:"incident_number"`
+	StatusStart                 StatusEnum          `bigquery:"status_start"`
+	StatusEnd                   StatusEnum          `bigquery:"status_end"`
+	StartDate                   bigquery.NullDate   `bigquery:"start_date"`
+	EndDate                     bigquery.NullDate   `bigquery:"end_date"`
+	BirthDate                   bigquery.NullDate   `bigquery:"birthdate"`
+	StartAgeDays                bigquery.NullInt64  `bigquery:"start_age_days"`
+	EndAgeDays                  bigquery.NullInt64  `bigquery:"end_age_days"`
+	SurvivalDays                bigquery.NullInt64  `bigquery:"days_since_start_date"`
+	EnrollDate                  bigquery.NullDate   `bigquery:"enroll_date"`
+	DaysSinceEnrollDate         bigquery.NullInt64  `bigquery:"days_since_enroll_date"`
+	IsFinalRecord               bigquery.NullBool   `bigquery:"is_final_record"`
+	FirstEventDate              bigquery.NullDate   `bigquery:"first_event_date"`
+	FirstEventAgeDays           bigquery.NullInt64  `bigquery:"first_event_age_days"`
+	DaysSinceFirstEventDate     bigquery.NullInt64  `bigquery:"days_since_first_event_date"`
+	StartDaysSinceLastEventDate int                 // Will always be 0 unless using time-varying covariates
+	StartDataSource             bigquery.NullString `bigquery:"start_dsource"` // Currently not used - problematic because missing before diagnoses are issued
 }
 
 func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string, timeVaryingDays, timeVaryingDaysAfterEvent int, timeVaryingDaysAfterEventDecayMultiplier float64) error {

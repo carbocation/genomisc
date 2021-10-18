@@ -31,6 +31,7 @@ WITH censor_table AS (
 	  p.sample_id, 
 	  p.FieldID, 
 	  p.value, 
+	  'Z_UNDATED' dsource,
 	  MIN(SAFE.PARSE_DATE("%E4Y-%m-%d", denroll.value)) first_date
 	FROM ` + "`{{.database}}.phenotype`" + ` p
 	JOIN ` + "`{{.database}}.phenotype`" + ` denroll ON denroll.FieldID=53 AND denroll.sample_id=p.sample_id AND denroll.instance = 0 AND denroll.array_idx = 0
@@ -44,7 +45,7 @@ WITH censor_table AS (
   all_dated_fields AS (
 	SELECT * EXCEPT(source) FROM ` + "`{{.materializedDatabase}}.materialized_hesin_dates_all`" + `
 	UNION DISTINCT
-	SELECT * FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `
+	SELECT sample_id, FieldID, value, 'Z_SPECIAL' dsource, first_date FROM ` + "`{{.materializedDatabase}}.materialized_special_dates`" + `
 	UNION DISTINCT
 	SELECT * FROM undated_fields
   ),
@@ -54,6 +55,7 @@ WITH censor_table AS (
 	  sample_id, 
 	  first_date event_date,
 	  1 status_end,
+	  MIN(dsource) dsource,
 	FROM all_dated_fields hd
 	WHERE FALSE
 	{{.includePart}}
@@ -65,6 +67,7 @@ WITH censor_table AS (
 	  sample_id, 
 	  MIN(first_date) event_date,
 	  -1 status_end,
+	  MIN(dsource) dsource,
 	FROM all_dated_fields hd
 	WHERE FALSE
 	{{.excludePart}}
@@ -98,6 +101,7 @@ WITH censor_table AS (
 		WHEN excl.event_date IS NOT NULL AND excl.event_date < ct.event_date THEN excl.status_end
 		ELSE ct.status_end
 	  END status_end,
+	  'censor' dsource,
 	FROM censoring_terminations ct
 	LEFT JOIN grouped_dated_fields_excluded_only excl USING(sample_id)
   ),
@@ -124,12 +128,13 @@ WITH censor_table AS (
   ),
   diffed AS (
 	SELECT 
-	  query.* EXCEPT(event_date),
+	  query.* EXCEPT(dsource, event_date),
 	  COALESCE(comparator.status_end, 0) status_start,
 	  comparator.event_date start_date,
 	  query.event_date end_date,
 	  SAFE.DATE_DIFF(query.event_date, comparator.event_date, DAY) days_since_start_date,
 	  SAFE.DATE_DIFF(query.event_date, query.enroll_date, DAY) days_since_enroll_date,
+	  comparator.dsource start_dsource,
 	FROM full_res query
 	LEFT JOIN full_res comparator ON 
 	  query.sample_id = comparator.sample_id 
@@ -185,6 +190,7 @@ WITH censor_table AS (
 	fed.event_date first_event_date,
 	SAFE.DATE_DIFF(fed.event_date, birthdate, DAY) first_event_age_days,
 	SAFE.DATE_DIFF(end_date, fed.event_date, DAY) days_since_first_event_date,
+	diffed.start_dsource start_dsource,
   FROM diffed
   JOIN censor_table c USING(sample_id)
   JOIN sample_count sc USING(sample_id)
