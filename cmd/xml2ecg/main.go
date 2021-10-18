@@ -43,11 +43,13 @@ var (
 func main() {
 	var filename string
 	var createPNG bool
+	var printDiagnoses bool
 	var debug bool
 	var widthPx, heightPx int
 
 	flag.StringVar(&filename, "file", "", "XML file (CardioSoft 6.73 output)")
 	flag.BoolVar(&createPNG, "createpng", false, "Create PNG representations of the EKG strips?")
+	flag.BoolVar(&printDiagnoses, "diagnoses", false, "Emit the automated diagnoses to a _diagnoses.csv file?")
 	flag.IntVar(&widthPx, "width", 256, "(Optional) If creating PNGs, what pixel width?")
 	flag.IntVar(&heightPx, "height", 256, "(Optional) If creating PNGs, what pixel height?")
 	flag.BoolVar(&debug, "debug", false, "Print extra metadata during processing?")
@@ -60,12 +62,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(filename, createPNG, widthPx, heightPx, debug); err != nil {
+	if err := run(filename, createPNG, printDiagnoses, widthPx, heightPx, debug); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func run(filename string, createPNG bool, widthPx, heightPx int, debug bool) error {
+func run(filename string, createPNG, printDiagnoses bool, widthPx, heightPx int, debug bool) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -81,12 +83,84 @@ func run(filename string, createPNG bool, widthPx, heightPx int, debug bool) err
 		return err
 	}
 
+	if printDiagnoses {
+		if err := processDiagnoses(filepath.Base(filename), doc); err != nil {
+			return err
+		}
+	}
+
 	if err := processFullDisclosureStrip(filepath.Base(filename), doc, createPNG, widthPx, heightPx, debug); err != nil {
 		return err
 	}
 
 	if err := processSummaryStrip(filepath.Base(filename), doc, createPNG, widthPx, heightPx, debug); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func processDiagnoses(filename string, doc CardiologyXML) error {
+	outFile, err := os.Create(strings.TrimSuffix(filename, ".xml") + "_diagnoses.tsv")
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	var OUTFILE = bufio.NewWriter(outFile)
+	defer OUTFILE.Flush()
+
+	sampleID, instance, err := fileNameToSampleInstance(filename)
+	if err != nil {
+		return err
+	}
+
+	nDiags := len(doc.Interpretation.Diagnosis.DiagnosisText)
+	aboveDash := "above"
+	for i, val := range doc.Interpretation.Diagnosis.DiagnosisText {
+		if val == "---" {
+			aboveDash = "dash"
+		} else if val == "Arrhythmia results of the full-disclosure ECG" {
+			aboveDash = "arotfde"
+		} else if aboveDash != "above" {
+			aboveDash = "below"
+		}
+
+		fmt.Fprintln(OUTFILE, strings.Join([]string{
+			sampleID,
+			instance,
+			doc.ClinicalInfo.DeviceInfo.SoftwareVer,
+			doc.RestingECGMeasurements.DiagnosisVersion,
+			"diagnosis",
+			strconv.Itoa(i),
+			strconv.Itoa(nDiags),
+			aboveDash,
+			strings.TrimSpace(val),
+		}, "\t"))
+	}
+
+	nConclusions := len(doc.Interpretation.Conclusion.ConclusionText)
+	aboveDash = "above"
+	for i, val := range doc.Interpretation.Conclusion.ConclusionText {
+		if val == "---" {
+			aboveDash = "dash"
+		} else if val == "Arrhythmia results of the full-disclosure ECG" {
+			aboveDash = "arotfde"
+		} else if aboveDash != "above" {
+			aboveDash = "below"
+		}
+
+		fmt.Fprintln(OUTFILE, strings.Join([]string{
+			sampleID,
+			instance,
+			doc.ClinicalInfo.DeviceInfo.SoftwareVer,
+			doc.RestingECGMeasurements.DiagnosisVersion,
+			"conclusion",
+			strconv.Itoa(i),
+			strconv.Itoa(nConclusions),
+			aboveDash,
+			strings.TrimSpace(val),
+		}, "\t"))
 	}
 
 	return nil
