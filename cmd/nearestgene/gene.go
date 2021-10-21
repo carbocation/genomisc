@@ -114,10 +114,11 @@ func FetchGenes() ([]Gene, error) {
 			continue
 		}
 
-		if strings.TrimSpace(rec[ProteinStableID]) == "" {
-			// No protein product - not relevant to this program.
-			continue
-		}
+		// Note: this excludes proteins like ABO, so removing this.
+		// if strings.TrimSpace(rec[ProteinStableID]) == "" {
+		// // No protein product - not relevant to this program.
+		// continue
+		// }
 
 		start, err := strconv.Atoi(rec[TranscriptStartOneBased])
 		if err != nil {
