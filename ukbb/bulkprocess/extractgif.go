@@ -32,7 +32,10 @@ type orderedPaletted struct {
 // from *all* input images, and the quantized palette is shared across all of
 // the output frames.
 func MakeOneGIF(sortedImages []image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
-	outGif := &gif.GIF{}
+
+	if len(sortedImages) < 1 {
+		return nil, fmt.Errorf("MakeOneGIF expects 1 or more image to conver into a gif; received 0")
+	}
 
 	quantizer := quantize.MedianCutQuantizer{
 		Aggregation:    quantize.Mean,
@@ -74,13 +77,45 @@ func MakeOneGIF(sortedImages []image.Image, delay int, withTransparency bool) (*
 
 	}
 
-	// Assemble into a gif
+	// If all images are not the same size, gif.GIF will crash unless you've
+	// configured the bounds to be based on the greatest x and y of all images
+	// in the gif
+	greatestX, greatestY := 0, 0
 	for _, palettedImage := range sortedPalattedImages {
-		outGif.Image = append(outGif.Image, palettedImage)
-		outGif.Delay = append(outGif.Delay, delay)
+		if x := palettedImage.Bounds().Max.X; x > greatestX {
+			greatestX = x
+		}
+
+		if y := palettedImage.Bounds().Max.Y; y > greatestY {
+			greatestY = y
+		}
+	}
+
+	// Assemble into a gif
+	outGif := &gif.GIF{
+		Image:     sortedPalattedImages,
+		Delay:     repeatDelay(len(sortedPalattedImages), delay),
+		LoopCount: 0,
+		Disposal:  nil,
+		Config: image.Config{
+			ColorModel: nil, //Alternatively, could use: sortedPalattedImages[0].ColorModel(),
+			Width:      greatestX,
+			Height:     greatestY,
+		},
+		BackgroundIndex: 0,
 	}
 
 	return outGif, nil
+}
+
+func repeatDelay(sliceElements, delay int) []int {
+	out := make([]int, sliceElements)
+
+	for k := range out {
+		out[k] = delay
+	}
+
+	return out
 }
 
 // MakeOneGIFFromMap creates an animated gif from an ordered list of image names
