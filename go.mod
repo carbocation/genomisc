@@ -11,7 +11,7 @@ require (
 	github.com/brentp/irelate v0.0.1
 	github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a
 	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
-	github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e
+	github.com/carbocation/go-quantize v0.0.0-20211119162246-85417ed22ad1
 	github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea
 	github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
