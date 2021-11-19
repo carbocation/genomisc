@@ -19,10 +19,10 @@ import (
 const (
 	SampleIDColumnName = "sample_id"
 	InstanceColumnName = "instance"
-	SeriesColumnName   = "series"
 )
 
 var (
+	SeriesColumnName    = "series"
 	TimepointColumnName = "trigger_time"
 	ZipColumnName       = "zip_file"
 	DicomColumnName     = "dicom_file"
@@ -37,6 +37,7 @@ func main() {
 	var delay int
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
 	flag.StringVar(&folder, "folder", "", "Path to google storage folder that contains zip files.")
+	flag.StringVar(&SeriesColumnName, "series_column_name", "series", "Name of the column in the manifest with the series.")
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicoms.")
 	flag.StringVar(&ZipColumnName, "zip_column_name", "zip_file", "Name of the column in the manifest with the zip file.")
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
