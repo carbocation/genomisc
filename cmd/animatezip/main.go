@@ -32,7 +32,7 @@ var (
 var client *storage.Client
 
 func main() {
-	var includeOverlay bool
+	var includeOverlay, doNotSort, labelDicom bool
 	var manifest, folder string
 	var delay int
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
@@ -42,6 +42,8 @@ func main() {
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
 	flag.IntVar(&delay, "delay", 2, "Milliseconds between each frame of the gif.")
 	flag.BoolVar(&includeOverlay, "overlay", false, "Print overlay information, if present?")
+	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
+	flag.BoolVar(&labelDicom, "labeldicom", false, "Pass this if you want to print the dicom name at the top of each frame of the animated gif.")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -61,7 +63,7 @@ func main() {
 		}
 	}
 
-	if err := run(manifest, folder, delay, includeOverlay); err != nil {
+	if err := run(manifest, folder, delay, includeOverlay, doNotSort, labelDicom); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -73,11 +75,11 @@ type seriesMap struct {
 	Series string
 }
 
-func run(manifest, folder string, delay int, includeOverlay bool) error {
+func run(manifest, folder string, delay int, includeOverlay, doNotSort, labelDicom bool) error {
 
 	fmt.Println("Animated Gif maker")
 
-	man, err := parseManifest(manifest)
+	man, err := parseManifest(manifest, doNotSort)
 	if err != nil {
 		return err
 	}
@@ -129,14 +131,16 @@ func run(manifest, folder string, delay int, includeOverlay bool) error {
 			continue
 		}
 
-		// Sort by series, then by instance
-		sort.Slice(entries, func(i, j int) bool {
-			if entries[i].series != entries[j].series {
-				return entries[i].series < entries[j].series
-			}
+		if !doNotSort {
+			// Sort by series, then by instance
+			sort.Slice(entries, func(i, j int) bool {
+				if entries[i].series != entries[j].series {
+					return entries[i].series < entries[j].series
+				}
 
-			return entries[i].timepoint < entries[j].timepoint
-		})
+				return entries[i].timepoint < entries[j].timepoint
+			})
+		}
 
 		// Make zipfile and series aware:
 		zipSeriesMap := make(map[seriesMap][]string)
@@ -170,12 +174,25 @@ func run(manifest, folder string, delay int, includeOverlay bool) error {
 		started := time.Now()
 
 		for zip, pngs := range zipSeriesMap {
-			go func(zip seriesMap, pngs []string) {
+			imgMap := zipMap[zip.Zip]
+
+			// Write the dicomName on top of each image?
+			if labelDicom {
+				for _, dicomName := range pngs {
+					thisImg := imgMap[dicomName]
+
+					label := dicomName
+
+					drawableImg := addLabelGG(thisImg, label)
+					imgMap[dicomName] = drawableImg
+				}
+			}
+
+			go func(zip seriesMap, imgMap map[string]image.Image, pngs []string) {
 				outName := zip.Zip + "_" + zip.Series + ".gif"
-				imgMap := zipMap[zip.Zip]
 
 				errchan <- makeOneGifFromImageMap(pngs, imgMap, outName, delay)
-			}(zip, pngs)
+			}(zip, imgMap, pngs)
 		}
 
 		completed := 0

@@ -20,7 +20,7 @@ type manifestEntry struct {
 	timepoint float64
 }
 
-func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error) {
+func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manifestEntry, error) {
 
 	out := make(map[manifestKey][]manifestEntry)
 	var dicom, timepoint, sampleid, instance, zip, series int = -1, -1, -1, -1, -1, -1
@@ -44,23 +44,30 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 
 		if i == 0 {
 			for k, col := range cols {
-				switch col {
-				case DicomColumnName:
+				// These are not mutually exclusive and so this should not be a
+				// series of if/elses or a switch statement.
+				if col == DicomColumnName {
 					dicom = k
-				case TimepointColumnName:
+				}
+				if col == TimepointColumnName {
 					timepoint = k
-				case SampleIDColumnName:
+				}
+				if col == SampleIDColumnName {
 					sampleid = k
-				case InstanceColumnName:
+				}
+				if col == InstanceColumnName {
 					instance = k
-				case SeriesColumnName:
+				}
+				if col == SeriesColumnName {
 					series = k
-				case ZipColumnName:
+				}
+				if col == ZipColumnName {
 					zip = k
 				}
+
 			}
 
-			if dicom < 0 || timepoint < 0 || sampleid < 0 || instance < 0 || zip < 0 || series < 0 {
+			if dicom < 0 || (timepoint < 0 && !doNotSort) || sampleid < 0 || instance < 0 || zip < 0 || series < 0 {
 				return nil, fmt.Errorf("did not find all columns. Please check dicom_column_name")
 			}
 
@@ -72,9 +79,12 @@ func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error)
 			fmt.Printf("\rParsed %d lines from the manifest", i)
 		}
 
-		tp, err := strconv.ParseFloat(cols[timepoint], 64)
-		if err != nil {
-			return nil, err
+		tp := 0.0
+		if !doNotSort {
+			tp, err = strconv.ParseFloat(cols[timepoint], 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		key := manifestKey{SampleID: cols[sampleid], Instance: cols[instance]}

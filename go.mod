@@ -17,6 +17,7 @@ require (
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
 	github.com/disintegration/imaging v1.6.2
 	github.com/extrame/xls v0.0.1
+	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/glycerine/golang-fisher-exact v0.0.0-20160911222405-aea2106439d4
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.1
