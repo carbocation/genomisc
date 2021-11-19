@@ -17,7 +17,7 @@ require (
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
 	github.com/disintegration/imaging v1.6.2
 	github.com/extrame/xls v0.0.1
-	github.com/fogleman/gg v1.3.0 // indirect
+	github.com/fogleman/gg v1.3.0
 	github.com/glycerine/golang-fisher-exact v0.0.0-20160911222405-aea2106439d4
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.1
@@ -40,7 +40,6 @@ require (
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
-	github.com/yuin/goldmark v1.4.1 // indirect
 	golang.org/x/image v0.0.0-20210216034530-4410531fe030
 	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/net v0.0.0-20211006190231-62292e806868
