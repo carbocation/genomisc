@@ -16,6 +16,11 @@ import (
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
+type seriesMap struct {
+	Zip    string
+	Series string
+}
+
 const (
 	SampleIDColumnName = "sample_id"
 	InstanceColumnName = "instance"
@@ -32,7 +37,7 @@ var (
 var client *storage.Client
 
 func main() {
-	var includeOverlay, doNotSort, labelDicom bool
+	var includeOverlay, doNotSort, labelDicom, batch bool
 	var manifest, folder string
 	var delay int
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
@@ -45,6 +50,7 @@ func main() {
 	flag.BoolVar(&includeOverlay, "overlay", false, "Print overlay information, if present?")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.BoolVar(&labelDicom, "labeldicom", false, "Pass this if you want to print the dicom name at the top of each frame of the animated gif.")
+	flag.BoolVar(&batch, "batch", false, "Pass this if you want to run in batch mode instead of interactive mode; if so, all gifs will be created and then the program will exit.")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
@@ -64,6 +70,15 @@ func main() {
 		}
 	}
 
+	fmt.Println("Animated Gif maker")
+
+	if batch {
+		if err := runBatch(manifest, folder, delay, includeOverlay, doNotSort, labelDicom); err != nil {
+			log.Fatalln(err)
+		}
+		return
+	}
+
 	if err := run(manifest, folder, delay, includeOverlay, doNotSort, labelDicom); err != nil {
 		log.Fatalln(err)
 	}
@@ -71,14 +86,30 @@ func main() {
 	log.Println("Quitting")
 }
 
-type seriesMap struct {
-	Zip    string
-	Series string
+func runBatch(manifest, folder string, delay int, includeOverlay, doNotSort, labelDicom bool) error {
+	man, err := parseManifest(manifest, doNotSort)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("We are aware of", len(man), "samples in the manifest")
+
+	for key := range man {
+		entries, exists := man[key]
+		if !exists {
+			fmt.Println(key, "not found in the manifest")
+			continue
+		}
+
+		if err = processEntries(entries, key, folder, delay, labelDicom, includeOverlay, doNotSort, false); err != nil {
+			log.Println(err)
+		}
+	}
+
+	return nil
 }
 
 func run(manifest, folder string, delay int, includeOverlay, doNotSort, labelDicom bool) error {
-
-	fmt.Println("Animated Gif maker")
 
 	man, err := parseManifest(manifest, doNotSort)
 	if err != nil {
@@ -91,8 +122,6 @@ func run(manifest, folder string, delay int, includeOverlay, doNotSort, labelDic
 	fmt.Println("Enter 'rand' for a random entry")
 	fmt.Println("Enter 'q' to quit")
 	fmt.Println("---------------------")
-
-	tick := time.NewTicker(1 * time.Second)
 
 	for {
 		fmt.Print("[sampleid_instance]> ")
@@ -132,93 +161,114 @@ func run(manifest, folder string, delay int, includeOverlay, doNotSort, labelDic
 			continue
 		}
 
-		if !doNotSort {
-			// Sort by series, then by instance
-			sort.Slice(entries, func(i, j int) bool {
-				if entries[i].series != entries[j].series {
-					return entries[i].series < entries[j].series
-				}
-
-				return entries[i].timepoint < entries[j].timepoint
-			})
-		}
-
-		// Make zipfile and series aware:
-		zipSeriesMap := make(map[seriesMap][]string)
-		for _, entry := range entries {
-			zipKey := seriesMap{Zip: entry.zip, Series: entry.series}
-			pngs := zipSeriesMap[zipKey]
-			pngs = append(pngs, entry.dicom)
-			zipSeriesMap[zipKey] = pngs
-		}
-
-		// Fetch images from each zipfile once:
-		zipMap := make(map[string]map[string]image.Image)
-		for entry := range zipSeriesMap {
-			if _, exists := zipMap[entry.Zip]; !exists {
-				fmt.Printf("Fetching images for %+v:%v\n", key, entry.Zip)
-
-				// Fetch the zip file just once per zip, even if it has many series
-				imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, includeOverlay, client)
-				if err != nil {
-					return err
-				}
-
-				zipMap[entry.Zip] = imgMap
-			}
-		}
-
-		fmt.Printf("Found %d zip files+series combinations. One gif will be created for each.\n", len(zipSeriesMap))
-
-		// For now, doing one zip at a time
-		errchan := make(chan error)
-		started := time.Now()
-
-		for zip, pngs := range zipSeriesMap {
-			imgMap := zipMap[zip.Zip]
-
-			// Write the dicomName on top of each image?
-			if labelDicom {
-				for _, dicomName := range pngs {
-					thisImg := imgMap[dicomName]
-
-					label := dicomName
-
-					drawableImg := addLabelGG(thisImg, label)
-					imgMap[dicomName] = drawableImg
-				}
-			}
-
-			go func(zip seriesMap, imgMap map[string]image.Image, pngs []string) {
-				outName := zip.Zip + "_" + zip.Series + ".gif"
-
-				errchan <- makeOneGifFromImageMap(pngs, imgMap, outName, delay)
-			}(zip, imgMap, pngs)
-		}
-
-		completed := 0
-
-	WaitLoop:
-		for {
-			select {
-			case err = <-errchan:
-				completed++
-				if err != nil {
-					fmt.Println("Error making gif:", err.Error())
-				}
-
-				if completed >= len(zipSeriesMap) {
-					break WaitLoop
-				}
-			case current := <-tick.C:
-				fmt.Printf("\rCreating %d more gifs for %+v (%s)", len(zipSeriesMap)-completed, key, current.Sub(started))
-			}
-		}
-
-		if err == nil {
-			fmt.Printf("\nSuccessfully created file #%d for %s_%s\n", completed, key.SampleID, key.Instance)
+		if err = processEntries(entries, key, folder, delay, labelDicom, includeOverlay, doNotSort, true); err != nil {
+			log.Println(err)
 		}
 	}
 
 	return nil
+}
+
+// processEntries handles fetching the (possibly remote) zip file, ingesting the
+// desired images from the DICOM, computing the palatte, and emitting the .gif
+// file(s).
+func processEntries(entries []manifestEntry, key manifestKey, folder string, delay int, labelDicom, includeOverlay, doNotSort, beVerbose bool) error {
+	started := time.Now()
+	tick := time.NewTicker(1 * time.Second)
+	defer tick.Stop()
+
+	if !doNotSort {
+		// Sort by series, then by instance
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].series != entries[j].series {
+				return entries[i].series < entries[j].series
+			}
+
+			return entries[i].timepoint < entries[j].timepoint
+		})
+	}
+
+	// Make zipfile and series aware:
+	zipSeriesMap := make(map[seriesMap][]string)
+	for _, entry := range entries {
+		zipKey := seriesMap{Zip: entry.zip, Series: entry.series}
+		pngs := zipSeriesMap[zipKey]
+		pngs = append(pngs, entry.dicom)
+		zipSeriesMap[zipKey] = pngs
+	}
+
+	// Fetch images from each zipfile once:
+	zipMap := make(map[string]map[string]image.Image)
+	for entry := range zipSeriesMap {
+		if _, exists := zipMap[entry.Zip]; !exists {
+			if beVerbose {
+				fmt.Printf("Fetching images for %+v:%v\n", key, entry.Zip)
+			}
+
+			// Fetch the zip file just once per zip, even if it has many series
+			imgMap, err := bulkprocess.FetchImagesFromZIP(folder+"/"+entry.Zip, includeOverlay, client)
+			if err != nil {
+				return err
+			}
+
+			zipMap[entry.Zip] = imgMap
+		}
+	}
+
+	if beVerbose {
+		fmt.Printf("Found %d zip files+series combinations. One gif will be created for each.\n", len(zipSeriesMap))
+	}
+
+	// For now, doing one zip at a time
+	errchan := make(chan error)
+
+	for zip, pngs := range zipSeriesMap {
+		imgMap := zipMap[zip.Zip]
+
+		// Write the dicomName on top of each image?
+		if labelDicom {
+			for _, dicomName := range pngs {
+				thisImg := imgMap[dicomName]
+
+				label := dicomName
+
+				drawableImg := addLabelGG(thisImg, label)
+				imgMap[dicomName] = drawableImg
+			}
+		}
+
+		go func(zip seriesMap, imgMap map[string]image.Image, pngs []string) {
+			outName := zip.Zip + "_" + zip.Series + ".gif"
+
+			errchan <- makeOneGifFromImageMap(pngs, imgMap, outName, delay)
+		}(zip, imgMap, pngs)
+	}
+
+	var err error
+	completed := 0
+
+WaitLoop:
+	for {
+		select {
+		case err = <-errchan:
+			completed++
+			if err != nil {
+				fmt.Println("Error making gif:", err.Error())
+			}
+
+			if completed >= len(zipSeriesMap) {
+				break WaitLoop
+			}
+		case current := <-tick.C:
+			if beVerbose {
+				fmt.Printf("\rCreating %d more gifs for %+v (%s)", len(zipSeriesMap)-completed, key, current.Sub(started))
+			}
+		}
+	}
+
+	if err == nil && beVerbose {
+		fmt.Printf("\nSuccessfully created file #%d for %s_%s\n", completed, key.SampleID, key.Instance)
+	}
+
+	return err
 }
