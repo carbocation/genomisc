@@ -15,6 +15,7 @@ import (
 // be useful from dicom images.
 type DicomMeta struct {
 	Date               string
+	AcquisitionTime    string
 	HasOverlay         bool
 	OverlayFraction    float64
 	OverlayRows        int
@@ -169,6 +170,14 @@ func DicomToMetadata(dicomReader io.Reader) (*DicomMeta, error) {
 			for k, v := range elem.Value {
 				if k == 0 && len(v.(string)) > 0 {
 					output.Date = v.(string)
+				}
+			}
+		}
+
+		if elem.Tag == dicomtag.AcquisitionTime {
+			for k, v := range elem.Value {
+				if k == 0 && len(v.(string)) > 0 {
+					output.AcquisitionTime = v.(string)
 				}
 			}
 		}
