@@ -103,9 +103,14 @@ func main() {
 }
 
 func negLogPToScientificNotationP(negLogPString string) (string, error) {
-	// REGENIE provides -log10(P)
+	// REGENIE provides -log10(P) but we want to also have P.
+
 	negLogP, err := strconv.ParseFloat(negLogPString, 64)
-	if err != nil {
+	if err != nil && negLogPString == "NA" {
+		// Input is NA; we can simply return NA as output as well, not really an
+		// unexpected error.
+		return "NA", nil
+	} else if err != nil {
 		return "", fmt.Errorf("PrintLine: %w", err)
 	}
 
