@@ -18,12 +18,15 @@ type manifestEntry struct {
 	series    string
 	dicom     string
 	timepoint float64
+	X         float64
+	Y         float64
+	Z         float64
 }
 
 func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manifestEntry, error) {
 
 	out := make(map[manifestKey][]manifestEntry)
-	var dicom, timepoint, sampleid, instance, zip, series int = -1, -1, -1, -1, -1, -1
+	var dicom, timepoint, sampleid, instance, zip, series, x, y, z int = -1, -1, -1, -1, -1, -1, -1, -1, -1
 
 	man, err := os.Open(manifestPath)
 	if err != nil {
@@ -64,12 +67,25 @@ func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manif
 				if col == ZipColumnName {
 					zip = k
 				}
+				if col == NativeXColumnName {
+					x = k
+				}
+				if col == NativeYColumnName {
+					y = k
+				}
+				if col == NativeZColumnName {
+					z = k
+				}
 
 			}
 
 			if dicom < 0 || (timepoint < 0 && !doNotSort) || sampleid < 0 || instance < 0 || zip < 0 || series < 0 {
 				return nil, fmt.Errorf("did not find all columns. Please check dicom_column_name")
 			}
+
+			// Note that we are not checking for the existence of the X, Y, and
+			// Z columns. If they are not present, we simply will assume each
+			// pixel is 1x1x1.
 
 			fmt.Println()
 			continue
@@ -89,6 +105,27 @@ func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manif
 
 		key := manifestKey{SampleID: cols[sampleid], Instance: cols[instance]}
 		value := manifestEntry{dicom: cols[dicom], timepoint: tp, series: cols[series], zip: cols[zip]}
+
+		// If x, y, and/or z are provided, then we do expect them to be well
+		// behaved floats.
+		if x >= 0 {
+			value.X, err = strconv.ParseFloat(cols[x], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if y >= 0 {
+			value.Y, err = strconv.ParseFloat(cols[y], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if z >= 0 {
+			value.Z, err = strconv.ParseFloat(cols[z], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		entry := out[key]
 		entry = append(entry, value)

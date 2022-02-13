@@ -26,6 +26,9 @@ var (
 	TimepointColumnName = "trigger_time"
 	ZipColumnName       = "zip_file"
 	DicomColumnName     = "dicom_file"
+	NativeXColumnName   = "px_width_mm"
+	NativeYColumnName   = "px_height_mm"
+	NativeZColumnName   = "slice_thickness_mm"
 )
 
 // Safe for concurrent use by multiple goroutines so we'll make this a global
@@ -39,6 +42,9 @@ func main() {
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicoms.")
 	flag.StringVar(&ZipColumnName, "zip_column_name", "zip_file", "Name of the column in the manifest with the zip file.")
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
+	flag.StringVar(&NativeXColumnName, "native_x_column_name", "px_width_mm", "Name of the column that indicates the width of the images.")
+	flag.StringVar(&NativeYColumnName, "native_y_column_name", "px_height_mm", "Name of the column that indicates the height of the images.")
+	flag.StringVar(&NativeZColumnName, "native_z_column_name", "slice_thickness_mm", "Name of the column that indicates the depth/thickness of the images.")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.Parse()
 
@@ -139,12 +145,12 @@ func run(manifest, folder string, doNotSort bool) error {
 		}
 
 		// Make zipfile and series aware:
-		zipSeriesMap := make(map[seriesMap][]string)
+		zipSeriesMap := make(map[seriesMap][]manifestEntry)
 		for _, entry := range entries {
 			zipKey := seriesMap{Zip: entry.zip, Series: entry.series}
-			pngs := zipSeriesMap[zipKey]
-			pngs = append(pngs, entry.dicom)
-			zipSeriesMap[zipKey] = pngs
+			pngData := zipSeriesMap[zipKey]
+			pngData = append(pngData, entry)
+			zipSeriesMap[zipKey] = pngData
 		}
 
 		// Fetch images from each zipfile once:
@@ -169,16 +175,18 @@ func run(manifest, folder string, doNotSort bool) error {
 		errchan := make(chan error)
 		started := time.Now()
 
-		for zip, pngs := range zipSeriesMap {
+		for zip, pngData := range zipSeriesMap {
 			imgMap := zipMap[zip.Zip]
 
-			go func(zip seriesMap, imgMap map[string]image.Image, pngs []string) {
-				outName := zip.Zip + "_" + zip.Series + ".png"
-				errchan <- makeOneCoronalMIPFromImageMap(pngs, imgMap, outName)
+			go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
+				outName := zip.Zip + "_" + zip.Series + ".coronal.png"
+				// errchan <- makeOneCoronalMIPFromImageMap(pngData, imgMap, outName)
+				errchan <- makeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 
 				outName = zip.Zip + "_" + zip.Series + ".sagittal.png"
-				errchan <- makeOneSagittalMIPFromImageMap(pngs, imgMap, outName)
-			}(zip, imgMap, pngs)
+				// errchan <- makeOneSagittalMIPFromImageMap(pngData, imgMap, outName)
+				errchan <- makeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+			}(zip, imgMap, pngData)
 		}
 
 		completed := 0
@@ -192,7 +200,8 @@ func run(manifest, folder string, doNotSort bool) error {
 					fmt.Println("Error making gif:", err.Error())
 				}
 
-				if completed >= len(zipSeriesMap) {
+				// We produce 2 gifs per zipfile+series combination
+				if completed >= (2 * len(zipSeriesMap)) {
 					break WaitLoop
 				}
 			case current := <-tick.C:

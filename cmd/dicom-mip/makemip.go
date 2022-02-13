@@ -17,12 +17,12 @@ const (
 	AverageIntensity
 )
 
-func makeOneCoronalMIPFromImageMap(dicomNames []string, imgMap map[string]image.Image, outName string) error {
+func makeOneCoronalMIPFromImageMap(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
 
 	// If all images are not the same size, make sure we're creating a canvas
 	// big enough for all.
 	greatestX := 0
-	greatestY := len(dicomNames)
+	greatestY := len(dicomEntries)
 	for _, palettedImage := range imgMap {
 		if x := palettedImage.Bounds().Max.X; x > greatestX {
 			greatestX = x
@@ -31,8 +31,8 @@ func makeOneCoronalMIPFromImageMap(dicomNames []string, imgMap map[string]image.
 
 	mipImg := image.NewGray16(image.Rect(0, 0, greatestX, greatestY))
 
-	for mipY, dicomName := range dicomNames {
-		currentImg := imgMap[dicomName].(*image.Gray16)
+	for mipY, dicomData := range dicomEntries {
+		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
 		for x := 0; x < currentImg.Bounds().Max.X; x++ {
 			var maxIntensityForX uint16
@@ -51,7 +51,7 @@ func makeOneCoronalMIPFromImageMap(dicomNames []string, imgMap map[string]image.
 
 			intensity := AverageIntensity
 			if intensity == AverageIntensity {
-				mipImg.Set(x, mipY, color.Gray16{uint16(sumIntensityForX / float64(len(dicomNames)))})
+				mipImg.Set(x, mipY, color.Gray16{uint16(sumIntensityForX / float64(len(dicomEntries)))})
 			} else {
 				mipImg.Set(x, mipY, color.Gray16{maxIntensityForX})
 			}
@@ -69,7 +69,7 @@ func makeOneCoronalMIPFromImageMap(dicomNames []string, imgMap map[string]image.
 	return png.Encode(f, mipImg)
 }
 
-func makeOneSagittalMIPFromImageMap(dicomNames []string, imgMap map[string]image.Image, outName string) error {
+func makeOneSagittalMIPFromImageMap(dicomNames []manifestEntry, imgMap map[string]image.Image, outName string) error {
 
 	// If all images are not the same size, make sure we're creating a canvas
 	// big enough for all.
@@ -84,7 +84,7 @@ func makeOneSagittalMIPFromImageMap(dicomNames []string, imgMap map[string]image
 	mipImg := image.NewGray16(image.Rect(0, 0, greatestX, greatestY))
 
 	for mipX, dicomName := range dicomNames {
-		currentImg := imgMap[dicomName].(*image.Gray16)
+		currentImg := imgMap[dicomName.dicom].(*image.Gray16)
 
 		for y := 0; y < currentImg.Bounds().Max.Y; y++ {
 			var maxIntensityForY uint16
