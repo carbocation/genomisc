@@ -14,15 +14,16 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
+	"github.com/pkg/profile"
 )
 
 const (
 	SampleIDColumnName = "sample_id"
 	InstanceColumnName = "instance"
-	SeriesColumnName   = "series"
 )
 
 var (
+	SeriesColumnName    = "series"
 	TimepointColumnName = "trigger_time"
 	ZipColumnName       = "zip_file"
 	DicomColumnName     = "dicom_file"
@@ -35,6 +36,8 @@ var (
 var client *storage.Client
 
 func main() {
+	defer profile.Start(profile.CPUProfile, profile.NoShutdownHook).Stop()
+
 	var doNotSort bool
 	var manifest, folder string
 	flag.StringVar(&manifest, "manifest", "", "Path to manifest file")
@@ -45,6 +48,7 @@ func main() {
 	flag.StringVar(&NativeXColumnName, "native_x_column_name", "px_width_mm", "Name of the column that indicates the width of the images.")
 	flag.StringVar(&NativeYColumnName, "native_y_column_name", "px_height_mm", "Name of the column that indicates the height of the images.")
 	flag.StringVar(&NativeZColumnName, "native_z_column_name", "slice_thickness_mm", "Name of the column that indicates the depth/thickness of the images.")
+	flag.StringVar(&SeriesColumnName, "series_column_name", "series", "Name of the column that indicates the series of the images.")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.Parse()
 
@@ -181,11 +185,14 @@ func run(manifest, folder string, doNotSort bool) error {
 			go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 				outName := zip.Zip + "_" + zip.Series + ".coronal.png"
 				// errchan <- makeOneCoronalMIPFromImageMap(pngData, imgMap, outName)
-				errchan <- makeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+				// errchan <- makeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+				errchan <- canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 
 				outName = zip.Zip + "_" + zip.Series + ".sagittal.png"
 				// errchan <- makeOneSagittalMIPFromImageMap(pngData, imgMap, outName)
-				errchan <- makeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+				// errchan <- makeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+				// errchan <- vectorMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+				errchan <- canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 			}(zip, imgMap, pngData)
 		}
 
@@ -198,6 +205,8 @@ func run(manifest, folder string, doNotSort bool) error {
 				completed++
 				if err != nil {
 					fmt.Println("Error making gif:", err.Error())
+				} else {
+					log.Println("Completed a gif")
 				}
 
 				// We produce 2 gifs per zipfile+series combination
