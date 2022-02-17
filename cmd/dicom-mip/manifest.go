@@ -21,6 +21,8 @@ type manifestEntry struct {
 	X         float64
 	Y         float64
 	Z         float64
+
+	Etc map[string]string
 }
 
 func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manifestEntry, error) {
@@ -36,6 +38,8 @@ func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manif
 	cr.Comma = '\t'
 
 	i := 0
+
+	var header []string
 
 	for ; ; i++ {
 		cols, err := cr.Read()
@@ -78,6 +82,8 @@ func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manif
 				}
 
 			}
+
+			header = cols
 
 			if dicom < 0 || (timepoint < 0 && !doNotSort) || sampleid < 0 || instance < 0 || zip < 0 || series < 0 {
 				return nil, fmt.Errorf("did not find all columns. Please check dicom_column_name")
@@ -125,6 +131,18 @@ func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manif
 			if err != nil {
 				return nil, err
 			}
+		}
+
+		// Store all other columns as key/value pairs.
+		for k, v := range cols {
+			if k == dicom || k == timepoint || k == sampleid || k == instance || k == zip || k == series || k == x || k == y || k == z {
+				continue
+			}
+
+			if value.Etc == nil {
+				value.Etc = make(map[string]string)
+			}
+			value.Etc[header[k]] = v
 		}
 
 		entry := out[key]

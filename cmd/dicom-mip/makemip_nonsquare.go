@@ -6,10 +6,15 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"strconv"
 
 	"github.com/tdewolff/canvas"
 	"github.com/tdewolff/canvas/renderers/rasterizer"
 )
+
+const ImagePositionPatientXColumn = "image_x"
+const ImagePositionPatientYColumn = "image_y"
+const ImagePositionPatientZColumn = "image_z"
 
 func toGrayScale(img image.Image) image.Image {
 	gray := image.NewGray16(img.Bounds())
@@ -58,7 +63,20 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// columns.
 	canvasHeight := 0.
 	canvasWidth := 0.
-	for _, im := range dicomEntries {
+	referenceX := 0.
+	lateralOffsets := make([]float64, len(dicomEntries))
+	for i, im := range dicomEntries {
+
+		// We need to know the lateral offset of each image, otherwise there
+		// will be bits that jut out unless all images were aligned to the same
+		// ImagePositionPatient.
+		if imageX, err := strconv.ParseFloat(im.Etc[ImagePositionPatientXColumn], 64); err == nil {
+			if i == 0 {
+				referenceX = imageX
+			}
+			lateralOffsets[i] = imageX - referenceX
+		}
+
 		canvasHeight += im.Z
 		canvasWidth = math.Max(canvasWidth, float64(imgMap[im.dicom].Bounds().Dx())*im.X)
 	}
@@ -99,7 +117,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
 	outZ := 0.
-	for _, dicomData := range dicomEntries {
+	for i, dicomData := range dicomEntries {
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
 		// Iterate over all pixels in each column of the original image.
@@ -118,7 +136,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			// After processing each cell in the column, we can draw its pixel
 
 			// Place the rectangle
-			ctx.DrawPath(outX, outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
+			ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
 			// drawRectangle(ctx, outX, outZ, outX+dicomData.Y, outZ+dicomData.Z)
 
 			intensity := AverageIntensity
@@ -144,8 +162,6 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
 
-	// log.Println(rationalApproximation(dicomData[0].Y/dicomData[0].Z, 20))
-
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
 	// cumulative sum of mm depth for all images. For sagittal images, the width
@@ -153,7 +169,20 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// columns.
 	canvasHeight := 0.
 	canvasWidth := 0.
-	for _, im := range dicomEntries {
+	referenceY := 0.
+	lateralOffsets := make([]float64, len(dicomEntries))
+	for i, im := range dicomEntries {
+
+		// We need to know the lateral offset of each image, otherwise there
+		// will be bits that jut out unless all images were aligned to the same
+		// ImagePositionPatient.
+		if imageY, err := strconv.ParseFloat(im.Etc[ImagePositionPatientYColumn], 64); err == nil {
+			if i == 0 {
+				referenceY = imageY
+			}
+			lateralOffsets[i] = imageY - referenceY
+		}
+
 		canvasHeight += im.Z
 		canvasWidth = math.Max(canvasWidth, float64(imgMap[im.dicom].Bounds().Dy())*im.Y)
 	}
@@ -194,7 +223,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
 	outZ := 0.
-	for _, dicomData := range dicomEntries {
+	for i, dicomData := range dicomEntries {
 		// log.Println(dicomData.dicom)
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
@@ -214,7 +243,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			// After processing each cell in the vector, we can draw its pixel
 
 			// Place the rectangle
-			ctx.DrawPath(outX, outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
+			ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
 			// drawRectangle(ctx, outX, outZ, outX+dicomData.Y, outZ+dicomData.Z)
 
 			intensity := AverageIntensity
