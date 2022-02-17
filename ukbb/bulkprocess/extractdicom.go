@@ -128,6 +128,13 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 			imgCols = int(elem.Value[0].(uint16))
 		}
 
+		// If imgPixels is still uninitialized and we're on a rows or columns
+		// tag, and both rows and columns are populated, initialize imgPixels'
+		// backing array's capacity to the number of pixels in the image.
+		if elem.Tag == dicomtag.Rows || elem.Tag == dicomtag.Columns && imgRows*imgCols > 0 && len(imgPixels) == 0 {
+			imgPixels = make([]int, 0, imgRows*imgCols)
+		}
+
 		if elem.Tag == dicomtag.RescaleSlope {
 			rescaleSlope, err = strconv.ParseFloat(elem.Value[0].(string), 64)
 			if err != nil {
