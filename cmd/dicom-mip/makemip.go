@@ -76,7 +76,7 @@ func makeOneSagittalMIPFromImageMap(dicomNames []manifestEntry, imgMap map[strin
 	greatestX := 0
 	greatestY := len(dicomNames)
 	for _, palettedImage := range imgMap {
-		if y := palettedImage.Bounds().Max.Y; y > greatestY {
+		if y := palettedImage.Bounds().Max.Y; y > greatestX {
 			greatestX = y
 		}
 	}

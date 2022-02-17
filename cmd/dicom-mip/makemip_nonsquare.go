@@ -22,14 +22,13 @@ func toGrayScale(img image.Image) image.Image {
 }
 
 func savePNG(img image.Image, outName string) error {
-	mipImg := toGrayScale(img)
 	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return png.Encode(f, mipImg)
+	return png.Encode(f, img)
 }
 
 func stroke(c *canvas.Context, col color.Color) {
