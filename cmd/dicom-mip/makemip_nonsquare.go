@@ -103,14 +103,12 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// https://github.com/tdewolff/canvas/issues/72#issuecomment-772280609
 	ctx.ReflectY()
 	ctx.Translate(0, -c.H)
-	// ctx.SetCoordSystem(canvas.CartesianIII)
-	// ctx.SetView(canvas.Identity.ReflectY())
 
 	// Set the background color to be white. Alternatively you could leave it to
 	// the image type's default background color. But this approach ensure that
 	// the rendering will be consistent across platforms.
-	ctx.DrawPath(0, 0, canvas.Rectangle(canvasWidth*2, canvasHeight*2))
-	// drawRectangle(ctx, 0, 0, canvasWidth, canvasHeight)
+	// ctx.DrawPath(0, 0, canvas.Rectangle(canvasWidth*2, canvasHeight*2))
+	drawRectangle(ctx, 0, 0, canvasWidth, canvasHeight)
 	stroke(ctx, color.White)
 
 	// We need positional information. This can either be implicit (assume we
@@ -122,10 +120,10 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 		// Iterate over all pixels in each column of the original image.
 		outX := 0.
-		for x := 0; x < currentImg.Bounds().Max.X; x++ {
+		for x := 0; x <= currentImg.Bounds().Max.X; x++ {
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
-			for y := 0; y < currentImg.Bounds().Max.Y; y++ {
+			for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
 				intensityHere := currentImg.Gray16At(x, y).Y
 				sumIntensityForVector += float64(intensityHere)
 				if intensityHere > uint16(maxIntensityForVector) {
@@ -136,12 +134,12 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			// After processing each cell in the column, we can draw its pixel
 
 			// Place the rectangle
-			ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
-			// drawRectangle(ctx, outX, outZ, outX+dicomData.Y, outZ+dicomData.Z)
+			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
+			drawRectangle(ctx, outX+lateralOffsets[i], outZ, outX+lateralOffsets[i]+dicomData.Y*1.8, outZ+dicomData.Z*1.8)
 
 			intensity := AverageIntensity
 			if intensity == AverageIntensity {
-				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
+				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(1+currentImg.Bounds().Max.Y))})
 			} else {
 				stroke(ctx, color.Gray16{maxIntensityForVector})
 			}
@@ -209,14 +207,13 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// https://github.com/tdewolff/canvas/issues/72#issuecomment-772280609
 	ctx.ReflectY()
 	ctx.Translate(0, -c.H)
-	// ctx.SetCoordSystem(canvas.CartesianIII)
-	// ctx.SetView(canvas.Identity.ReflectY())
 
 	// Set the background color to be white. Alternatively you could leave it to
 	// the image type's default background color. But this approach ensure that
 	// the rendering will be consistent across platforms.
-	ctx.DrawPath(0, 0, canvas.Rectangle(canvasWidth*2, canvasHeight*2))
-	// drawRectangle(ctx, 0, 0, canvasWidth, canvasHeight)
+	// ctx.DrawPath(0, 0, canvas.Rectangle(canvasWidth, canvasHeight))
+	// ctx.DrawPath(canvasWidth/2., canvasHeight/2., canvas.Rectangle(canvasWidth, canvasHeight))
+	drawRectangle(ctx, 0, 0, canvasWidth, canvasHeight)
 	stroke(ctx, color.White)
 
 	// We need positional information. This can either be implicit (assume we
@@ -229,10 +226,10 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 		// Iterate over all pixels in each row of the original image.
 		outX := 0.
-		for y := 0; y < currentImg.Bounds().Max.Y; y++ {
+		for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
-			for x := 0; x < currentImg.Bounds().Max.X; x++ {
+			for x := 0; x <= currentImg.Bounds().Max.X; x++ {
 				intensityHere := currentImg.Gray16At(x, y).Y
 				sumIntensityForVector += float64(intensityHere)
 				if intensityHere > uint16(maxIntensityForVector) {
@@ -243,12 +240,12 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			// After processing each cell in the vector, we can draw its pixel
 
 			// Place the rectangle
-			ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
-			// drawRectangle(ctx, outX, outZ, outX+dicomData.Y, outZ+dicomData.Z)
+			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
+			drawRectangle(ctx, outX+lateralOffsets[i], outZ, outX+lateralOffsets[i]+dicomData.Y*1.8, outZ+dicomData.Z*1.8)
 
 			intensity := AverageIntensity
 			if intensity == AverageIntensity {
-				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
+				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(1+currentImg.Bounds().Max.X))})
 			} else {
 				stroke(ctx, color.Gray16{maxIntensityForVector})
 			}
