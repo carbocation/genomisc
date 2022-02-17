@@ -184,14 +184,9 @@ func run(manifest, folder string, doNotSort bool) error {
 
 			go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 				outName := zip.Zip + "_" + zip.Series + ".coronal.png"
-				// errchan <- makeOneCoronalMIPFromImageMap(pngData, imgMap, outName)
-				// errchan <- makeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 				errchan <- canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 
 				outName = zip.Zip + "_" + zip.Series + ".sagittal.png"
-				// errchan <- makeOneSagittalMIPFromImageMap(pngData, imgMap, outName)
-				// errchan <- makeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
-				// errchan <- vectorMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 				errchan <- canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
 			}(zip, imgMap, pngData)
 		}
@@ -205,8 +200,6 @@ func run(manifest, folder string, doNotSort bool) error {
 				completed++
 				if err != nil {
 					fmt.Println("Error making gif:", err.Error())
-				} else {
-					log.Println("Completed a gif")
 				}
 
 				// We produce 2 gifs per zipfile+series combination
