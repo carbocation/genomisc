@@ -254,7 +254,7 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 		leVal := imgPixels[j]
 
 		// Should be %cols and /cols -- row count is not necessary here
-		if false { //j > 3000 {
+		if true { //j > 3000 {
 			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyOfficialWindowScaling(leVal, rescaleSlope, rescaleIntercept, windowWidth, windowCenter, bitsAllocated)})
 		} else {
 			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyPythonicWindowScaling(leVal, maxIntensity)})
@@ -283,26 +283,44 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 func ApplyOfficialWindowScaling(storedValue int, rescaleSlope, rescaleIntercept, windowWidth, windowCenter float64, bitsAllocated uint16) uint16 {
 
 	// 1: StoredValue to ModalityValue
-
-	modalityValue := float64(storedValue)*rescaleSlope + rescaleIntercept
+	var modalityValue float64
+	if rescaleSlope == 0 {
+		// If rescale slope is 0, then the pixel is already in the correct
+		// modality value.
+		modalityValue = float64(storedValue)
+	} else {
+		// Otherwise, we can apply the rescale slope and intercept to the stored
+		// value.
+		modalityValue = float64(storedValue)*rescaleSlope + rescaleIntercept
+	}
 
 	// 2: ModalityValue to WindowedValue
 
 	// The key here is that we're using bitsAllocated (e.g., 16 bits) instead of
 	// bitsStored (e.g., 11 bits)
-	grayLevels := math.Pow(2, float64(bitsAllocated))
+	var grayLevels float64
+	switch bitsAllocated {
+	// Precompute common cases so you're not exponentiating in the hot path
+	case 16:
+		grayLevels = 65536
+	default:
+		grayLevels = math.Pow(2, float64(bitsAllocated))
+	}
 
 	w := windowWidth - 1.0
 	c := windowCenter - 0.5
 
+	// Below the lower bound of our window, draw black
 	if modalityValue <= c-0.5*w {
 		return 0
 	}
 
+	// Above the upper bound of our window, draw white
 	if modalityValue > c+0.5*w {
 		return uint16(grayLevels - 1.0)
 	}
 
+	// Within the window, return a scaled value
 	return uint16(((modalityValue-c)/w + 0.5) * (grayLevels - 1.0))
 
 }
