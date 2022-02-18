@@ -15,6 +15,7 @@ type orderedPaletted struct {
 const (
 	MaximumIntensity = iota
 	AverageIntensity
+	SliceIntensity
 )
 
 func makeOneCoronalMIPFromImageMap(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {

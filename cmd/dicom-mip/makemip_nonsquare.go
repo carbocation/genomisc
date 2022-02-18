@@ -73,6 +73,9 @@ func findCanvasAndOffsets(dicomEntries []manifestEntry, imgMap map[string]image.
 }
 
 func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
+	intensityMethod := AverageIntensity
+	intensitySlice := 125
+
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
 	// cumulative sum of mm depth for all images. For coronal images, the width
@@ -126,9 +129,15 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			var sumIntensityForVector float64
 			for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
 				intensityHere := currentImg.Gray16At(x, y).Y
-				sumIntensityForVector += float64(intensityHere)
-				if intensityHere > uint16(maxIntensityForVector) {
-					maxIntensityForVector = intensityHere
+				if intensityMethod == SliceIntensity {
+					if y == intensitySlice {
+						maxIntensityForVector = intensityHere
+					}
+				} else {
+					sumIntensityForVector += float64(intensityHere)
+					if intensityHere > uint16(maxIntensityForVector) {
+						maxIntensityForVector = intensityHere
+					}
 				}
 			}
 
@@ -138,8 +147,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
 			drawRectangle(ctx, outX-0.5, outZ-0.5, outNextX+0.5, outNextZ+0.5)
 
-			intensity := AverageIntensity
-			if intensity == AverageIntensity {
+			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.Y))})
 			} else {
 				stroke(ctx, color.Gray16{maxIntensityForVector})
@@ -158,6 +166,8 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 }
 
 func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
+	intensityMethod := AverageIntensity
+	intensitySlice := 100
 
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
@@ -213,9 +223,15 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			var sumIntensityForVector float64
 			for x := 0; x <= currentImg.Bounds().Max.X; x++ {
 				intensityHere := currentImg.Gray16At(x, y).Y
-				sumIntensityForVector += float64(intensityHere)
-				if intensityHere > uint16(maxIntensityForVector) {
-					maxIntensityForVector = intensityHere
+				if intensityMethod == SliceIntensity {
+					if x == intensitySlice {
+						maxIntensityForVector = intensityHere
+					}
+				} else {
+					sumIntensityForVector += float64(intensityHere)
+					if intensityHere > uint16(maxIntensityForVector) {
+						maxIntensityForVector = intensityHere
+					}
 				}
 			}
 
@@ -224,8 +240,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			// Place the rectangle
 			drawRectangle(ctx, outX-0.5, outZ-0.5, outNextX+0.5, outNextZ+0.5)
 
-			intensity := AverageIntensity
-			if intensity == AverageIntensity {
+			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
 			} else {
 				stroke(ctx, color.Gray16{maxIntensityForVector})
