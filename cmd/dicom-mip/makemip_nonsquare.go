@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"math"
 	"os"
 
@@ -56,33 +55,8 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// columns.
 	zMin, zMax := math.MaxFloat64, -math.MaxFloat64
 	canvasWidth := 0.
-	referenceX := 0.
 	lateralMin := math.MaxFloat64
-	relativeLateralOffsets := make([]float64, len(dicomEntries))
-	for i, im := range dicomEntries {
-		// We need to know the lateral offset of each image, otherwise there
-		// will be bits that jut out unless all images were aligned to the same
-		// ImagePositionPatient. Note that ImagePositionPatient is the *center*
-		// of the voxel. So it is additionally adjusted by 1/2 of the voxel
-		// thickness in the direction of interest so that we get the leftmost
-		// edge of the voxel from the perspective of the transformed image.
-		//
-		// TODO: don't assume that the first image is the reference.
-		if i == 0 {
-			referenceX = im.ImagePositionPatientX - im.PixelWidthNativeX/2.
-			log.Println("")
-			log.Println("IPPX, WidthX:", im.ImagePositionPatientX, im.PixelWidthNativeX/2., referenceX)
-		}
-
-		// The offset accounts not only for the reference, but also for the
-		// width of the pixel of this slice. So, subsequent uses of the X
-		// position only need to account for the lateralOffsets and don't need
-		// to redundantly account for these two values.
-		relativeLateralOffsets[i] = (im.ImagePositionPatientX - im.PixelWidthNativeX/2.) - referenceX
-		if relativeLateralOffsets[i] != 0. {
-			log.Println("Lateral offset:", relativeLateralOffsets[i])
-		}
-
+	for _, im := range dicomEntries {
 		// Knowing the minimum and maximum pixels in the depth dimension of all
 		// images is useful for determining the canvas height.
 		if im.ImagePositionPatientZ-im.PixelWidthNativeZ/2. < zMin {
@@ -97,8 +71,6 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	}
 
 	canvasHeight := zMax - zMin
-
-	log.Println(canvasWidth, canvasHeight)
 
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
@@ -135,7 +107,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
-	for i, dicomData := range dicomEntries {
+	for _, dicomData := range dicomEntries {
 
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
@@ -145,7 +117,10 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 		// Iterate over all pixels in each column of the original image.
 		for x := 0; x <= currentImg.Bounds().Max.X; x++ {
-			outX := float64(x)*dicomData.PixelWidthNativeX + dicomData.ImagePositionPatientX - dicomData.PixelWidthNativeX/2. + relativeLateralOffsets[i] - lateralMin
+			outX := (dicomData.ImagePositionPatientX - dicomData.PixelWidthNativeX/2.) +
+				float64(x)*dicomData.PixelWidthNativeX -
+				lateralMin
+
 			outNextX := outX + dicomData.PixelWidthNativeX
 
 			var maxIntensityForVector uint16
@@ -156,10 +131,6 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 				if intensityHere > uint16(maxIntensityForVector) {
 					maxIntensityForVector = intensityHere
 				}
-			}
-
-			if i == 0 && x < 10 {
-				log.Println("First row, first couple columns:", outX, outNextX)
 			}
 
 			// After processing each cell in the column, we can draw its pixel
@@ -198,33 +169,8 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// columns.
 	zMin, zMax := math.MaxFloat64, -math.MaxFloat64
 	canvasWidth := 0.
-	referenceY := 0.
 	lateralMin := math.MaxFloat64
-	relativeLateralOffsets := make([]float64, len(dicomEntries))
-	for i, im := range dicomEntries {
-		// We need to know the lateral offset of each image, otherwise there
-		// will be bits that jut out unless all images were aligned to the same
-		// ImagePositionPatient. Note that ImagePositionPatient is the *center*
-		// of the voxel. So it is additionally adjusted by 1/2 of the voxel
-		// thickness in the direction of interest so that we get the leftmost
-		// edge of the voxel from the perspective of the transformed image.
-		//
-		// TODO: don't assume that the first image is the reference.
-		if i == 0 {
-			referenceY = im.ImagePositionPatientY - im.PixelWidthNativeY/2.
-			log.Println("")
-			log.Println("Sag. IPPX, WidthX:", im.ImagePositionPatientY, im.PixelWidthNativeY/2., referenceY)
-		}
-
-		// The offset accounts not only for the reference, but also for the
-		// width of the pixel of this slice. So, subsequent uses of the X
-		// position only need to account for the lateralOffsets and don't need
-		// to redundantly account for these two values.
-		relativeLateralOffsets[i] = (im.ImagePositionPatientY - im.PixelWidthNativeY/2.) - referenceY
-		if relativeLateralOffsets[i] != 0. {
-			log.Println("Sag. Lateral offset:", relativeLateralOffsets[i])
-		}
-
+	for _, im := range dicomEntries {
 		// Knowing the minimum and maximum pixels in the depth dimension of all
 		// images is useful for determining the canvas height.
 		if im.ImagePositionPatientZ-im.PixelWidthNativeZ/2. < zMin {
@@ -239,8 +185,6 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	}
 
 	canvasHeight := zMax - zMin
-
-	log.Println(canvasWidth, canvasHeight)
 
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
@@ -277,7 +221,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
-	for i, dicomData := range dicomEntries {
+	for _, dicomData := range dicomEntries {
 
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
@@ -307,10 +251,6 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 				if intensityHere > uint16(maxIntensityForVector) {
 					maxIntensityForVector = intensityHere
 				}
-			}
-
-			if i == 0 && y < 10 {
-				log.Println("Sag. First row, first couple columns:", outX, outNextX)
 			}
 
 			// After processing each cell in the column, we can draw its pixel
