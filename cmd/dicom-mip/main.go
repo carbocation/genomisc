@@ -94,7 +94,7 @@ type seriesMap struct {
 func runBatch(manifest, folder string, doNotSort bool) error {
 	fmt.Println("MIP maker")
 
-	man, err := parseManifest(manifest, doNotSort)
+	man, err := parseManifest(manifest)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func run(manifest, folder string, doNotSort bool) error {
 
 	fmt.Println("MIP maker")
 
-	man, err := parseManifest(manifest, doNotSort)
+	man, err := parseManifest(manifest)
 	if err != nil {
 		return err
 	}

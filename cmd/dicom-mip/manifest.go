@@ -27,7 +27,7 @@ type manifestEntry struct {
 	Etc map[string]string
 }
 
-func parseManifest(manifestPath string, doNotSort bool) (map[manifestKey][]manifestEntry, error) {
+func parseManifest(manifestPath string) (map[manifestKey][]manifestEntry, error) {
 
 	out := make(map[manifestKey][]manifestEntry)
 	var dicom, sampleid, instance, zip, series, ippX, ippY, ippZ, widthX, widthY, widthZ int = -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
