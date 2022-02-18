@@ -23,13 +23,16 @@ const (
 )
 
 var (
-	SeriesColumnName    = "series"
-	TimepointColumnName = "trigger_time"
-	ZipColumnName       = "zip_file"
-	DicomColumnName     = "dicom_file"
-	NativeXColumnName   = "px_width_mm"
-	NativeYColumnName   = "px_height_mm"
-	NativeZColumnName   = "slice_thickness_mm"
+	SeriesColumnName            = "series"
+	TimepointColumnName         = "trigger_time"
+	ZipColumnName               = "zip_file"
+	DicomColumnName             = "dicom_file"
+	PixelWidthNativeXColumn     = "px_width_mm"
+	PixelWidthNativeYColumn     = "px_height_mm"
+	PixelWidthNativeZColumn     = "slice_thickness_mm"
+	ImagePositionPatientXColumn = "image_x"
+	ImagePositionPatientYColumn = "image_y"
+	ImagePositionPatientZColumn = "image_z"
 )
 
 // Safe for concurrent use by multiple goroutines so we'll make this a global
@@ -45,9 +48,12 @@ func main() {
 	flag.StringVar(&DicomColumnName, "dicom_column_name", "dicom_file", "Name of the column in the manifest with the dicoms.")
 	flag.StringVar(&ZipColumnName, "zip_column_name", "zip_file", "Name of the column in the manifest with the zip file.")
 	flag.StringVar(&TimepointColumnName, "sequence_column_name", "trigger_time", "Name of the column that indicates the order of the images with an increasing number.")
-	flag.StringVar(&NativeXColumnName, "native_x_column_name", "px_width_mm", "Name of the column that indicates the width of the images.")
-	flag.StringVar(&NativeYColumnName, "native_y_column_name", "px_height_mm", "Name of the column that indicates the height of the images.")
-	flag.StringVar(&NativeZColumnName, "native_z_column_name", "slice_thickness_mm", "Name of the column that indicates the depth/thickness of the images.")
+	flag.StringVar(&PixelWidthNativeXColumn, "pixel_width_x", "px_width_mm", "Name of the column that indicates the width of the pixels in the original images.")
+	flag.StringVar(&PixelWidthNativeYColumn, "pixel_width_y", "px_height_mm", "Name of the column that indicates the height of the pixels in the original images.")
+	flag.StringVar(&PixelWidthNativeZColumn, "pixel_width_z", "slice_thickness_mm", "Name of the column that indicates the depth/thickness of the pixels in the original images.")
+	flag.StringVar(&ImagePositionPatientXColumn, "image_x", "image_x", "Name of the column in the manifest with the X position of the top left pixel of the images.")
+	flag.StringVar(&ImagePositionPatientYColumn, "image_y", "image_y", "Name of the column in the manifest with the Y position of the top left pixel of the images.")
+	flag.StringVar(&ImagePositionPatientZColumn, "image_z", "image_z", "Name of the column in the manifest with the Z position of the top left pixel of the images.")
 	flag.StringVar(&SeriesColumnName, "series_column_name", "series", "Name of the column that indicates the series of the images.")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.Parse()
@@ -138,13 +144,13 @@ func run(manifest, folder string, doNotSort bool) error {
 		}
 
 		if !doNotSort {
-			// Sort by series, then by instance
+			// Sort by series, then by ImagePatientPosition:Z
 			sort.Slice(entries, func(i, j int) bool {
 				if entries[i].series != entries[j].series {
 					return entries[i].series < entries[j].series
 				}
 
-				return entries[i].timepoint < entries[j].timepoint
+				return entries[i].ImagePositionPatientZ < entries[j].ImagePositionPatientZ
 			})
 		}
 

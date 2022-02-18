@@ -4,17 +4,13 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"log"
 	"math"
 	"os"
-	"strconv"
 
 	"github.com/tdewolff/canvas"
 	"github.com/tdewolff/canvas/renderers/rasterizer"
 )
-
-const ImagePositionPatientXColumn = "image_x"
-const ImagePositionPatientYColumn = "image_y"
-const ImagePositionPatientZColumn = "image_z"
 
 func toGrayScale(img image.Image) image.Image {
 	gray := image.NewGray16(img.Bounds())
@@ -33,15 +29,15 @@ func savePNG(img image.Image, outName string) error {
 	}
 	defer f.Close()
 
+	// return png.Encode(f, imaging.Resize(img, img.Bounds().Max.X/2, img.Bounds().Max.Y/2, imaging.Lanczos))
 	return png.Encode(f, img)
 }
 
 func stroke(c *canvas.Context, col color.Color) {
 	c.SetFillColor(col)
-	// c.SetStrokeColor(col)
-	// c.SetStrokeWidth(0)
-	c.Fill()
-	// c.ResetView()
+	c.SetStrokeColor(col)
+	c.SetStrokeWidth(0.0)
+	c.FillStroke()
 }
 
 func drawRectangle(c *canvas.Context, x0, y0, x1, y1 float64) {
@@ -61,25 +57,51 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// cumulative sum of mm depth for all images. For coronal images, the width
 	// of our picture is the maximum X (mm per pixel) times its number of
 	// columns.
-	canvasHeight := 0.
+	zMin, zMax := math.MaxFloat64, -math.MaxFloat64
 	canvasWidth := 0.
 	referenceX := 0.
-	lateralOffsets := make([]float64, len(dicomEntries))
+	lateralMin := math.MaxFloat64
+	relativeLateralOffsets := make([]float64, len(dicomEntries))
 	for i, im := range dicomEntries {
-
 		// We need to know the lateral offset of each image, otherwise there
 		// will be bits that jut out unless all images were aligned to the same
-		// ImagePositionPatient.
-		if imageX, err := strconv.ParseFloat(im.Etc[ImagePositionPatientXColumn], 64); err == nil {
-			if i == 0 {
-				referenceX = imageX
-			}
-			lateralOffsets[i] = imageX - referenceX
+		// ImagePositionPatient. Note that ImagePositionPatient is the *center*
+		// of the voxel. So it is additionally adjusted by 1/2 of the voxel
+		// thickness in the direction of interest so that we get the leftmost
+		// edge of the voxel from the perspective of the transformed image.
+		//
+		// TODO: don't assume that the first image is the reference.
+		if i == 0 {
+			referenceX = im.ImagePositionPatientX - im.PixelWidthNativeX/2.
+			log.Println("")
+			log.Println("IPPX, WidthX:", im.ImagePositionPatientX, im.PixelWidthNativeX/2., referenceX)
 		}
 
-		canvasHeight += im.Z
-		canvasWidth = math.Max(canvasWidth, float64(imgMap[im.dicom].Bounds().Dx())*im.X)
+		// The offset accounts not only for the reference, but also for the
+		// width of the pixel of this slice. So, subsequent uses of the X
+		// position only need to account for the lateralOffsets and don't need
+		// to redundantly account for these two values.
+		relativeLateralOffsets[i] = (im.ImagePositionPatientX - im.PixelWidthNativeX/2.) - referenceX
+		if relativeLateralOffsets[i] != 0. {
+			log.Println("Lateral offset:", relativeLateralOffsets[i])
+		}
+
+		// Knowing the minimum and maximum pixels in the depth dimension of all
+		// images is useful for determining the canvas height.
+		if im.ImagePositionPatientZ-im.PixelWidthNativeZ/2. < zMin {
+			zMin = im.ImagePositionPatientZ - im.PixelWidthNativeZ/2.
+		}
+		if im.ImagePositionPatientZ+im.PixelWidthNativeZ/2. > zMax {
+			zMax = im.ImagePositionPatientZ + im.PixelWidthNativeZ/2.
+		}
+
+		lateralMin = math.Min(lateralMin, im.ImagePositionPatientX-im.PixelWidthNativeX/2.)
+		canvasWidth = math.Max(canvasWidth, float64((imgMap[im.dicom].Bounds().Dx()))*im.PixelWidthNativeX)
 	}
+
+	canvasHeight := zMax - zMin
+
+	log.Println(canvasWidth, canvasHeight)
 
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
@@ -92,6 +114,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 	// Create a canvas context used to keep drawing state
 	ctx := canvas.NewContext(c)
+	// ctx.FillRule = canvas.EvenOdd
 
 	// By default, canvas puts (0, 0) at the bottom-left corner and the forward
 	// direction in Y is upward. These commands change the coordinate system to
@@ -101,8 +124,9 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// so Translate() is then used to shift the (0, 0) point to the top left
 	// corner. See
 	// https://github.com/tdewolff/canvas/issues/72#issuecomment-772280609
-	ctx.ReflectY()
-	ctx.Translate(0, -c.H)
+	//
+	// ctx.ReflectY()
+	// ctx.Translate(0, -c.H)
 
 	// Set the background color to be white. Alternatively you could leave it to
 	// the image type's default background color. But this approach ensure that
@@ -114,13 +138,19 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
-	outZ := 0.
 	for i, dicomData := range dicomEntries {
+
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
+		// TODO: double check the math here.
+		outZ := dicomData.ImagePositionPatientZ - dicomData.PixelWidthNativeZ/2. - zMin
+		outNextZ := outZ + dicomData.PixelWidthNativeZ
+
 		// Iterate over all pixels in each column of the original image.
-		outX := 0.
 		for x := 0; x <= currentImg.Bounds().Max.X; x++ {
+			outX := float64(x)*dicomData.PixelWidthNativeX + dicomData.ImagePositionPatientX - dicomData.PixelWidthNativeX/2. + relativeLateralOffsets[i] - lateralMin
+			outNextX := outX + dicomData.PixelWidthNativeX
+
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
 			for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
@@ -131,34 +161,40 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 				}
 			}
 
+			if i == 0 && x < 10 {
+				log.Println("First row, first couple columns:", outX, outNextX)
+			}
+
 			// After processing each cell in the column, we can draw its pixel
 
 			// Place the rectangle
 			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
-			drawRectangle(ctx, outX+lateralOffsets[i], outZ, outX+lateralOffsets[i]+dicomData.Y*1.8, outZ+dicomData.Z*1.8)
+			drawRectangle(ctx, outX-0.5, outZ-0.5, outNextX+0.5, outNextZ+0.5)
 
 			intensity := AverageIntensity
 			if intensity == AverageIntensity {
-				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(1+currentImg.Bounds().Max.Y))})
+				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.Y))})
 			} else {
 				stroke(ctx, color.Gray16{maxIntensityForVector})
 			}
 
-			outX += dicomData.X
+			// outX += dicomData.PixelWidthNativeX
+			outX = outNextX
 		}
 
-		outZ += dicomData.Z
 	}
 
 	// Save image to PNG. canvas.Resolution defines the number of pixels per
 	// millimeter.
-	dst := rasterizer.Draw(c, canvas.Resolution(1.0), canvas.DefaultColorSpace)
+	dst := rasterizer.Draw(c, canvas.Resolution(1.), canvas.DefaultColorSpace)
 	// dst := rasterizer.Draw(c, canvas.Resolution(2.3), canvas.DefaultColorSpace)
 	// return savePNG(toGrayScale(dst), outName)
 	return savePNG(dst, outName)
 }
 
 func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
+
+	return nil
 
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
@@ -173,16 +209,16 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 		// We need to know the lateral offset of each image, otherwise there
 		// will be bits that jut out unless all images were aligned to the same
-		// ImagePositionPatient.
-		if imageY, err := strconv.ParseFloat(im.Etc[ImagePositionPatientYColumn], 64); err == nil {
-			if i == 0 {
-				referenceY = imageY
-			}
-			lateralOffsets[i] = imageY - referenceY
+		// ImagePositionPatient. Note that ImagePositionPatient is the *center*
+		// of the voxel. So it is additionally adjusted by 1/2 of the voxel
+		// width.
+		if i == 0 {
+			referenceY = im.ImagePositionPatientY - im.PixelWidthNativeY/2.
 		}
+		lateralOffsets[i] = (im.ImagePositionPatientY - im.PixelWidthNativeY/2.) - referenceY
 
-		canvasHeight += im.Z
-		canvasWidth = math.Max(canvasWidth, float64(imgMap[im.dicom].Bounds().Dy())*im.Y)
+		canvasHeight += im.PixelWidthNativeZ
+		canvasWidth = math.Max(canvasWidth, float64(imgMap[im.dicom].Bounds().Dy())*im.PixelWidthNativeY)
 	}
 
 	// If we don't have information about height/width, fall back to the old
@@ -241,7 +277,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 			// Place the rectangle
 			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
-			drawRectangle(ctx, outX+lateralOffsets[i], outZ, outX+lateralOffsets[i]+dicomData.Y*1.8, outZ+dicomData.Z*1.8)
+			drawRectangle(ctx, outX+lateralOffsets[i], outZ, outX+lateralOffsets[i]+dicomData.ImagePositionPatientY*1.8, outZ+dicomData.ImagePositionPatientZ*1.8)
 
 			intensity := AverageIntensity
 			if intensity == AverageIntensity {
@@ -250,10 +286,10 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 				stroke(ctx, color.Gray16{maxIntensityForVector})
 			}
 
-			outX += dicomData.Y
+			outX += dicomData.ImagePositionPatientY
 		}
 
-		outZ += dicomData.Z
+		outZ += dicomData.ImagePositionPatientZ
 	}
 
 	// Save image to PNG. canvas.Resolution defines the number of pixels per
