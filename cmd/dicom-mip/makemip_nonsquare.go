@@ -318,7 +318,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			// Place the rectangle
 			drawRectangle(ctx, outX-0.5, outZ-0.5, outNextX+0.5, outNextZ+0.5)
 
-			intensity := MaximumIntensity
+			intensity := AverageIntensity
 			if intensity == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
 			} else {
