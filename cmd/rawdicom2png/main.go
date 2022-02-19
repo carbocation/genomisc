@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
 )
@@ -23,8 +24,6 @@ import (
 var builddate string
 
 func main() {
-
-	fmt.Fprintf(os.Stderr, "This rawdicom2png binary was built at: %s\n", builddate)
 
 	var inputPath, outputPath string
 	var includeOverlay bool

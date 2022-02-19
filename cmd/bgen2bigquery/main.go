@@ -14,6 +14,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/applyprsgcp"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 

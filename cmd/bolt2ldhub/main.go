@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/carbocation/genomisc"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 const (

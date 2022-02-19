@@ -18,6 +18,7 @@ import (
 	"github.com/brentp/irelate/interfaces"
 	"github.com/carbocation/bix"
 	"github.com/carbocation/genomisc"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/vcfgo"
 )
 
@@ -43,8 +44,6 @@ var (
 
 func main() {
 	defer STDOUT.Flush()
-
-	fmt.Fprintf(os.Stderr, "This vcf2bigquery binary was built at: %s\n", builddate)
 
 	var sampleFields flagSlice
 	var vcfFile, assembly, chromosome string

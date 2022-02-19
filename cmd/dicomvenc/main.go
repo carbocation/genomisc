@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/overlay"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
@@ -37,8 +38,6 @@ var builddate string
 
 func main() {
 	defer STDOUT.Flush()
-
-	fmt.Fprintf(os.Stderr, "This dicomvenc binary was built at: %s\n", builddate)
 
 	var inputPath, maskPath, configPath, manifest, zipPath, maskFolder, maskSuffix, plot string
 

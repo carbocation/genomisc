@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 type Result struct {

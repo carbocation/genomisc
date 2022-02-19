@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 func main() {

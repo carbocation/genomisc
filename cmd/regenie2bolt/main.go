@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 // See https://github.com/rgcgithub/regenie/issues/50#issuecomment-723664958 for

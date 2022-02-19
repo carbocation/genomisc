@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 // Special value that is to be set using ldflags
@@ -31,8 +33,6 @@ func main() {
 		assembly  string
 		tss       bool
 	)
-
-	fmt.Fprintf(os.Stderr, "This nearestgene binary was built at: %s\n", builddate)
 
 	flag.StringVar(&sitesFile, "sites", "", "Filename containing one site per line (represented as chr:pos)")
 	flag.StringVar(&assembly, "assembly", "37", fmt.Sprint("Version of genome assembly. Options:", assemblies))

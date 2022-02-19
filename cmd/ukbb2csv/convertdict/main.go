@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb"
 )
 

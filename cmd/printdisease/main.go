@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 type WrappedBigQuery struct {
@@ -43,8 +44,6 @@ func init() {
 
 func main() {
 	defer STDOUT.Flush()
-
-	fmt.Fprintf(os.Stderr, "This printdisease binary was built at: %s\n", builddate)
 
 	var tabfile string
 	var diseaseName string

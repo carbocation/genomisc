@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 var (

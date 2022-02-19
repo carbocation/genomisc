@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/carbocation/genomisc"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 

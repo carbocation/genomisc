@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/pfx"
 )
 

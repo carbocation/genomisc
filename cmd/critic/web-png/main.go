@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 var (

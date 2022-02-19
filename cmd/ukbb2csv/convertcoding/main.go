@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb"
 )
 

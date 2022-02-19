@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 func main() {

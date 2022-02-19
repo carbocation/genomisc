@@ -12,6 +12,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 func main() {

@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 // Special value that is to be set using ldflags
@@ -32,8 +34,6 @@ func main() {
 		tss       bool
 		radius    int
 	)
-
-	fmt.Fprintf(os.Stderr, "This nearestgene binary was built at: %s\n", builddate)
 
 	flag.IntVar(&radius, "radius", 500000, "Radius, in bases, from the SNP to seek transcription start sites")
 	flag.StringVar(&sitesFile, "sites", "", "Filename containing one site per line (represented as chr:pos)")

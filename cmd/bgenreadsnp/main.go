@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/carbocation/bgen"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 func main() {

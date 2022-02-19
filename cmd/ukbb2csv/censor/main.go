@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/bigquery"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
 const NullMarker = "NA"

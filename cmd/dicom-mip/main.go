@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 

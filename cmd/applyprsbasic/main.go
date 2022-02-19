@@ -20,6 +20,7 @@ import (
 	"github.com/carbocation/bgen"
 	"github.com/carbocation/genomisc/applyprsgcp"
 	"github.com/carbocation/genomisc/applyprsgcp/prsworker"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/prsparser"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 	"github.com/carbocation/pfx"
