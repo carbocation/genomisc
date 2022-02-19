@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/carbocation/genomisc/compileinfo"
+	_ "github.com/carbocation/genomisc/compileinfoprint"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
@@ -34,7 +34,6 @@ var builddate string
 var client *storage.Client
 
 func main() {
-	compileinfo.PrintToStdErr()
 	start := time.Now()
 	defer func() {
 		log.Printf("dicom2png end. Took %.2f seconds\n", time.Since(start).Seconds())

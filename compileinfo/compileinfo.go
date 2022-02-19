@@ -17,7 +17,7 @@ type CompileInfo struct {
 func (c CompileInfo) String() string {
 	mod := ""
 	if c.Modified {
-		mod = " The build was made with files that were modified after that commit."
+		mod = " Files in the repo were modified after that commit."
 	}
 
 	return fmt.Sprintf("This %s binary was built with %s at commit %v at time %v.%s", c.Package, c.GoVersion, c.Commit, c.CommitTime, mod)
