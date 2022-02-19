@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/carbocation/genomisc/compileinfo"
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
@@ -33,10 +34,8 @@ var builddate string
 var client *storage.Client
 
 func main() {
-
-	fmt.Fprintf(os.Stderr, "This dicom2png binary was built at: %s\n", builddate)
+	compileinfo.PrintToStdErr()
 	start := time.Now()
-	log.Println("dicom2png start")
 	defer func() {
 		log.Printf("dicom2png end. Took %.2f seconds\n", time.Since(start).Seconds())
 	}()
