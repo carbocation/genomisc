@@ -34,7 +34,7 @@ type orderedPaletted struct {
 func MakeOneGIF(sortedImages []image.Image, delay int, withTransparency bool) (*gif.GIF, error) {
 
 	if len(sortedImages) < 1 {
-		return nil, fmt.Errorf("MakeOneGIF expects 1 or more image to conver into a gif; received 0")
+		return nil, fmt.Errorf("MakeOneGIF expects 1 or more image to convert into a gif; received 0")
 	}
 
 	quantizer := quantize.MedianCutQuantizer{
