@@ -100,6 +100,7 @@ require (
 	github.com/tdewolff/minify/v2 v2.10.0 // indirect
 	github.com/tdewolff/parse/v2 v2.5.27 // indirect
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
+	github.com/unixpickle/ffmpego v0.1.4 // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect

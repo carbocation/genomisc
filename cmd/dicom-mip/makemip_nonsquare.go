@@ -72,10 +72,7 @@ func findCanvasAndOffsets(dicomEntries []manifestEntry, imgMap map[string]image.
 	return canvasWidthX, canvasWidthY, zMax - zMin, xMin, yMin, zMin
 }
 
-func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
-	intensityMethod := AverageIntensity
-	intensitySlice := 125
-
+func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, intensityMethod, intensitySlice int) (image.Image, error) {
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
 	// cumulative sum of mm depth for all images. For coronal images, the width
@@ -86,7 +83,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
 	if canvasHeight == 0. || canvasWidth == 0. {
-		return makeOneCoronalMIPFromImageMap(dicomEntries, imgMap, outName)
+		return makeOneCoronalMIPFromImageMap(dicomEntries, imgMap)
 	}
 
 	// Represent each image with floating-point millimeter coordinates.
@@ -158,17 +155,12 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 	}
 
-	// Save image to PNG. canvas.Resolution defines the number of pixels per
-	// millimeter.
+	// canvas.Resolution defines the number of pixels per millimeter.
 	dst := rasterizer.Draw(c, canvas.Resolution(1.), canvas.DefaultColorSpace)
-	// return savePNG(toGrayScale(dst), outName)
-	return savePNG(dst, outName)
+	return dst, nil
 }
 
-func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
-	intensityMethod := AverageIntensity
-	intensitySlice := 100
-
+func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, intensityMethod, intensitySlice int) (image.Image, error) {
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
 	// cumulative sum of mm depth for all images. For coronal images, the width
@@ -179,7 +171,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
 	if canvasHeight == 0. || canvasWidth == 0. {
-		return makeOneSagittalMIPFromImageMap(dicomEntries, imgMap, outName)
+		return makeOneSagittalMIPFromImageMap(dicomEntries, imgMap)
 	}
 
 	// Represent each image with floating-point millimeter coordinates.
@@ -251,9 +243,7 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 	}
 
-	// Save image to PNG. canvas.Resolution defines the number of pixels per
-	// millimeter.
+	// canvas.Resolution defines the number of pixels per millimeter.
 	dst := rasterizer.Draw(c, canvas.Resolution(1.), canvas.DefaultColorSpace)
-	// return savePNG(toGrayScale(dst), outName)
-	return savePNG(dst, outName)
+	return dst, nil
 }

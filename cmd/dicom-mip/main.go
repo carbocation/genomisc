@@ -1,3 +1,8 @@
+// dicom-mip produces maximum intensity projections, as well as average
+// intensity projections and .mp4 videos of the projections through the 3D block
+// of voxels from sagittal and coronal projections. Note that this program's
+// video production requires that ffmpeg be installed. (See
+// https://github.com/unixpickle/ffmpego#installation)
 package main
 
 import (
@@ -6,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"log"
 	"os"
 	"sort"
@@ -232,18 +238,102 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 
 		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 			outName := zip.Zip + "_" + zip.Series + ".coronal.png"
-			errchan <- canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+			im, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
+			if err != nil {
+				errchan <- err
+			}
+			errchan <- savePNG(im, outName)
+
 		}(zip, imgMap, pngData)
 
 		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 			outName := zip.Zip + "_" + zip.Series + ".sagittal.png"
-			errchan <- canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, outName)
+			im, err := canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
+			if err != nil {
+				errchan <- err
+			}
+			errchan <- savePNG(im, outName)
+		}(zip, imgMap, pngData)
+
+		// First create a sagittal MIP, then use its width in pixels to
+		// determine the number of frames for the GIF of the coronal MIP:
+		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
+			outName := zip.Zip + "_" + zip.Series + ".coronal.mp4"
+			im, err := canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
+			if err != nil {
+				errchan <- err
+			}
+
+			imgList := make([]image.Image, 0, im.Bounds().Max.X)
+			for i := 0; i < im.Bounds().Max.X; i++ {
+				im2, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, SliceIntensity, i)
+				if err != nil {
+					errchan <- err
+					break
+				}
+
+				allBlack := true
+			OuterLoop:
+				for j := 0; j < im2.Bounds().Max.Y; j++ {
+					for k := 0; k < im2.Bounds().Max.X; k++ {
+						if col := im2.At(k, j); col != (color.RGBA{0, 0, 0, 255}) {
+							allBlack = false
+							break OuterLoop
+						}
+					}
+				}
+
+				if !allBlack {
+					imgList = append(imgList, im2)
+				}
+			}
+
+			errchan <- makeOneMPEG(imgList, outName, 10)
+
+		}(zip, imgMap, pngData)
+
+		// First create a coronal MIP, then use its width in pixels to
+		// determine the number of frames for the GIF of the sagittal MIP:
+		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
+			outName := zip.Zip + "_" + zip.Series + ".sagittal.mp4"
+			im, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
+			if err != nil {
+				errchan <- err
+			}
+
+			imgList := make([]image.Image, 0, im.Bounds().Max.X)
+			for i := 0; i < im.Bounds().Max.X; i++ {
+				im2, err := canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, SliceIntensity, i)
+				if err != nil {
+					errchan <- err
+					break
+				}
+
+				allBlack := true
+			OuterLoop:
+				for j := 0; j < im2.Bounds().Max.Y; j++ {
+					for k := 0; k < im2.Bounds().Max.X; k++ {
+						if col := im2.At(k, j); col != (color.RGBA{0, 0, 0, 255}) {
+							allBlack = false
+							break OuterLoop
+						}
+					}
+				}
+
+				if !allBlack {
+					imgList = append(imgList, im2)
+				}
+			}
+
+			errchan <- makeOneMPEG(imgList, outName, 10)
+
 		}(zip, imgMap, pngData)
 	}
 
 	completed := 0
 
 	var err error
+	imPerZip := 4
 WaitLoop:
 	for {
 		select {
@@ -253,13 +343,13 @@ WaitLoop:
 				fmt.Println("Error making gif:", err.Error())
 			}
 
-			// We produce 2 gifs per zipfile+series combination
-			if completed >= (2 * len(zipSeriesMap)) {
+			// We produce N gifs per zipfile+series combination
+			if completed >= (imPerZip * len(zipSeriesMap)) {
 				break WaitLoop
 			}
 		case current := <-tick.C:
 			if beVerbose {
-				fmt.Printf("\rCreating %d more gifs for %+v (%s)", len(zipSeriesMap)-completed, key, current.Sub(started))
+				fmt.Printf("\rCreating %d more images for %+v (%s)", imPerZip*len(zipSeriesMap)-completed, key, current.Sub(started))
 			}
 		}
 	}

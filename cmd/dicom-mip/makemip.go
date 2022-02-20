@@ -3,8 +3,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"image/png"
-	"os"
 )
 
 type orderedPaletted struct {
@@ -18,8 +16,7 @@ const (
 	SliceIntensity
 )
 
-func makeOneCoronalMIPFromImageMap(dicomEntries []manifestEntry, imgMap map[string]image.Image, outName string) error {
-
+func makeOneCoronalMIPFromImageMap(dicomEntries []manifestEntry, imgMap map[string]image.Image) (image.Image, error) {
 	// If all images are not the same size, make sure we're creating a canvas
 	// big enough for all.
 	greatestX := 0
@@ -59,18 +56,10 @@ func makeOneCoronalMIPFromImageMap(dicomEntries []manifestEntry, imgMap map[stri
 		}
 	}
 
-	// Save file
-	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return png.Encode(f, mipImg)
+	return mipImg, nil
 }
 
-func makeOneSagittalMIPFromImageMap(dicomNames []manifestEntry, imgMap map[string]image.Image, outName string) error {
+func makeOneSagittalMIPFromImageMap(dicomNames []manifestEntry, imgMap map[string]image.Image) (image.Image, error) {
 
 	// If all images are not the same size, make sure we're creating a canvas
 	// big enough for all.
@@ -111,13 +100,5 @@ func makeOneSagittalMIPFromImageMap(dicomNames []manifestEntry, imgMap map[strin
 		}
 	}
 
-	// Save file
-	f, err := os.OpenFile(outName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return png.Encode(f, mipImg)
+	return mipImg, nil
 }
