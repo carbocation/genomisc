@@ -13,6 +13,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -227,7 +228,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 	}
 
 	if beVerbose {
-		fmt.Printf("Found %d zip files+series combinations. One gif will be created for each.\n", len(zipSeriesMap))
+		fmt.Printf("Found %d zip files+series combinations. Summary images and movies will be created for each.\n", len(zipSeriesMap))
 	}
 
 	// For now, doing one zip at a time
@@ -241,6 +242,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			im, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
 			if err != nil {
 				errchan <- err
+				return
 			}
 			errchan <- savePNG(im, outName)
 
@@ -251,21 +253,26 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			im, err := canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
 			if err != nil {
 				errchan <- err
+				return
 			}
 			errchan <- savePNG(im, outName)
 		}(zip, imgMap, pngData)
+
+		// go func() {
+		// 	errchan <- nil
+		// 	errchan <- nil
+		// }()
+		// continue
 
 		// First create a sagittal MIP, then use its width in pixels to
 		// determine the number of frames for the GIF of the coronal MIP:
 		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 			outName := zip.Zip + "_" + zip.Series + ".coronal.mp4"
-			im, err := canvasMakeOneSagittalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
-			if err != nil {
-				errchan <- err
-			}
+			_, canvasDepth, _, _, _, _ := findCanvasAndOffsets(pngData, imgMap)
 
-			imgList := make([]image.Image, 0, im.Bounds().Max.X)
-			for i := 0; i < im.Bounds().Max.X; i++ {
+			log.Println("Creating a", int(math.Ceil(canvasDepth)), "frame GIF for", outName)
+			imgList := make([]image.Image, 0, int(math.Ceil(canvasDepth)))
+			for i := 0; i < int(math.Ceil(canvasDepth)); i++ {
 				im2, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, SliceIntensity, i)
 				if err != nil {
 					errchan <- err
@@ -299,6 +306,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			im, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
 			if err != nil {
 				errchan <- err
+				return
 			}
 
 			imgList := make([]image.Image, 0, im.Bounds().Max.X)
