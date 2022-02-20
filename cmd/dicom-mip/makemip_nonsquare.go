@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"math"
 	"os"
 
@@ -101,8 +99,6 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	drawRectangle(ctx, 0, 0, canvasWidth, canvasHeight)
 	stroke(ctx, CanvasBackgroundColor)
 
-	seen := false
-
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
@@ -147,14 +143,11 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 				depthHere := (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.) +
 					float64(y)*dicomData.PixelWidthNativeY -
 					depthMin
+				depthNext := depthHere + dicomData.PixelWidthNativeY
 
 				// If this image is not within the plane, skip this pixel.
 				// if math.Round(resolvedAnteroPosteriorPosition) < y || math.Round(resolvedAnteroPosteriorPosition) > y+1 {
 				if (depthHere < 0 || depthHere > math.Ceil(canvasDepth)) && (i == x) {
-					if !seen {
-						seen = true
-						log.Println("skipping", i, y, depthHere, canvasDepth)
-					}
 					continue
 				}
 
@@ -163,14 +156,21 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 					// slice, use the value here". The problem is that there are
 					// gaps, so that it's possible that none of the depth levels
 					// are exactly the intensity slice.
-
-					//
-					// TODO: From the perspective of the requested slice
-					// (intensitySlice), find the nearest existent slice above
-					// or below it. Even better, proportionally average them.
-
-					// if y == intensitySlice {
 					if int(math.Round(depthHere)) == intensitySlice {
+						// Sometimes the center of mass of the voxel intensity
+						// matches with the requested slice.
+						maxIntensityForVector = intensityHere
+					} else if y < int(math.Ceil(canvasDepth)) && depthHere <= float64(intensitySlice) && depthNext >= float64(intensitySlice) {
+						// If the requested slice is between the current and
+						// next slice, take a weighted average of their
+						// intensities
+						hereWeight := math.Abs(depthHere - float64(intensitySlice))
+						nextWeight := math.Abs(depthNext - float64(intensitySlice))
+						intensityNext := currentImg.Gray16At(x, y+1).Y
+						maxIntensityForVector = uint16((float64(intensityHere)*hereWeight + float64(intensityNext)*nextWeight) / (hereWeight + nextWeight))
+					} else if (depthHere+dicomData.PixelWidthNativeY/2. >= float64(intensitySlice)) &&
+						(depthHere-dicomData.PixelWidthNativeY/2. <= float64(intensitySlice)) {
+						// Other times, we are within the range of the voxel
 						maxIntensityForVector = intensityHere
 					}
 				} else {
@@ -204,65 +204,6 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 			outX = outNextX
 
-		}
-
-		continue
-
-		dst := rasterizer.Draw(c, canvas.Resolution(1.), canvas.DefaultColorSpace)
-		return dst, nil
-		return nil, fmt.Errorf("testing")
-
-		// Iterate over all pixels in each column of the original image.
-		for x := 0; x <= currentImg.Bounds().Max.X; x++ {
-			// The X position of the current pixel in the output image is a
-			// function of the X position of the current pixel in the original
-			// image: baseline for the image + X-column we are on * pixel width
-			// + an offset against the lowestmost topleft corner of any image in
-			// the stack.
-			outX := (dicomData.ImagePositionPatientX - dicomData.PixelWidthNativeX/2.) +
-				float64(x)*dicomData.PixelWidthNativeX -
-				lateralMin
-
-			outNextX := outX + dicomData.PixelWidthNativeX
-
-			var maxIntensityForVector uint16
-			var sumIntensityForVector float64
-			for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
-				intensityHere := currentImg.Gray16At(x, y).Y
-				if intensityMethod == SliceIntensity {
-					if y == intensitySlice {
-						maxIntensityForVector = intensityHere
-					}
-				} else {
-					sumIntensityForVector += float64(intensityHere)
-					if intensityHere > uint16(maxIntensityForVector) {
-						maxIntensityForVector = intensityHere
-					}
-				}
-			}
-
-			// After processing each cell in the column, we can draw its pixel
-
-			// Place the rectangle
-			// ctx.DrawPath(outX+lateralOffsets[i], outZ, canvas.Rectangle(dicomData.Y*1.8, dicomData.Z*1.8))
-			drawRectangle(ctx, outX-0.5, outZ-0.5, outNextX+0.5, outNextZ+0.5)
-
-			if intensityMethod == AverageIntensity {
-				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.Y))})
-			} else {
-				col := color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 0, 255}
-				switch dicomData.PixelWidthNativeZ {
-				case 3:
-					col = color.RGBA{0, 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				case 3.5:
-					col = color.RGBA{0, uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 255}
-				case 4:
-					col = color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				}
-				stroke(ctx, col) //color.Gray16{maxIntensityForVector})
-			}
-
-			outX = outNextX
 		}
 
 	}
