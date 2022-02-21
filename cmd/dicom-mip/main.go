@@ -270,7 +270,10 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			outName := zip.Zip + "_" + zip.Series + ".coronal.mp4"
 			_, canvasDepth, _, _, _, _ := findCanvasAndOffsets(pngData, imgMap)
 
-			log.Println("Creating a", int(math.Ceil(canvasDepth)), "frame GIF for", outName)
+			log.Println("\nCreating a", int(math.Ceil(canvasDepth)), "frame GIF for", outName)
+			defer func(name string) {
+				log.Println("\nDone creating", name)
+			}(outName)
 			imgList := make([]image.Image, 0, int(math.Ceil(canvasDepth)))
 			for i := 0; i < int(math.Ceil(canvasDepth)); i++ {
 				im2, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, SliceIntensity, i)
@@ -295,7 +298,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 				}
 			}
 
-			errchan <- makeOneMPEG(imgList, outName, 10)
+			errchan <- makeOneMPEG(imgList, outName, 20)
 
 		}(zip, imgMap, pngData)
 

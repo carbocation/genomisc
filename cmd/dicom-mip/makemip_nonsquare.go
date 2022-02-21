@@ -132,13 +132,12 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
 
-			// The canvasDepth defines the largest (native image) Y depth in any
-			// image in any series that we are processing for this view. So,
-			// with proper offsets, we can test to be sure that the particular
-			// image, with the right offset, is within the range of the canvas.
-			for y := 0; y <= int(math.Ceil(canvasDepth)); y++ {
-				// for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
+			if intensityMethod == SliceIntensity {
+				// y := intensitySlice
+				y := int(math.Round((float64(intensitySlice) + depthMin - (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.)) / dicomData.PixelWidthNativeY))
+
 				intensityHere := currentImg.Gray16At(x, y).Y
+				intensityNext := currentImg.Gray16At(x, y+1).Y
 
 				depthHere := (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.) +
 					float64(y)*dicomData.PixelWidthNativeY -
@@ -151,29 +150,45 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 					continue
 				}
 
-				if intensityMethod == SliceIntensity {
-					// Currently: "If the depth here is exactly the intensity
-					// slice, use the value here". The problem is that there are
-					// gaps, so that it's possible that none of the depth levels
-					// are exactly the intensity slice.
-					if int(math.Round(depthHere)) == intensitySlice {
-						// Sometimes the center of mass of the voxel intensity
-						// matches with the requested slice.
-						maxIntensityForVector = intensityHere
-					} else if y < int(math.Ceil(canvasDepth)) && depthHere <= float64(intensitySlice) && depthNext >= float64(intensitySlice) {
-						// If the requested slice is between the current and
-						// next slice, take a weighted average of their
-						// intensities
-						hereWeight := math.Abs(depthHere - float64(intensitySlice))
-						nextWeight := math.Abs(depthNext - float64(intensitySlice))
-						intensityNext := currentImg.Gray16At(x, y+1).Y
-						maxIntensityForVector = uint16((float64(intensityHere)*hereWeight + float64(intensityNext)*nextWeight) / (hereWeight + nextWeight))
-					} else if (depthHere+dicomData.PixelWidthNativeY/2. >= float64(intensitySlice)) &&
-						(depthHere-dicomData.PixelWidthNativeY/2. <= float64(intensitySlice)) {
-						// Other times, we are within the range of the voxel
-						maxIntensityForVector = intensityHere
+				// Currently: "If the depth here is exactly the intensity slice,
+				// use the value here". The problem is that there are gaps, so
+				// that it's possible that none of the depth levels are exactly
+				// the intensity slice.
+				if int(math.Round(depthHere)) == intensitySlice {
+					// Sometimes the center of mass of the voxel intensity
+					// matches with the requested slice.
+					maxIntensityForVector = intensityHere
+				} else if y < int(math.Ceil(canvasDepth)) && depthHere <= float64(intensitySlice) && depthNext >= float64(intensitySlice) {
+					// If the requested slice is between the current and next
+					// slice, take a weighted average of their intensities
+					hereWeight := math.Abs(depthHere - float64(intensitySlice))
+					nextWeight := math.Abs(depthNext - float64(intensitySlice))
+					maxIntensityForVector = uint16((float64(intensityHere)*hereWeight + float64(intensityNext)*nextWeight) / (hereWeight + nextWeight))
+				} else if (depthHere+dicomData.PixelWidthNativeY/2. >= float64(intensitySlice)) &&
+					(depthHere-dicomData.PixelWidthNativeY/2. <= float64(intensitySlice)) {
+					// Other times, we are within the range of the voxel
+					maxIntensityForVector = intensityHere
+				}
+			} else {
+				// The canvasDepth defines the largest (native image) Y depth in
+				// any image in any series that we are processing for this view.
+				// So, with proper offsets, we can test to be sure that the
+				// particular image, with the right offset, is within the range
+				// of the canvas.
+				for y := 0; y <= int(math.Ceil(canvasDepth)); y++ {
+					// for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
+					intensityHere := currentImg.Gray16At(x, y).Y
+
+					depthHere := (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.) +
+						float64(y)*dicomData.PixelWidthNativeY -
+						depthMin
+
+					// If this image is not within the plane, skip this pixel.
+					// if math.Round(resolvedAnteroPosteriorPosition) < y || math.Round(resolvedAnteroPosteriorPosition) > y+1 {
+					if (depthHere < 0 || depthHere > math.Ceil(canvasDepth)) && (i == x) {
+						continue
 					}
-				} else {
+
 					sumIntensityForVector += float64(intensityHere)
 					if intensityHere > uint16(maxIntensityForVector) {
 						maxIntensityForVector = intensityHere
