@@ -36,11 +36,13 @@ require (
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
 	github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
+	github.com/pkg/profile v1.6.0
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
 	github.com/tj/go-rle v0.0.0-20180508204109-877ab66bb189
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
+	github.com/unixpickle/ffmpego v0.1.4
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
@@ -100,7 +102,6 @@ require (
 	github.com/tdewolff/minify/v2 v2.10.0 // indirect
 	github.com/tdewolff/parse/v2 v2.5.27 // indirect
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
-	github.com/unixpickle/ffmpego v0.1.4 // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
@@ -126,3 +127,5 @@ require (
 	modernc.org/strutil v1.1.1 // indirect
 	modernc.org/token v1.0.0 // indirect
 )
+
+replace github.com/tdewolff/canvas => github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603

@@ -93,6 +93,8 @@ github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a/go.mod h1:zvAgoK9
 github.com/carbocation/bix v0.0.0-20190718140914-00aa7a7f205d/go.mod h1:CjCTMv/8p/YjBBcRQn6aIQLCdaDPaoFuHpLCHlpDT5o=
 github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec h1:+qwVX4erqf/l/Mgdo3+mLRwLu117Q/jYsEkK0v52I5I=
 github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec/go.mod h1:fpiSXT6oBN2lM74yztgukSvusvABmpJoi3R0+IggHGE=
+github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603 h1:N7yFzPE1UsnQOHP0O14veDhoeqjCSf+HtXxEGSsp9q0=
+github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603/go.mod h1:kRhvc0udLpXsj8VYN/9xDMU+sM1wltIDDQ9x0/9jZr4=
 github.com/carbocation/genomisc v0.0.0-20210307150845-e2efad427558/go.mod h1:+Asxoja1vk3weUjSbVoiGcoKqT/tsrcYzc19whQebsk=
 github.com/carbocation/genomisc v0.0.0-20210612014916-fa04c732f4ae/go.mod h1:QJ7f6mZoAWwYT31nxt8owdP8M9nV21gijG676uVLTB4=
 github.com/carbocation/genomisc v0.0.0-20210612175623-de3deb62b137/go.mod h1:yrEMXHgL1VorSnQuDqE+1Dh7UBccQP46v5Br6P+QUn0=
@@ -400,6 +402,8 @@ github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pkg/profile v1.6.0 h1:hUDfIISABYI59DyeB3OTay/HxSRwTQ8rB/H83k6r5dM=
+github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
@@ -455,8 +459,6 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08 h1:sGyOc5TS7p4D52+J5ZhiqM8vxq6cc03M8C8RJ2A1w+4=
 github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08/go.mod h1:x6BgLnSrm+BHtENHyHgp02nCUqFr/6z471Bqiao5B9o=
-github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43 h1:C6f2R9lKPRtYXKmunEH1y7yFXDnW+6ymnITUvuPu1wo=
-github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43/go.mod h1:b9hRRK/smrNOgGmqbe4oZUIFh3vTF4uQ04hbE6jnd5U=
 github.com/tdewolff/minify/v2 v2.10.0 h1:ovVAHUcjfGrBDf1EIvsodRUVJiZK/28mMose08B7k14=
 github.com/tdewolff/minify/v2 v2.10.0/go.mod h1:6XAjcHM46pFcRE0eztigFPm0Q+Cxsw8YhEWT+rDkcZM=
 github.com/tdewolff/parse/v2 v2.5.27 h1:PL3LzzXaOpmdrknnOlIeO2muIBHAwiKp6TxN1RbU5gI=

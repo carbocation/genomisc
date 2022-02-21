@@ -11,7 +11,7 @@ import (
 	"github.com/tdewolff/canvas/renderers/rasterizer"
 )
 
-var CanvasBackgroundColor = color.Black
+var CanvasBackgroundColor = color.RGBA{0, 0, 0, 255} //color.Black
 
 func toGrayScale(img image.Image) image.Image {
 	gray := image.NewGray16(img.Bounds())
@@ -78,7 +78,7 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// cumulative sum of mm depth for all images. For coronal images, the width
 	// of our picture is the maximum X (mm per pixel) times its number of
 	// columns.
-	canvasWidth, _, canvasHeight, lateralMin, _, zMin := findCanvasAndOffsets(dicomEntries, imgMap)
+	canvasWidth, canvasDepth, canvasHeight, lateralMin, depthMin, zMin := findCanvasAndOffsets(dicomEntries, imgMap)
 
 	// If we don't have information about height/width, fall back to the old
 	// coronal MIP function.
@@ -102,14 +102,21 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
-	for _, dicomData := range dicomEntries {
+	for i, dicomData := range dicomEntries {
 
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
 		outZ := dicomData.ImagePositionPatientZ - dicomData.PixelWidthNativeZ/2. - zMin
 		outNextZ := outZ + dicomData.PixelWidthNativeZ
 
-		// Iterate over all pixels in each column of the original image.
+		anteroPosteriorOffset := dicomData.PixelWidthNativeY/2. - depthMin
+		resolvedAnteroPosteriorPosition := dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2. - depthMin
+
+		_ = anteroPosteriorOffset
+		_ = resolvedAnteroPosteriorPosition
+
+		// Each image may have its own offsets
+		// for x := 0.; x <= c.W; x += dicomData.PixelWidthNativeX {
 		for x := 0; x <= currentImg.Bounds().Max.X; x++ {
 			// The X position of the current pixel in the output image is a
 			// function of the X position of the current pixel in the original
@@ -124,13 +131,64 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
-			for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
+
+			if intensityMethod == SliceIntensity {
+				// y := intensitySlice
+				y := int(math.Round((float64(intensitySlice) + depthMin - (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.)) / dicomData.PixelWidthNativeY))
+
 				intensityHere := currentImg.Gray16At(x, y).Y
-				if intensityMethod == SliceIntensity {
-					if y == intensitySlice {
-						maxIntensityForVector = intensityHere
+				intensityNext := currentImg.Gray16At(x, y+1).Y
+
+				depthHere := (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.) +
+					float64(y)*dicomData.PixelWidthNativeY -
+					depthMin
+				depthNext := depthHere + dicomData.PixelWidthNativeY
+
+				// If this image is not within the plane, skip this pixel.
+				// if math.Round(resolvedAnteroPosteriorPosition) < y || math.Round(resolvedAnteroPosteriorPosition) > y+1 {
+				if (depthHere < 0 || depthHere > math.Ceil(canvasDepth)) && (i == x) {
+					continue
+				}
+
+				// Currently: "If the depth here is exactly the intensity slice,
+				// use the value here". The problem is that there are gaps, so
+				// that it's possible that none of the depth levels are exactly
+				// the intensity slice.
+				if int(math.Round(depthHere)) == intensitySlice {
+					// Sometimes the center of mass of the voxel intensity
+					// matches with the requested slice.
+					maxIntensityForVector = intensityHere
+				} else if y < int(math.Ceil(canvasDepth)) && depthHere <= float64(intensitySlice) && depthNext >= float64(intensitySlice) {
+					// If the requested slice is between the current and next
+					// slice, take a weighted average of their intensities
+					hereWeight := math.Abs(depthHere - float64(intensitySlice))
+					nextWeight := math.Abs(depthNext - float64(intensitySlice))
+					maxIntensityForVector = uint16((float64(intensityHere)*hereWeight + float64(intensityNext)*nextWeight) / (hereWeight + nextWeight))
+				} else if (depthHere+dicomData.PixelWidthNativeY/2. >= float64(intensitySlice)) &&
+					(depthHere-dicomData.PixelWidthNativeY/2. <= float64(intensitySlice)) {
+					// Other times, we are within the range of the voxel
+					maxIntensityForVector = intensityHere
+				}
+			} else {
+				// The canvasDepth defines the largest (native image) Y depth in
+				// any image in any series that we are processing for this view.
+				// So, with proper offsets, we can test to be sure that the
+				// particular image, with the right offset, is within the range
+				// of the canvas.
+				for y := 0; y <= int(math.Ceil(canvasDepth)); y++ {
+					// for y := 0; y <= currentImg.Bounds().Max.Y; y++ {
+					intensityHere := currentImg.Gray16At(x, y).Y
+
+					depthHere := (dicomData.ImagePositionPatientY - dicomData.PixelWidthNativeY/2.) +
+						float64(y)*dicomData.PixelWidthNativeY -
+						depthMin
+
+					// If this image is not within the plane, skip this pixel.
+					// if math.Round(resolvedAnteroPosteriorPosition) < y || math.Round(resolvedAnteroPosteriorPosition) > y+1 {
+					if (depthHere < 0 || depthHere > math.Ceil(canvasDepth)) && (i == x) {
+						continue
 					}
-				} else {
+
 					sumIntensityForVector += float64(intensityHere)
 					if intensityHere > uint16(maxIntensityForVector) {
 						maxIntensityForVector = intensityHere
@@ -147,10 +205,20 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.Y))})
 			} else {
-				stroke(ctx, color.Gray16{maxIntensityForVector})
+				col := color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 0, 255}
+				switch dicomData.PixelWidthNativeZ {
+				case 3:
+					col = color.RGBA{0, 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
+				case 3.5:
+					col = color.RGBA{0, uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 255}
+				case 4:
+					col = color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
+				}
+				stroke(ctx, col) //color.Gray16{maxIntensityForVector})
 			}
 
 			outX = outNextX
+
 		}
 
 	}
@@ -213,13 +281,11 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
-			for x := 0; x <= currentImg.Bounds().Max.X; x++ {
-				intensityHere := currentImg.Gray16At(x, y).Y
-				if intensityMethod == SliceIntensity {
-					if x == intensitySlice {
-						maxIntensityForVector = intensityHere
-					}
-				} else {
+			if intensityMethod == SliceIntensity {
+				maxIntensityForVector = currentImg.Gray16At(intensitySlice, y).Y
+			} else {
+				for x := 0; x <= currentImg.Bounds().Max.X; x++ {
+					intensityHere := currentImg.Gray16At(x, y).Y
 					sumIntensityForVector += float64(intensityHere)
 					if intensityHere > uint16(maxIntensityForVector) {
 						maxIntensityForVector = intensityHere
@@ -235,7 +301,16 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
 			} else {
-				stroke(ctx, color.Gray16{maxIntensityForVector})
+				col := color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 0, 255}
+				switch dicomData.PixelWidthNativeZ {
+				case 3:
+					col = color.RGBA{0, 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
+				case 3.5:
+					col = color.RGBA{0, uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 255}
+				case 4:
+					col = color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
+				}
+				stroke(ctx, col) //color.Gray16{maxIntensityForVector})
 			}
 
 			outX = outNextX
