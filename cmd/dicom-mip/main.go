@@ -45,6 +45,8 @@ var (
 var client *storage.Client
 
 func main() {
+	// go tool pprof --http=localhost:6060 ~/go/bin/dicom-mip PPROF_OUTPUT_FILE
+	// defer profile.Start(profile.CPUProfile).Stop()
 
 	var doNotSort, batch bool
 	var manifest, folder string

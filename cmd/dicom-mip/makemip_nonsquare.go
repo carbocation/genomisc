@@ -281,13 +281,11 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 
 			var maxIntensityForVector uint16
 			var sumIntensityForVector float64
-			for x := 0; x <= currentImg.Bounds().Max.X; x++ {
-				intensityHere := currentImg.Gray16At(x, y).Y
-				if intensityMethod == SliceIntensity {
-					if x == intensitySlice {
-						maxIntensityForVector = intensityHere
-					}
-				} else {
+			if intensityMethod == SliceIntensity {
+				maxIntensityForVector = currentImg.Gray16At(intensitySlice, y).Y
+			} else {
+				for x := 0; x <= currentImg.Bounds().Max.X; x++ {
+					intensityHere := currentImg.Gray16At(x, y).Y
 					sumIntensityForVector += float64(intensityHere)
 					if intensityHere > uint16(maxIntensityForVector) {
 						maxIntensityForVector = intensityHere

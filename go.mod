@@ -41,6 +41,7 @@ require (
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
 	github.com/tj/go-rle v0.0.0-20180508204109-877ab66bb189
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
+	github.com/unixpickle/ffmpego v0.1.4
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
@@ -100,7 +101,6 @@ require (
 	github.com/tdewolff/minify/v2 v2.10.0 // indirect
 	github.com/tdewolff/parse/v2 v2.5.27 // indirect
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
-	github.com/unixpickle/ffmpego v0.1.4 // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
