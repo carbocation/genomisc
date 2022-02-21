@@ -36,6 +36,7 @@ require (
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
 	github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
+	github.com/pkg/profile v1.6.0
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
@@ -126,3 +127,5 @@ require (
 	modernc.org/strutil v1.1.1 // indirect
 	modernc.org/token v1.0.0 // indirect
 )
+
+replace github.com/tdewolff/canvas => github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603

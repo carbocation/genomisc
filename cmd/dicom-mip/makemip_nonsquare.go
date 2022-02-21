@@ -11,7 +11,7 @@ import (
 	"github.com/tdewolff/canvas/renderers/rasterizer"
 )
 
-var CanvasBackgroundColor = color.Black
+var CanvasBackgroundColor = color.RGBA{0, 0, 0, 255} //color.Black
 
 func toGrayScale(img image.Image) image.Image {
 	gray := image.NewGray16(img.Bounds())
