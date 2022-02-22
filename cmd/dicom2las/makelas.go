@@ -91,14 +91,10 @@ func makeLAS(dicomEntries []manifestEntry, imgMap map[string]image.Image, outNam
 	}
 
 	if err := newLf.AddHeader(lidario.LasHeader{
-		// VersionMajor:  1,
-		// VersionMinor:  2,
 		PointFormatID: 2,
 	}); err != nil {
 		return err
 	}
-
-	log.Println(newLf.Header)
 
 	for _, voxel := range voxels {
 		p := &lidario.PointRecord2{
@@ -119,19 +115,9 @@ func makeLAS(dicomEntries []manifestEntry, imgMap map[string]image.Image, outNam
 		}
 	}
 
-	log.Println("Processed", len(voxels), "points")
-
-	// newLf.Header.XScaleFactor = 1
-	// newLf.Header.YScaleFactor = 1
-	// newLf.Header.ZScaleFactor = 1
-	// newLf.Header.VersionMajor = 1
-	// newLf.Header.VersionMinor = 2
-
 	if err := newLf.Close(); err != nil {
 		return err
 	}
-
-	log.Println(newLf.Header)
 
 	return nil
 }

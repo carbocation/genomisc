@@ -129,6 +129,6 @@ require (
 )
 
 replace (
-	github.com/jblindsay/lidario => /Users/james/go/src/github.com/carbocation/lidario //github.com/jblindsay/lidario => github.com/carbocation/lidario v0.0.0-20220221222559-634c1fa93654
+	github.com/jblindsay/lidario => github.com/edaniels/lidario v0.0.0-20210216165043-81520ca6a2de
 	github.com/tdewolff/canvas => github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603
 )

@@ -105,8 +105,6 @@ github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5d
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31/go.mod h1:iGISoFvZYz358DFlmHvYFlh4CgRdzPLXB2NJE48x6lY=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3 h1:RtCys6GUprNaPOP04Zuo65wS10PMbSPPZNvIb9xYYLE=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3/go.mod h1:4PGcghc3ZjA/uozANO8lCHo/gnHyMsm8iFYppSkVE/M=
-github.com/carbocation/lidario v0.0.0-20220221222559-634c1fa93654 h1:4Gj3ppP2VgGqo8OBjlkA5zbOOeiC5YESLb804ylkHGQ=
-github.com/carbocation/lidario v0.0.0-20220221222559-634c1fa93654/go.mod h1:3mv0uyt/BJg+8f7HFFD/qL764+NC6MLtjkUJIpBzJcU=
 github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea h1:6yY+5KdWRWXrnUOWGpu7V468Ib9yQJDJBmDAVBFLKrM=
 github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea/go.mod h1:blyZVy/xxFP68VyTV39Olio+z1I234JG41kvqPIA/wM=
 github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d h1:m4hBORFhIgQedvMYMf0f+bD1PyUZFQ4NIX4Rp4aisGM=
@@ -146,6 +144,8 @@ github.com/dsnet/compress v0.0.1/go.mod h1:Aw8dCMJ7RioblQeTqt88akK31OvO8Dhf5Jflh
 github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/edaniels/lidario v0.0.0-20210216165043-81520ca6a2de h1:JuF74jzC/jNopROh0Ay1d9APtx00FWXqMwtvaXhoE+4=
+github.com/edaniels/lidario v0.0.0-20210216165043-81520ca6a2de/go.mod h1:PUN/9/bIMWq8Ej+fmb+QVoPdIYF/j68ziImrVKxnOw0=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
