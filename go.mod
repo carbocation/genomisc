@@ -29,6 +29,7 @@ require (
 	github.com/henghuang/nifti v0.0.0-20190719235241-c5d3abcd4525
 	github.com/icza/gox v0.0.0-20201215141822-6edfac6c05b5
 	github.com/interpose/middleware v0.0.0-20150216143757-05ed56ed52fa
+	github.com/jblindsay/lidario v0.0.0-00010101000000-000000000000
 	github.com/jfcg/butter v0.1.6
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/justinas/alice v1.2.0
@@ -36,7 +37,6 @@ require (
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
 	github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
-	github.com/pkg/profile v1.6.0
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
@@ -128,4 +128,7 @@ require (
 	modernc.org/token v1.0.0 // indirect
 )
 
-replace github.com/tdewolff/canvas => github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603
+replace (
+	github.com/jblindsay/lidario => github.com/edaniels/lidario v0.0.0-20210216165043-81520ca6a2de
+	github.com/tdewolff/canvas => github.com/carbocation/canvas v0.0.0-20220221052748-bd22af6e4603
+)
