@@ -105,6 +105,8 @@ github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5d
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31/go.mod h1:iGISoFvZYz358DFlmHvYFlh4CgRdzPLXB2NJE48x6lY=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3 h1:RtCys6GUprNaPOP04Zuo65wS10PMbSPPZNvIb9xYYLE=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3/go.mod h1:4PGcghc3ZjA/uozANO8lCHo/gnHyMsm8iFYppSkVE/M=
+github.com/carbocation/lidario v0.0.0-20220221222559-634c1fa93654 h1:4Gj3ppP2VgGqo8OBjlkA5zbOOeiC5YESLb804ylkHGQ=
+github.com/carbocation/lidario v0.0.0-20220221222559-634c1fa93654/go.mod h1:3mv0uyt/BJg+8f7HFFD/qL764+NC6MLtjkUJIpBzJcU=
 github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea h1:6yY+5KdWRWXrnUOWGpu7V468Ib9yQJDJBmDAVBFLKrM=
 github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea/go.mod h1:blyZVy/xxFP68VyTV39Olio+z1I234JG41kvqPIA/wM=
 github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d h1:m4hBORFhIgQedvMYMf0f+bD1PyUZFQ4NIX4Rp4aisGM=
@@ -402,8 +404,6 @@ github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/pkg/profile v1.6.0 h1:hUDfIISABYI59DyeB3OTay/HxSRwTQ8rB/H83k6r5dM=
-github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
