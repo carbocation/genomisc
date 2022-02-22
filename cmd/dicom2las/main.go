@@ -1,8 +1,3 @@
-// dicom-mip produces maximum intensity projections, as well as average
-// intensity projections and .mp4 videos of the projections through the 3D block
-// of voxels from sagittal and coronal projections. Note that this program's
-// video production requires that ffmpeg be installed. (See
-// https://github.com/unixpickle/ffmpego#installation)
 package main
 
 import (
