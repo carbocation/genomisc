@@ -101,6 +101,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 		// determine the number of frames for the GIF of the coronal MIP:
 		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 			outName := zip.Zip + "_" + zip.Series + ".coronal.mp4"
+			// outName := zip.Zip + "_" + zip.Series + ".coronal.gif"
 			_, canvasDepth, _, _, _, _ := findCanvasAndOffsets(pngData, imgMap)
 
 			log.Println("\nCreating a", int(math.Ceil(canvasDepth)), "frame GIF for", outName)
@@ -132,6 +133,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			}
 
 			errchan <- makeOneMPEG(imgList, outName, 20)
+			// errchan <- makeOneGIF(imgList, outName, 10, false)
 
 		}(zip, imgMap, pngData)
 
@@ -139,6 +141,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 		// determine the number of frames for the GIF of the sagittal MIP:
 		go func(zip seriesMap, imgMap map[string]image.Image, pngData []manifestEntry) {
 			outName := zip.Zip + "_" + zip.Series + ".sagittal.mp4"
+			// outName := zip.Zip + "_" + zip.Series + ".sagittal.gif"
 			im, err := canvasMakeOneCoronalMIPFromImageMapNonsquare(pngData, imgMap, AverageIntensity, 0)
 			if err != nil {
 				errchan <- err
@@ -170,6 +173,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			}
 
 			errchan <- makeOneMPEG(imgList, outName, 10)
+			// errchan <- makeOneGIF(imgList, outName, 20, false)
 
 		}(zip, imgMap, pngData)
 	}

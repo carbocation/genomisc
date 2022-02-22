@@ -72,6 +72,25 @@ func findCanvasAndOffsets(dicomEntries []manifestEntry, imgMap map[string]image.
 	return canvasWidthX, canvasWidthY, zMax - zMin, xMin, yMin, zMin
 }
 
+func pickColor(whichColor int, maxIntensityForVector uint16) color.RGBA {
+	intens := uint8(255. * float64(maxIntensityForVector) / 65535.)
+
+	switch whichColor % 6 {
+	case 0:
+		return color.RGBA{0, intens, intens, 255}
+	case 1:
+		return color.RGBA{intens, 0, 0, 255}
+	case 2:
+		return color.RGBA{0, intens, 0, 255}
+	case 3:
+		return color.RGBA{0, 0, intens, 255}
+	case 4:
+		return color.RGBA{intens, intens, 0, 255}
+	default:
+		return color.RGBA{intens, 0, intens, 255}
+	}
+}
+
 func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, imgMap map[string]image.Image, intensityMethod, intensitySlice int) (image.Image, error) {
 	// We will be using subpixel boundaries, so we need to make sure we're
 	// creating a canvas big enough for all. The canvas height is always the
@@ -102,7 +121,13 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
+	lastSeries := ""
+	whichColorID := 0
 	for i, dicomData := range dicomEntries {
+		if dicomData.Etc["series_number"] != lastSeries {
+			lastSeries = dicomData.Etc["series_number"]
+			whichColorID += 1
+		}
 
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
@@ -205,16 +230,8 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.Y))})
 			} else {
-				col := color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 0, 255}
-				switch dicomData.PixelWidthNativeZ {
-				case 3:
-					col = color.RGBA{0, 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				case 3.5:
-					col = color.RGBA{0, uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 255}
-				case 4:
-					col = color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				}
-				stroke(ctx, col) //color.Gray16{maxIntensityForVector})
+				col := pickColor(whichColorID, maxIntensityForVector)
+				stroke(ctx, col)
 			}
 
 			outX = outNextX
@@ -258,7 +275,13 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	// We need positional information. This can either be implicit (assume we
 	// start at the top left corner), or explicit (in which case we need to
 	// attach positional data). For now, we'll assume implicit.
+	lastSeries := ""
+	whichColorID := 0
 	for _, dicomData := range dicomEntries {
+		if dicomData.Etc["series_number"] != lastSeries {
+			lastSeries = dicomData.Etc["series_number"]
+			whichColorID += 1
+		}
 
 		currentImg := imgMap[dicomData.dicom].(*image.Gray16)
 
@@ -301,16 +324,8 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 			if intensityMethod == AverageIntensity {
 				stroke(ctx, color.Gray16{uint16(sumIntensityForVector / float64(currentImg.Bounds().Max.X))})
 			} else {
-				col := color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 0, 255}
-				switch dicomData.PixelWidthNativeZ {
-				case 3:
-					col = color.RGBA{0, 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				case 3.5:
-					col = color.RGBA{0, uint8(255. * float64(maxIntensityForVector) / 65535.), 0, 255}
-				case 4:
-					col = color.RGBA{uint8(255. * float64(maxIntensityForVector) / 65535.), 0, uint8(255. * float64(maxIntensityForVector) / 65535.), 255}
-				}
-				stroke(ctx, col) //color.Gray16{maxIntensityForVector})
+				col := pickColor(whichColorID, maxIntensityForVector)
+				stroke(ctx, col)
 			}
 
 			outX = outNextX
