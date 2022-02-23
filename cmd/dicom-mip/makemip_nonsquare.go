@@ -75,17 +75,19 @@ func findCanvasAndOffsets(dicomEntries []manifestEntry, imgMap map[string]image.
 func pickColor(whichColor int, maxIntensityForVector uint16) color.RGBA {
 	intens := uint8(255. * float64(maxIntensityForVector) / 65535.)
 
-	switch whichColor % 6 {
+	switch whichColor % 7 {
 	case 0:
-		return color.RGBA{0, intens, intens, 255}
+		return color.RGBA{intens, intens, intens, 255}
 	case 1:
-		return color.RGBA{intens, 0, 0, 255}
+		return color.RGBA{0, intens, intens, 255}
 	case 2:
 		return color.RGBA{0, intens, 0, 255}
 	case 3:
 		return color.RGBA{0, 0, intens, 255}
 	case 4:
 		return color.RGBA{intens, intens, 0, 255}
+	case 5:
+		return color.RGBA{intens, 0, 0, 255}
 	default:
 		return color.RGBA{intens, 0, intens, 255}
 	}
@@ -124,8 +126,8 @@ func canvasMakeOneCoronalMIPFromImageMapNonsquare(dicomEntries []manifestEntry, 
 	lastSeries := ""
 	whichColorID := 0
 	for i, dicomData := range dicomEntries {
-		if dicomData.Etc["series_number"] != lastSeries {
-			lastSeries = dicomData.Etc["series_number"]
+		if dicomData.Etc[SeriesNumberColumName] != lastSeries {
+			lastSeries = dicomData.Etc[SeriesNumberColumName]
 			whichColorID += 1
 		}
 
@@ -278,8 +280,8 @@ func canvasMakeOneSagittalMIPFromImageMapNonsquare(dicomEntries []manifestEntry,
 	lastSeries := ""
 	whichColorID := 0
 	for _, dicomData := range dicomEntries {
-		if dicomData.Etc["series_number"] != lastSeries {
-			lastSeries = dicomData.Etc["series_number"]
+		if dicomData.Etc[SeriesNumberColumName] != lastSeries {
+			lastSeries = dicomData.Etc[SeriesNumberColumName]
 			whichColorID += 1
 		}
 

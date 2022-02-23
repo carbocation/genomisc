@@ -25,6 +25,7 @@ const (
 
 var (
 	SeriesColumnName            = "series"
+	SeriesNumberColumName       = "series_number"
 	ZipColumnName               = "zip_file"
 	DicomColumnName             = "dicom_file"
 	PixelWidthNativeXColumn     = "px_width_mm"
@@ -55,6 +56,7 @@ func main() {
 	flag.StringVar(&ImagePositionPatientYColumn, "image_y", "image_y", "Name of the column in the manifest with the Y position of the top left pixel of the images.")
 	flag.StringVar(&ImagePositionPatientZColumn, "image_z", "image_z", "Name of the column in the manifest with the Z position of the top left pixel of the images.")
 	flag.StringVar(&SeriesColumnName, "series_column_name", "sample_id", "Name of the column that indicates the series of the images.")
+	flag.StringVar(&SeriesNumberColumName, "series_number_column_name", "series_number", "(Optional) Name of the column that indicates the series number of the images, useful for colorizing different acquisitions.")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.BoolVar(&batch, "batch", false, "Pass this if you want to run in batch mode.")
 	flag.Parse()
