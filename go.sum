@@ -61,7 +61,6 @@ github.com/adrg/xdg v0.4.0 h1:RzRqFcjH4nE5C6oTAxhBtoE2IRyjBSa62SCbyPidvls=
 github.com/adrg/xdg v0.4.0/go.mod h1:N6ag73EX4wyxeaoeHctc1mas01KZgsj5tYiAIwqJE/E=
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/ajstarks/svgo v0.0.0-20210923152817-c3b6e2f0c527 h1:NImof/JkF93OVWZY+PINgl6fPtQyF6f+hNUtZ0QZA1c=
-github.com/ajstarks/svgo v0.0.0-20210923152817-c3b6e2f0c527/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e h1:OjdSMCht0ZVX7IH0nTdf00xEustvbtUGRgMh3gbdmOg=
@@ -99,8 +98,6 @@ github.com/carbocation/genomisc v0.0.0-20210307150845-e2efad427558/go.mod h1:+As
 github.com/carbocation/genomisc v0.0.0-20210612014916-fa04c732f4ae/go.mod h1:QJ7f6mZoAWwYT31nxt8owdP8M9nV21gijG676uVLTB4=
 github.com/carbocation/genomisc v0.0.0-20210612175623-de3deb62b137/go.mod h1:yrEMXHgL1VorSnQuDqE+1Dh7UBccQP46v5Br6P+QUn0=
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=
-github.com/carbocation/go-quantize v0.0.0-20211119162246-85417ed22ad1 h1:LWKUbBMcDk8TAlGANG7SLqvEudrt8rUbb9AjNvO5AXA=
-github.com/carbocation/go-quantize v0.0.0-20211119162246-85417ed22ad1/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=
 github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc h1:fPXXg76oDo1OBehveAs3ksvcXjPBWsWkX2x1iRhgd5M=
 github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc/go.mod h1:Dl1Cmu+f+b9dxiNehrawZk4TK5sz9UxBegeNn5Lz/FI=
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5drFRIyAaihze9ceRMpTt1FW6Q5jjpc2u4c=
@@ -178,8 +175,6 @@ github.com/go-fonts/liberation v0.1.1/go.mod h1:K6qoJYypsmfVjWg8KOVDQhLc8UDgIK2H
 github.com/go-fonts/liberation v0.2.0 h1:jAkAWJP4S+OsrPLZM4/eC9iW7CtHy+HBXrEwZXWo5VM=
 github.com/go-fonts/liberation v0.2.0/go.mod h1:K6qoJYypsmfVjWg8KOVDQhLc8UDgIK2HYqyqAO9z7GY=
 github.com/go-fonts/stix v0.1.0/go.mod h1:w/c1f0ldAUlJmLBvlbkvVXLAD+tAMqobIIQpmnUIzUY=
-github.com/go-gl/gl v0.0.0-20180407155706-68e253793080/go.mod h1:482civXOzJJCPzJ4ZOX/pwvXBWSnzD4OKMdH4ClKGbk=
-github.com/go-gl/glfw v0.0.0-20180426074136-46a8d530c326/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
@@ -370,10 +365,6 @@ github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94 h1:+AIlO01SKT9sfW
 github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94/go.mod h1:TcE3PIIkVWbP/HjhRAafgCjRKvDOi086iqp9VkNX/ng=
 github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=
 github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
-github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d h1:4/ycg+VrwjGurTqiHv2xM/h6Qm81qSra+KbfT4FH2FA=
-github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d/go.mod h1:mVa0dA29Db2S4LVqDYLlsePDzRJLDfdhVZiI15uY0FA=
-github.com/llgcode/ps v0.0.0-20150911083025-f1443b32eedb h1:61ndUreYSlWFeCY44JxDDkngVoI7/1MVhEl98Nm0KOk=
-github.com/llgcode/ps v0.0.0-20150911083025-f1443b32eedb/go.mod h1:1l8ky+Ew27CMX29uG+a2hNOKpeNYEQjjtiALiBlFQbY=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/markbates/errx v1.1.0 h1:QDFeR+UP95dO12JgW+tgi2UVfo0V8YBHiUIOaeBPiEI=
 github.com/markbates/errx v1.1.0/go.mod h1:PLa46Oex9KNbVDZhKel8v1OT7hD5JZ2eI7AHhA0wswc=
@@ -776,7 +767,6 @@ gonum.org/v1/netlib v0.0.0-20190313105609-8cb42192e0e0/go.mod h1:wa6Ws7BG/ESfp6d
 gonum.org/v1/plot v0.0.0-20190515093506-e2840ee46a6b/go.mod h1:Wt8AAjI+ypCyYX3nZBvf6cAIx93T+c/OS2HFAYskSZc=
 gonum.org/v1/plot v0.9.0/go.mod h1:3Pcqqmp6RHvJI72kgb8fThyUnav364FOsdDo2aGW5lY=
 gonum.org/v1/plot v0.10.0 h1:ymLukg4XJlQnYUJCp+coQq5M7BsUJFk6XQE4HPflwdw=
-gonum.org/v1/plot v0.10.0/go.mod h1:JWIHJ7U20drSQb/aDpTetJzfC1KlAPldJLpkSy88dvQ=
 google.golang.org/api v0.4.0/go.mod h1:8k5glujaEP+g9n7WNsDg8QP6cUVNI86fCNMcbazEtwE=
 google.golang.org/api v0.7.0/go.mod h1:WtwebWUNSVBH/HAw79HIFXZNqEvBhG+Ra+ax0hx3E3M=
 google.golang.org/api v0.8.0/go.mod h1:o4eAsZoiT+ibD93RtjEohWalFOjRDx6CVaqeizhEnKg=
@@ -942,7 +932,6 @@ modernc.org/z v1.0.1-0.20210308123920-1f282aa71362/go.mod h1:8/SRk5C/HgiQWCgXdfp
 modernc.org/z v1.0.1 h1:WyIDpEpAIx4Hel6q/Pcgj/VhaQV5XPJ2I6ryIYbjnpc=
 modernc.org/z v1.0.1/go.mod h1:8/SRk5C/HgiQWCgXdfpb+1RvhORdkz5sw72d3jjtyqA=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
-rsc.io/pdf v0.1.1 h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

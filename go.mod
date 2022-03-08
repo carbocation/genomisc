@@ -22,7 +22,6 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
-	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/gorilla/mux v1.8.0
 	github.com/grd/histogram v0.0.0-20130107163446-074cc51e7eea
@@ -35,7 +34,6 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
-	github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
 	github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43
@@ -72,6 +70,7 @@ require (
 	github.com/gobuffalo/envy v1.7.0 // indirect
 	github.com/gobuffalo/logger v1.0.3 // indirect
 	github.com/gobuffalo/packd v1.0.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac // indirect
@@ -112,7 +111,6 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gonum.org/v1/plot v0.10.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210420162539-3c870d7478d2 // indirect
 	google.golang.org/grpc v1.37.0 // indirect
