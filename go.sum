@@ -101,6 +101,8 @@ github.com/carbocation/genomisc v0.0.0-20210612175623-de3deb62b137/go.mod h1:yrE
 github.com/carbocation/go-quantize v0.0.0-20210217220615-6c4ee5bfa11e/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=
 github.com/carbocation/go-quantize v0.0.0-20211119162246-85417ed22ad1 h1:LWKUbBMcDk8TAlGANG7SLqvEudrt8rUbb9AjNvO5AXA=
 github.com/carbocation/go-quantize v0.0.0-20211119162246-85417ed22ad1/go.mod h1:F2Tb2AJ2V2Rdr4lwAmUi7gLdxQd/1QVXEz1cdWMMh9E=
+github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc h1:fPXXg76oDo1OBehveAs3ksvcXjPBWsWkX2x1iRhgd5M=
+github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc/go.mod h1:Dl1Cmu+f+b9dxiNehrawZk4TK5sz9UxBegeNn5Lz/FI=
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5drFRIyAaihze9ceRMpTt1FW6Q5jjpc2u4c=
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31/go.mod h1:iGISoFvZYz358DFlmHvYFlh4CgRdzPLXB2NJE48x6lY=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3 h1:RtCys6GUprNaPOP04Zuo65wS10PMbSPPZNvIb9xYYLE=
