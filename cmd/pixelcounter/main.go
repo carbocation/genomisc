@@ -1,9 +1,15 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -13,6 +19,7 @@ import (
 	"time"
 
 	"github.com/carbocation/genomisc/overlay"
+	"github.com/carbocation/genomisc/ukbb/bulkprocess"
 )
 
 func init() {
@@ -37,7 +44,7 @@ func main() {
 	var threshold int
 	var overlayPath, jsonConfig, manifest, suffix, momentLabels string
 
-	flag.StringVar(&overlayPath, "overlay", "", "Path to folder with encoded overlay images")
+	flag.StringVar(&overlayPath, "overlay", "", "Path to folder with encoded overlay images or .tar.gz files with overlay images (or both)")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
 	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
 	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
@@ -100,7 +107,7 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, t
 	for i, file := range dicoms {
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file+suffix, file, config, threshold, labelsNeedMoments); err != nil {
+			if err := processOneImageFilepath(overlayPath+"/"+file+suffix, file, config, threshold, labelsNeedMoments); err != nil {
 				log.Println(err)
 			}
 			<-sem
@@ -120,7 +127,7 @@ func runSlice(config overlay.JSONConfig, overlayPath, suffix, manifest string, t
 
 func runFolder(config overlay.JSONConfig, overlayPath string, threshold int, labelsNeedMoments map[uint8]struct{}) error {
 
-	files, err := scanFolder(overlayPath)
+	files, err := os.ReadDir(overlayPath)
 	if err != nil {
 		return err
 	}
@@ -138,8 +145,19 @@ func runFolder(config overlay.JSONConfig, overlayPath string, threshold int, lab
 
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(overlayPath+"/"+file, file, config, threshold, labelsNeedMoments); err != nil {
-				log.Println(err)
+			var err error
+			if strings.HasSuffix(file, ".tar.gz") {
+				if err = processOneTarGZFilepath(overlayPath+"/"+file, file, config, threshold, labelsNeedMoments); err != nil {
+					log.Println(err)
+				}
+			} else if strings.HasSuffix(file, ".png") ||
+				strings.HasSuffix(file, ".gif") ||
+				strings.HasSuffix(file, ".bmp") ||
+				strings.HasSuffix(file, ".jpeg") ||
+				strings.HasSuffix(file, ".jpg") {
+				if err = processOneImageFilepath(overlayPath+"/"+file, file, config, threshold, labelsNeedMoments); err != nil {
+					log.Printf("%s: %s\n", file, err)
+				}
 			}
 			<-sem
 		}(file.Name())
@@ -189,17 +207,65 @@ func printHeader(config overlay.JSONConfig, threshold int, labelsNeedMoments map
 	fmt.Println(strings.Join(header, "\t"))
 }
 
-func processOneImage(filePath, filename string, config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) error {
-	// Heuristic: get dicom name
-	dicom := strings.ReplaceAll(filename, ".png.mask.png", "")
-	dicom = strings.ReplaceAll(dicom, ".mask.png", "")
+func processOneTarGZFilepath(filePath, filename string, config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) error {
+	// Open and stream/ungzip the tar.gz
+	f, _, err := bulkprocess.MaybeOpenFromGoogleStorage(filePath, nil)
+	if err != nil {
+		return fmt.Errorf("%s: %w", filename, err)
+	}
+	defer f.Close()
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("%s: %w", filename, err)
+	}
+	defer gzr.Close()
 
-	entry := []string{dicom}
+	tarReader := tar.NewReader(gzr)
 
+	// Iterate over tarfile contents, processing all non-directory files
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return fmt.Errorf("%s: %w", filename, err)
+		} else if header.Typeflag == tar.TypeDir {
+			continue
+		}
+
+		imageBytes, err := ioutil.ReadAll(tarReader)
+		if err != nil {
+			return fmt.Errorf("%s: %w", filename, err)
+		}
+
+		br := bytes.NewReader(imageBytes)
+		newImg, err := bulkprocess.DecodeImageFromReader(br)
+		if err != nil {
+			return fmt.Errorf("%s: %w", filename, err)
+		}
+
+		if err := processOneImage(newImg, header.Name, config, threshold, labelsNeedMoments); err != nil {
+			log.Printf("%s: %v\n", header.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func processOneImageFilepath(filePath, filename string, config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) error {
 	rawOverlayImg, err := overlay.OpenImageFromLocalFile(filePath)
 	if err != nil {
 		return err
 	}
+
+	return processOneImage(rawOverlayImg, filename, config, threshold, labelsNeedMoments)
+}
+
+func processOneImage(rawOverlayImg image.Image, filename string, config overlay.JSONConfig, threshold int, labelsNeedMoments map[uint8]struct{}) error {
+	// Heuristic: get dicom name
+	dicom := strings.ReplaceAll(filename, ".png.mask.png", "")
+	dicom = strings.ReplaceAll(dicom, ".mask.png", "")
+	entry := []string{dicom}
 
 	// Add pixel count info
 	entry = append(entry, strconv.Itoa(rawOverlayImg.Bounds().Dx()))
