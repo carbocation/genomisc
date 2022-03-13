@@ -286,14 +286,19 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 }
 
 // See 'Grayscale Image Display' under
-// https://dgobbi.github.io/vtk-dicom/doc/api/image_display.html
+// https://dgobbi.github.io/vtk-dicom/doc/api/image_display.html . In addition,
+// we also scale the output so that it is appropriate for producing a 16-bit
+// grayscale image. E.g., if the native dicom is 8-bit, we still rescale the
+// output here for a 16-bit format. In the future, could produce 8-bit files
+// where possible, in which case this function would need to be changed.
 func ApplyOfficialWindowScaling(storedValue int, rescaleSlope, rescaleIntercept, windowWidth, windowCenter float64, bitsAllocated uint16) uint16 {
-
 	// 1: StoredValue to ModalityValue
 	var modalityValue float64
 	if rescaleSlope == 0 {
-		// If rescale slope is 0, then the pixel is already in the correct
-		// modality value.
+		// Via https://dgobbi.github.io/vtk-dicom/doc/api/image_display.html :
+		// For modalities such as ultrasound and MRI that do not have any units,
+		// the RescaleSlope and RescaleIntercept are absent and the Modality
+		// Values are equal to the Stored Values.
 		modalityValue = float64(storedValue)
 	} else {
 		// Otherwise, we can apply the rescale slope and intercept to the stored
@@ -310,8 +315,25 @@ func ApplyOfficialWindowScaling(storedValue int, rescaleSlope, rescaleIntercept,
 	// Precompute common cases so you're not exponentiating in the hot path
 	case 16:
 		grayLevels = 65536
+	case 8:
+		grayLevels = 256
 	default:
 		grayLevels = math.Pow(2, float64(bitsAllocated))
+	}
+
+	// We are creating a 16-bit image, so we need to scale the modality value to
+	// the range of 0-65535. Particularly if we're using 8-bit, then we need to
+	// scale the 0-255 range to 0-65535, otherwise the images will look black.
+	sixteenBitCorrection := math.MaxUint16 / uint16(grayLevels-1)
+
+	// Via https://dgobbi.github.io/vtk-dicom/doc/api/image_display.html : For
+	// ultrasound (and for 8-bit images in general) the WindowWidth and
+	// WindowCenter may be absent from the file. If absent, they can be assumed
+	// to be 256 and 128 respectively, which provides an 8-bit identity mapping.
+	// Here, instead of assuming 8 bit, we use the grayLevels value.
+	if windowWidth == 0 && windowCenter == 0 {
+		windowWidth = grayLevels
+		windowCenter = grayLevels / 2
 	}
 
 	w := windowWidth - 1.0
@@ -324,11 +346,11 @@ func ApplyOfficialWindowScaling(storedValue int, rescaleSlope, rescaleIntercept,
 
 	// Above the upper bound of our window, draw white
 	if modalityValue > c+0.5*w {
-		return uint16(grayLevels - 1.0)
+		return uint16(grayLevels-1.0) * sixteenBitCorrection
 	}
 
 	// Within the window, return a scaled value
-	return uint16(((modalityValue-c)/w + 0.5) * (grayLevels - 1.0))
+	return uint16(((modalityValue-c)/w+0.5)*(grayLevels-1.0)) * sixteenBitCorrection
 
 }
 
