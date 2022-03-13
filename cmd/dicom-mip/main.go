@@ -34,6 +34,7 @@ var (
 	ImagePositionPatientXColumn = "image_x"
 	ImagePositionPatientYColumn = "image_y"
 	ImagePositionPatientZColumn = "image_z"
+	makeGIF                     = false
 )
 
 // Safe for concurrent use by multiple goroutines so we'll make this a global
@@ -59,6 +60,7 @@ func main() {
 	flag.StringVar(&SeriesNumberColumName, "series_number_column_name", "series_number", "(Optional) Name of the column that indicates the series number of the images, useful for colorizing different acquisitions.")
 	flag.BoolVar(&doNotSort, "donotsort", false, "Pass this if you do not want to sort the manifest (i.e., you've already sorted it)")
 	flag.BoolVar(&batch, "batch", false, "Pass this if you want to run in batch mode.")
+	flag.BoolVar(&makeGIF, "makegif", false, "Pass this if you want to make a gif of the MIPs instead of an mp4.")
 	flag.Parse()
 
 	if manifest == "" || folder == "" {
