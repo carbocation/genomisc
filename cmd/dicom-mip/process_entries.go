@@ -136,7 +136,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			}
 
 			if makeGIF {
-				errchan <- makeOneGIF(imgList, outName, 10, false)
+				errchan <- makeOneGIF(imgList, outName, 2, false)
 			} else {
 				errchan <- makeOneMPEG(imgList, outName, 20)
 			}
@@ -182,7 +182,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 			}
 
 			if makeGIF {
-				errchan <- makeOneGIF(imgList, outName, 10, false)
+				errchan <- makeOneGIF(imgList, outName, 4, false)
 			} else {
 				errchan <- makeOneMPEG(imgList, outName, 10)
 			}
