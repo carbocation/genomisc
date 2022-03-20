@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"image"
 	"image/draw"
 	"image/png"
 	"log"
@@ -95,7 +96,7 @@ func runSlice(path1, path2, suffix string, newLabels ReplacementMap, manifest st
 			// retry a few times before giving up.
 			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
 
-				err := processOneImage(path1+"/"+file+suffix, path2+"/"+file+suffix, file, threshold, newLabels)
+				err := processOneImageFromPath(path1+"/"+file+suffix, path2+"/"+file+suffix, file, threshold, newLabels)
 
 				if err != nil && loadAttempts == maxLoadAttempts {
 
@@ -155,8 +156,19 @@ func runFolder(path1, path2 string, newLabels ReplacementMap, threshold int) err
 
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(path1+"/"+file, path2, file, threshold, newLabels); err != nil {
-				log.Println(err)
+			var err error
+			if strings.HasSuffix(file, ".tar.gz") {
+				if err = processOneTarGZFilepath(path1+"/"+file, path2, file, threshold, newLabels); err != nil {
+					log.Println(err)
+				}
+			} else if strings.HasSuffix(file, ".png") ||
+				strings.HasSuffix(file, ".gif") ||
+				strings.HasSuffix(file, ".bmp") ||
+				strings.HasSuffix(file, ".jpeg") ||
+				strings.HasSuffix(file, ".jpg") {
+				if err = processOneImageFromPath(path1+"/"+file, path2, file, threshold, newLabels); err != nil {
+					log.Printf("%s: %s\n", file, err)
+				}
 			}
 			<-sem
 		}(file.Name())
@@ -173,12 +185,31 @@ func runFolder(path1, path2 string, newLabels ReplacementMap, threshold int) err
 	return nil
 }
 
-func processOneImage(filePath1, filePath2, filename string, threshold int, newLabels ReplacementMap) error {
+func processOneImageFromPath(filePath1, filePath2, filename string, threshold int, newLabels ReplacementMap) error {
 	// Open the files
 	overlay1, err := overlay.OpenImageFromLocalFileOrGoogleStorage(filePath1, client)
 	if err != nil {
 		return err
 	}
+
+	outImg, err := processOneImage(overlay1, filePath2, filename, threshold, newLabels)
+	if err != nil {
+		return err
+	}
+
+	outFile, err := os.Create(filepath.Join(filePath2, filename))
+	if err != nil {
+		return err
+	}
+
+	bw := bufio.NewWriter(outFile)
+	defer bw.Flush()
+
+	// Write the PNG representation of our ID-encoded image to disk
+	return png.Encode(bw, outImg)
+}
+
+func processOneImage(overlay1 image.Image, filePath2, filename string, threshold int, newLabels ReplacementMap) (image.Image, error) {
 
 	output := overlay1.(draw.Image)
 	r1 := overlay1.Bounds()
@@ -197,14 +228,5 @@ func processOneImage(filePath1, filePath2, filename string, threshold int, newLa
 		}
 	}
 
-	outFile, err := os.Create(filepath.Join(filePath2, filename))
-	if err != nil {
-		return err
-	}
-
-	bw := bufio.NewWriter(outFile)
-	defer bw.Flush()
-
-	// Write the PNG representation of our ID-encoded image to disk
-	return png.Encode(bw, output)
+	return output, nil
 }
