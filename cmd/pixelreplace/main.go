@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
@@ -23,12 +23,6 @@ import (
 func init() {
 	flag.Usage = func() {
 		flag.PrintDefaults()
-
-		log.Println("Example JSONConfig file layout:")
-		bts, err := json.MarshalIndent(overlay.JSONConfig{Labels: overlay.LabelMap{"Background": overlay.Label{Color: "", ID: 0}}}, "", "  ")
-		if err == nil {
-			log.Println(string(bts))
-		}
 	}
 }
 
@@ -39,23 +33,16 @@ func main() {
 	fmt.Fprintf(os.Stderr, "%q\n", os.Args)
 
 	var threshold int
-	var path1, path2, jsonConfig, manifest, suffix, labelsFile string
+	var path1, path2, manifest, suffix, labelsFile string
 
-	flag.StringVar(&path1, "path1", "", "Path to folder with encoded overlay images (base/truth)")
+	flag.StringVar(&path1, "path1", "", "Path to folder with encoded overlay images (base/truth). Will attempt to process both .png and .tar.gz files within the path.")
 	flag.StringVar(&path2, "output", "", "Path to folder where modified encoded overlay images will be put")
-	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
-	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
+	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents, and no .tar.gz files will be processed (raw images only).")
 	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
-	flag.StringVar(&labelsFile, "labels", "", "(Optional) json file with labels. E.g.: {Labels: [{'name':'Label 1', 'value':'l1'}]}")
+	flag.StringVar(&labelsFile, "labels", "", "JSON file with label replacements. E.g.: {'Replacements': [{'old': '1', 'new': '0'},{'old': '2', 'new': '0'}]}")
 	flag.Parse()
 
-	if path1 == "" || path2 == "" || jsonConfig == "" || labelsFile == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	config, err := overlay.ParseJSONConfigFromPath(jsonConfig)
-	if err != nil {
+	if path1 == "" || path2 == "" || labelsFile == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -82,20 +69,20 @@ func main() {
 
 	if manifest != "" {
 
-		if err := runSlice(config, path1, path2, suffix, newLabels, manifest, threshold); err != nil {
+		if err := runSlice(path1, path2, suffix, newLabels, manifest, threshold); err != nil {
 			log.Fatalln(err)
 		}
 
 		return
 	}
 
-	if err := runFolder(config, path1, path2, newLabels, threshold); err != nil {
+	if err := runFolder(path1, path2, newLabels, threshold); err != nil {
 		log.Fatalln(err)
 	}
 
 }
 
-func runSlice(config overlay.JSONConfig, path1, path2, suffix string, newLabels ReplacementMap, manifest string, threshold int) error {
+func runSlice(path1, path2, suffix string, newLabels ReplacementMap, manifest string, threshold int) error {
 
 	dicoms, err := getDicomSlice(manifest)
 	if err != nil {
@@ -115,7 +102,7 @@ func runSlice(config overlay.JSONConfig, path1, path2, suffix string, newLabels 
 			// retry a few times before giving up.
 			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
 
-				err := processOneImage(path1+"/"+file+suffix, path2+"/"+file+suffix, file, config, threshold, newLabels)
+				err := processOneImageFromPath(path1+"/"+file+suffix, path2+"/"+file+suffix, file, threshold, newLabels)
 
 				if err != nil && loadAttempts == maxLoadAttempts {
 
@@ -156,7 +143,7 @@ func runSlice(config overlay.JSONConfig, path1, path2, suffix string, newLabels 
 	return nil
 }
 
-func runFolder(config overlay.JSONConfig, path1, path2 string, newLabels ReplacementMap, threshold int) error {
+func runFolder(path1, path2 string, newLabels ReplacementMap, threshold int) error {
 
 	files, err := scanFolder(path1)
 	if err != nil {
@@ -175,8 +162,19 @@ func runFolder(config overlay.JSONConfig, path1, path2 string, newLabels Replace
 
 		sem <- true
 		go func(file string) {
-			if err := processOneImage(path1+"/"+file, path2, file, config, threshold, newLabels); err != nil {
-				log.Println(err)
+			var err error
+			if strings.HasSuffix(file, ".tar.gz") {
+				if err = processOneTarGZFilepath(path1+"/"+file, path2, file, threshold, newLabels); err != nil {
+					log.Println(err)
+				}
+			} else if strings.HasSuffix(file, ".png") ||
+				strings.HasSuffix(file, ".gif") ||
+				strings.HasSuffix(file, ".bmp") ||
+				strings.HasSuffix(file, ".jpeg") ||
+				strings.HasSuffix(file, ".jpg") {
+				if err = processOneImageFromPath(path1+"/"+file, path2, file, threshold, newLabels); err != nil {
+					log.Printf("%s: %s\n", file, err)
+				}
 			}
 			<-sem
 		}(file.Name())
@@ -193,12 +191,31 @@ func runFolder(config overlay.JSONConfig, path1, path2 string, newLabels Replace
 	return nil
 }
 
-func processOneImage(filePath1, filePath2, filename string, config overlay.JSONConfig, threshold int, newLabels ReplacementMap) error {
+func processOneImageFromPath(filePath1, filePath2, filename string, threshold int, newLabels ReplacementMap) error {
 	// Open the files
 	overlay1, err := overlay.OpenImageFromLocalFileOrGoogleStorage(filePath1, client)
 	if err != nil {
 		return err
 	}
+
+	outImg, err := processOneImage(overlay1, filePath2, filename, threshold, newLabels)
+	if err != nil {
+		return err
+	}
+
+	outFile, err := os.Create(filepath.Join(filePath2, filename))
+	if err != nil {
+		return err
+	}
+
+	bw := bufio.NewWriter(outFile)
+	defer bw.Flush()
+
+	// Write the PNG representation of our ID-encoded image to disk
+	return png.Encode(bw, outImg)
+}
+
+func processOneImage(overlay1 image.Image, filePath2, filename string, threshold int, newLabels ReplacementMap) (image.Image, error) {
 
 	output := overlay1.(draw.Image)
 	r1 := overlay1.Bounds()
@@ -208,7 +225,7 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 
 			col1, err := overlay.LabeledPixelToID(overlay1.At(x, y))
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Replace the old ID with the new ID
@@ -223,14 +240,5 @@ func processOneImage(filePath1, filePath2, filename string, config overlay.JSONC
 		}
 	}
 
-	outFile, err := os.Create(filepath.Join(filePath2, filename))
-	if err != nil {
-		return err
-	}
-
-	bw := bufio.NewWriter(outFile)
-	defer bw.Flush()
-
-	// Write the PNG representation of our ID-encoded image to disk
-	return png.Encode(bw, output)
+	return output, nil
 }
