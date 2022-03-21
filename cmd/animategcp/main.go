@@ -95,15 +95,18 @@ func runBatch(sampleList, manifest, folder, suffix string, delay int, grid bool,
 		return err
 	}
 
+	fmt.Printf("Identified %d lines in the sample list\n", len(samples))
+
 	for _, sampleRow := range samples {
 		if len(sampleRow) != 1 {
+			fmt.Printf("Expected sample row input to have one entry. Instead saw %v. Skipping.", sampleRow)
 			continue
 		}
 		sample := sampleRow[0]
 
 		input := strings.Split(sample, "_")
 		if len(input) != 2 {
-			fmt.Println("Expected sampleid separated from instance by an underscore (_)")
+			fmt.Printf("Expected sampleid separated from instance by an underscore (_). Instead saw %v. Skipping.", input)
 			continue
 		}
 
