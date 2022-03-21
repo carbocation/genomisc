@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"log"
@@ -218,6 +219,10 @@ func processOneImage(overlay1 image.Image, filePath2, filename string, threshold
 		for x := 0; x < r1.Bounds().Max.X; x++ {
 
 			col1 := overlay1.At(x, y)
+
+			// Since this program only works on RGBA, convert the color to the
+			// RGBA color model.
+			col1 = color.RGBAModel.Convert(col1)
 
 			// Replace the old ID with the new ID
 			newCol1 := newLabels.Replace(col1)
