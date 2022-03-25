@@ -2,23 +2,23 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/csv"
 	"fmt"
 	"log"
 	"strconv"
-
-	"github.com/gobuffalo/packr/v2"
 )
 
-func chrPosSlice(assembly string, chromosome string) ([]TabixLocus, error) {
-	lookups := packr.New("lookups", "./lookups")
+// go:embed lookups/*
+var embeddedTemplates embed.FS
 
-	file, err := lookups.Find(assembly)
+func chrPosSlice(assembly string, chromosome string) ([]TabixLocus, error) {
+	fileBytes, err := embeddedTemplates.ReadFile(fmt.Sprintf("lookups/%s", assembly))
 	if err != nil {
 		return nil, err
 	}
 
-	buf := bytes.NewBuffer(file)
+	buf := bytes.NewReader(fileBytes)
 	cr := csv.NewReader(buf)
 	cr.Comma = '\t'
 	entries, err := cr.ReadAll()

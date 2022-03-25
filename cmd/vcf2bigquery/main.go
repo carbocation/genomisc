@@ -144,6 +144,7 @@ func main() {
 	var f io.Reader
 	f, err = gzip.NewReader(fraw)
 	if err != nil {
+		fraw.Seek(0, 0)
 		f = fraw
 	}
 
@@ -155,6 +156,7 @@ func main() {
 		log.Println("Invalid VCF. Invalid features include:")
 		log.Println(err)
 		if rdr != nil {
+			log.Println(rdr.Error())
 			log.Println("Attempting to continue.")
 			rdr.Clear()
 		} else {
