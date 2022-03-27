@@ -123,6 +123,10 @@ func processOnePathBQ(BQ *WrappedBigQuery, knownFieldIDs map[string]struct{}, ph
 		// Handle each sample
 
 		sampleID := row[0]
+		if IsWithdrawnSample(sampleID) {
+			log.Println("Skipping withdrawn sample", sampleID)
+			continue
+		}
 		pheno := SamplePheno{}
 		for col := range row {
 			if col == 0 {

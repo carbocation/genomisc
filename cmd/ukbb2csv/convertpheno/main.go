@@ -16,6 +16,7 @@ func main() {
 		checkMethod    string
 		phenoPathList  string
 		dictionaryFile string
+		withdrawalFile string
 		acknowledge    bool
 		BQ             = &convertpheno.WrappedBigQuery{}
 	)
@@ -24,6 +25,7 @@ func main() {
 	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery phenotype dataset that will/does contain the 'phenotype' table (only if method == 'bigquery')")
 	flag.StringVar(&dictionaryFile, "dictionary", "", "File containing the parsed output from `convertdict`. Required if method == 'none'")
 	flag.StringVar(&phenoPathList, "pheno", "", "File containing the paths of each phenotype file for the UKBB that you want to process in this run. Each file should be on its own line. The files with the newest data should be listed first: every FieldID that is seen in an earlier file will be ignored in later files.")
+	flag.StringVar(&withdrawalFile, "withdrawal", "", "(Optional.) File containing the most recently available participant withdrawal list for your application.")
 	flag.BoolVar(&acknowledge, "ack", false, "Acknowledge the limitations of the tool")
 	flag.Parse()
 
@@ -71,6 +73,13 @@ Please re-run this tool with the --ack flag to demonstrate that you understand t
 	}
 
 	log.Println("Processing", len(phenoPaths), "files:", phenoPaths)
+
+	// If a sample withdrawal file is passed, make sure it loads correctly.
+	if withdrawalFile != "" {
+		if err := convertpheno.SetWithdrawnSamplesFromFile(withdrawalFile); err != nil {
+			log.Fatalln(err)
+		}
+	}
 
 	switch checkMethod {
 	case "bigquery":
