@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,60 +33,39 @@ type Result struct {
 	MissingFields           bigquery.NullString  `bigquery:"missing_fields"`
 }
 
-// PhenotypeAgeCensor computes a proper (leap-year aware) age at phenotype onset
-// (or censoring), rather than the heuristic age extracted from the database
-// which assumes each year to be the same length.
+// PhenotypeAgeCensor computes the days since the date of birth, then divides by
+// 365.25 to get the phenotype censor age in years.
 func (r Result) PhenotypeAgeCensor() (bigquery.NullFloat64, error) {
 	if !r.BirthDate.Valid || !r.PhenotypeDateCensor.Valid {
 		return bigquery.NullFloat64{}, nil
 	}
 
-	birthTime, err := time.Parse("2006-01-02", r.BirthDate.Date.String())
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing BirthDate '%s': %s", r.BirthDate, err.Error())
+	res := bigquery.NullFloat64{
+		Float64: float64(r.PhenotypeDateCensor.Date.DaysSince(r.BirthDate.Date)) / 365.25,
+		Valid:   true,
+	}
+	if res.Float64 < 0 {
+		return res, fmt.Errorf("censoring happened before birth: %v", res)
 	}
 
-	phenoTime, err := time.Parse("2006-01-02", r.PhenotypeDateCensor.Date.String())
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing PhenotypeDateCensor '%s': %s", r.PhenotypeDateCensor, err.Error())
-	}
-
-	stringYears := TimesToFractionalYears(birthTime, phenoTime)
-
-	floatYears, err := strconv.ParseFloat(stringYears, 64)
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing duration from BirthDate '%s' and PhenotypeDateCensor '%s' : %s", r.BirthDate, r.PhenotypeDateCensor, err.Error())
-	}
-
-	return bigquery.NullFloat64{Float64: floatYears, Valid: true}, nil
+	return res, nil
 }
 
-// DeathAgeCensor computes a proper (leap-year aware) age at death (or death
-// censoring), rather than the heuristic age extracted from the database which
-// assumes each year to be the same length.
+// DeathAgeCensor computes the days since the date of birth, then divides by
+// 365.25 to get the death censor age in years.
 func (r Result) DeathAgeCensor() (bigquery.NullFloat64, error) {
 	if !r.BirthDate.Valid || !r.DeathDate.Valid {
 		return bigquery.NullFloat64{}, nil
 	}
 
-	birthTime, err := time.Parse("2006-01-02", r.BirthDate.Date.String())
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing BirthDate '%s': %s", r.BirthDate, err.Error())
+	res := bigquery.NullFloat64{
+		Float64: float64(r.DeathDate.Date.DaysSince(r.BirthDate.Date)) / 365.25,
+		Valid:   true,
 	}
-
-	deathTime, err := time.Parse("2006-01-02", r.DeathDate.Date.String())
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing DeathDate '%s': %s", r.DeathDate, err.Error())
+	if res.Float64 < 0 {
+		return res, fmt.Errorf("death censoring happened before birth: %v", res)
 	}
-
-	stringYears := TimesToFractionalYears(birthTime, deathTime)
-
-	floatYears, err := strconv.ParseFloat(stringYears, 64)
-	if err != nil {
-		return bigquery.NullFloat64{}, fmt.Errorf("Error parsing duration from BirthDate '%s' and DeathDate '%s' : %s", r.BirthDate, r.DeathDate, err.Error())
-	}
-
-	return bigquery.NullFloat64{Float64: floatYears, Valid: true}, nil
+	return res, nil
 }
 
 func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string, missingFields []string) error {
@@ -110,7 +88,7 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 
 		censoredPhenoAge, err := r.PhenotypeAgeCensor()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: setting censor_age to enroll_age for %d (birthdate %s phenotype date %s) because of error: %s\n", diseaseName, r.SampleID, r.BirthDate, r.PhenotypeDateCensor, err.Error())
+			fmt.Fprintf(os.Stderr, "%s: setting censor_age to enroll_age for %d (birthdate %s phenotype date %s) because %s\n", diseaseName, r.SampleID, r.BirthDate, r.PhenotypeDateCensor, err.Error())
 
 			// UK Biobank uses impossible values (e.g., 1900-01-01) to indicate that
 			// the date is not known. See, e.g., FieldID 42000. This does not mean
@@ -118,12 +96,13 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			// be some legal value. Here, we set the age of incidence to be 0 years,
 			// and we set the date of incidence to be the birthdate.
 			censoredPhenoAge = r.EnrollAge
+			r.PhenotypeAgeCensorDays = r.EnrollAgeDays
 			r.PhenotypeDateCensor = r.EnrollDate
 		}
 
 		censoredDeathAge, err := r.DeathAgeCensor()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: setting death_censor_age to enroll_age for %d (birthdate %s death date %s) because of error: %s\n", diseaseName, r.SampleID, r.BirthDate, r.DeathDate, err.Error())
+			fmt.Fprintf(os.Stderr, "%s: setting death_censor_age to enroll_age for %d (birthdate %s death date %s) because %s\n", diseaseName, r.SampleID, r.BirthDate, r.DeathDate, err.Error())
 
 			// UK Biobank uses impossible values (e.g., 1900-01-01) to indicate that
 			// the date is not known. See, e.g., FieldID 42000. This does not mean
@@ -131,6 +110,7 @@ func ExecuteQuery(BQ *WrappedBigQuery, query *bigquery.Query, diseaseName string
 			// be some legal value. Here, we set the age of incidence to be 0 years,
 			// and we set the date of incidence to be the birthdate.
 			censoredDeathAge = r.EnrollAge
+			r.DeathAgeDays = r.EnrollAgeDays
 			r.DeathDate = r.EnrollDate
 		}
 
