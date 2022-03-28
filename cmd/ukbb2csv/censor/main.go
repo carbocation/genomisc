@@ -53,6 +53,6 @@ func main() {
 
 	log.Println("Producing censoring table")
 	if err := Censor(BQ, deathCensorDateString, phenoCensorDateString, usePhenoTableDeath); err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Fatal error:", err)
 	}
 }

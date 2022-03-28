@@ -19,18 +19,18 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	BQ.Context = context.Background()
 	BQ.Client, err = bigquery.NewClient(BQ.Context, BQ.Project)
 	if err != nil {
-		log.Fatalln("Connecting to BigQuery:", err)
+		return fmt.Errorf("Connecting to BigQuery: %w", err)
 	}
 	defer BQ.Client.Close()
 
 	deathCensorDate, err := time.Parse("2006-01-02", deathCensorDateString)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	phenoCensorDate, err := time.Parse("2006-01-02", phenoCensorDateString)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	log.Printf("Censoring death at %v and missing phenotypes at %v\n", deathCensorDate, phenoCensorDate)
@@ -39,13 +39,13 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	// Must come first.
 	res, err = BigQuerySingleFieldFirst(BQ, 53)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	now := time.Now()
 	N := len(res)
 	log.Println("Found", N, "enrollment results")
 	if N == 0 {
-		log.Fatalln("No enrollment dates found. Incidence cannot be computed without an enrollment date (FieldID 53).")
+		return fmt.Errorf("No enrollment dates found. Incidence cannot be computed without an enrollment date (FieldID 53).")
 	}
 	for k, v := range res {
 		entry := out[k]
@@ -64,10 +64,10 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 	N, err = BQ.AddBirthYear(out)
 	log.Println("Found", N, "birth year results")
 	if N == 0 {
-		log.Fatalln("No birth years found. Ages cannot be computed without at least a birth year (FieldID 34).")
+		return fmt.Errorf("No birth years found. Ages cannot be computed without at least a birth year (FieldID 34).")
 	}
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	N, err = BQ.AddBirthMonth(out)
@@ -81,7 +81,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Println("Warning: 0 birth months found. Are you missing FieldID 52?")
 	}
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	N, err = BQ.AddLostDate(out)
@@ -95,7 +95,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Println("Warning: 0 dates for loss to followup found. Are you missing FieldID 191?")
 	}
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	if usePhenoTableDeath {
@@ -110,7 +110,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
 		}
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
 	} else {
 		N, err = BQ.AddDiedDate(out)
@@ -124,7 +124,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 			log.Println("Warning: 0 deaths found. Are you missing FieldID 40000?")
 		}
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
 	}
 
@@ -140,7 +140,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Println("Warning: sex or ethnicity not found. Are you missing FieldID 31 or 21000?")
 	}
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	N, err = BQ.AddPrimaryCareFlag(out)
@@ -154,7 +154,7 @@ func Censor(BQ *WrappedBigQuery, deathCensorDateString, phenoCensorDateString st
 		log.Println("Warning: 0 primary care registrations found. Are you missing FieldID 42038?")
 	}
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	// Print
@@ -219,6 +219,10 @@ func (BQ *WrappedBigQuery) AddBirthYear(out map[int64]CensorResult) (int, error)
 		return 0, err
 	}
 	N := len(res)
+
+	if N != len(out) {
+		return -1, fmt.Errorf("Found %d samples with a birth year, but expected %d", N, len(out))
+	}
 
 	for k, v := range res {
 		entry := out[k]
