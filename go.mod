@@ -3,6 +3,7 @@ module github.com/carbocation/genomisc
 go 1.18
 
 require (
+	cloud.google.com/go v0.81.0
 	cloud.google.com/go/bigquery v1.8.0
 	cloud.google.com/go/storage v1.15.0
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
@@ -13,6 +14,7 @@ require (
 	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
 	github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc
 	github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea
+	github.com/carbocation/runningvariance v0.0.0-20150817162428-fdcce8a03b6b
 	github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
 	github.com/disintegration/imaging v1.6.2
@@ -20,7 +22,6 @@ require (
 	github.com/fogleman/gg v1.3.0
 	github.com/glycerine/golang-fisher-exact v0.0.0-20160911222405-aea2106439d4
 	github.com/gobuffalo/packr v1.30.1
-	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/gorilla/mux v1.8.0
@@ -51,7 +52,6 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.81.0 // indirect
 	github.com/ByteArena/poly2tri-go v0.0.0-20170716161910-d102ad91854f // indirect
 	github.com/adrg/strutil v0.2.3 // indirect
 	github.com/adrg/sysfont v0.1.2 // indirect
@@ -68,7 +68,6 @@ require (
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab // indirect
 	github.com/gobuffalo/envy v1.7.0 // indirect
-	github.com/gobuffalo/logger v1.0.3 // indirect
 	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
@@ -83,12 +82,8 @@ require (
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/justinas/nosurf v1.1.1 // indirect
-	github.com/karrick/godirwalk v1.15.8 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.11.12 // indirect
-	github.com/markbates/errx v1.1.0 // indirect
-	github.com/markbates/oncer v1.0.0 // indirect
-	github.com/markbates/safe v1.0.1 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6 // indirect
 	github.com/meatballhat/negroni-logrus v0.0.0-20201129033903-bc51654b0848 // indirect
@@ -103,7 +98,6 @@ require (
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78 // indirect
