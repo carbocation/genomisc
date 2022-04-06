@@ -10,6 +10,7 @@ require (
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
 	github.com/brentp/irelate v0.0.1
+	github.com/carbocation/GLO v0.0.0-20220406163132-bf6b00b1c2c5
 	github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a
 	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
 	github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc
@@ -53,6 +54,7 @@ require (
 
 require (
 	github.com/ByteArena/poly2tri-go v0.0.0-20170716161910-d102ad91854f // indirect
+	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/adrg/strutil v0.2.3 // indirect
 	github.com/adrg/sysfont v0.1.2 // indirect
 	github.com/adrg/xdg v0.4.0 // indirect
