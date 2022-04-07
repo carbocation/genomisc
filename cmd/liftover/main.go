@@ -101,8 +101,8 @@ func main() {
 		if hasHeader {
 			origHeader = line
 			if appendOld {
-				origChrom := "ORIG_" + line[chromColID]
-				origPos := "ORIG_" + line[posColID]
+				origChrom := fromRef + "_" + line[chromColID]
+				origPos := fromRef + "_" + line[posColID]
 				line = append(line, origChrom, origPos)
 			}
 			fmt.Fprintln(bw, strings.Join(line, string(inputReader.Comma)))
