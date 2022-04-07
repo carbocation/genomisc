@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"strings"
 	"text/template"
@@ -10,8 +11,11 @@ import (
 	"cloud.google.com/go/bigquery"
 )
 
-//go:embed query_template.sql
-var queryTemplateString string
+//go:embed *.sql
+var embeddedQueryTemplates embed.FS
+
+// //go:embed query_template.sql
+// var queryTemplateString string
 
 // mkMap allows you to create a map within a template, so that you can pass more
 // than one parameter to a template block. Inspired by
@@ -27,9 +31,7 @@ func mkMap(args ...interface{}) map[interface{}]interface{} {
 	return out
 }
 
-var queryTemplate = template.Must(template.New("").Funcs(template.FuncMap(map[string]interface{}{"mkMap": mkMap})).Parse(queryTemplateString))
-
-func BuildQuery(BQ *WrappedBigQuery, displayQuery bool) (*bigquery.Query, error) {
+func BuildQuery(BQ *WrappedBigQuery, displayQuery bool, biobankSource string) (*bigquery.Query, error) {
 	params := []bigquery.QueryParameter{}
 
 	// Our query is dynamic, not static, so we assemble it from a text template,
@@ -37,6 +39,20 @@ func BuildQuery(BQ *WrappedBigQuery, displayQuery bool) (*bigquery.Query, error)
 	queryParts := map[string]interface{}{
 		// True variables
 		"database": BQ.Database,
+	}
+
+	// Fetch desired template from embedded resources
+	templateBytes, err := embeddedQueryTemplates.ReadFile(fmt.Sprintf("query_template_%s.sql", biobankSource))
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the selected template
+	queryTemplate, err := template.New("").
+		Funcs(template.FuncMap(map[string]interface{}{"mkMap": mkMap})).
+		Parse(string(templateBytes))
+	if err != nil {
+		return nil, err
 	}
 
 	// Assemble all the parts (execute the template)

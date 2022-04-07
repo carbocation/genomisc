@@ -31,6 +31,7 @@ type WrappedBigQuery struct {
 
 func main() {
 	var (
+		biobankSource         string
 		phenoCensorDateString string
 		deathCensorDateString string
 		usePhenoTableDeath    bool
@@ -44,6 +45,7 @@ func main() {
 	flag.BoolVar(&usePhenoTableDeath, "phenodeath", false, "Use phenotype table instead of the downloaded death table to define death? (Optional; default: use death table.)")
 	flag.BoolVar(&displayQuery, "display_query", false, "Display the query that will be run?")
 	flag.StringVar(&BQ.Database, "bigquery", "", "BigQuery source database name")
+	flag.StringVar(&biobankSource, "biobank_source", "ukbb", "")
 	flag.Parse()
 
 	if phenoCensorDateString == "" || deathCensorDateString == "" || BQ.Project == "" || BQ.Database == "" {
@@ -85,11 +87,20 @@ func main() {
 	}
 	defer BQ.Client.Close()
 
-	// build and execute the query
-	query, err := BuildQuery(BQ, displayQuery)
+	// build query
+	query, err := BuildQuery(BQ, displayQuery, biobankSource)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	// if displaying query, don't execute it
+	if displayQuery && query == nil {
+		return
+	} else if query == nil {
+		log.Fatalln("Query is unexpectedly nil")
+	}
+
+	// otherwise, execute query
 	if err := ExecuteQuery(BQ, query, deathCensorDate, phenoCensorDate); err != nil {
 		log.Fatalln(err)
 	}
