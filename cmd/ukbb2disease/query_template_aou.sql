@@ -133,8 +133,8 @@ death_dates AS (
         c.vocabulary_id,
         c.concept_code,
         MIN(co.condition_start_date) condition_start_date,
-    FROM `fc-aou-cdr-prod-ct.C2021Q3R6.condition_occurrence` co
-    JOIN `fc-aou-cdr-prod-ct.C2021Q3R6.concept` c ON c.concept_id = co.condition_source_concept_id
+    FROM `{{.database}}.condition_occurrence` co
+    JOIN `{{.database}}.concept` c ON c.concept_id = co.condition_source_concept_id
     WHERE TRUE
         AND c.vocabulary_id IN ('ICD9CM', 'ICD10CM')
     GROUP BY 
