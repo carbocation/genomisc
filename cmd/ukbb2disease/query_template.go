@@ -1,13 +1,13 @@
 package main
 
 import (
-	"text/template"
+	"embed"
 
 	_ "embed"
 )
 
-//go:embed query_template.sql
-var queryTemplateString string
+//go:embed *.sql
+var embeddedQueryTemplates embed.FS
 
 // mkMap allows you to create a map within a template, so that you can pass more
 // than one parameter to a template block. Inspired by
@@ -29,4 +29,3 @@ func mkMap(args ...interface{}) map[interface{}]interface{} {
 //
 // TODO: Resolve age_censor vs enroll_age. Choose one or the other (likely the
 // latter, so you end up with enroll_age, censor_age, death_censor_age).
-var queryTemplate = template.Must(template.New("").Funcs(template.FuncMap(map[string]interface{}{"mkMap": mkMap})).Parse(queryTemplateString))

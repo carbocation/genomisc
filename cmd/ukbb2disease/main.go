@@ -14,6 +14,10 @@ import (
 	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
+const (
+	BiobankSourceUKBiobank = "ukbb"
+)
+
 type WrappedBigQuery struct {
 	Context        context.Context
 	Client         *bigquery.Client
@@ -52,6 +56,7 @@ func main() {
 	var allowUndated bool
 	var diseaseName string
 	var verbose bool
+	var biobankSource string
 
 	flag.StringVar(&BQ.Project, "project", "", "Google Cloud project you want to use for billing purposes only")
 	flag.StringVar(&BQ.Database, "database", "", "BigQuery source database name (note: must be formatted as project.database, e.g., ukbb-analyses.ukbb7089_201904)")
@@ -62,6 +67,7 @@ func main() {
 	flag.BoolVar(&allowUndated, "allow-undated", false, "Force run, even if your tabfile has fields whose date is unknown (which will cause matching participants to be set to prevalent)?")
 	flag.BoolVar(&verbose, "verbose", false, "Print all ~ 2,000 fields whose dates are known?")
 	flag.StringVar(&diseaseName, "disease", "", "If not specified, the tabfile will be parsed and become the disease name.")
+	flag.StringVar(&biobankSource, "biobank_source", BiobankSourceUKBiobank, "")
 	flag.BoolVar(&BQ.UseGP, "usegp", false, "")
 	flag.Parse()
 
@@ -158,7 +164,7 @@ func main() {
 	}
 	defer BQ.Client.Close()
 
-	query, err := BuildQuery(BQ, tabs, displayQuery)
+	query, err := BuildQuery(BQ, tabs, displayQuery, biobankSource)
 	if err != nil {
 		log.Fatalln(diseaseName, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/carbocation/pfx"
@@ -148,7 +149,7 @@ func NA(input interface{}) interface{} {
 	return input
 }
 
-func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquery.Query, error) {
+func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool, biobankSource string) (*bigquery.Query, error) {
 	params := []bigquery.QueryParameter{}
 
 	// By default, if there is no undated query, pull no data (the query will be
@@ -167,7 +168,7 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 		for _, v := range includedValues {
 			includePart = includePart + fmt.Sprintf("\nOR (hd.FieldID = @IncludeParts%d AND hd.value IN UNNEST(@IncludeParts%d) )", i, i+1)
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i), Value: v.FieldID})
-			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i+1), Value: v.FormattedValues()})
+			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i+1), Value: v.FormattedValues(biobankSource)})
 			i += 2
 		}
 	}
@@ -179,7 +180,7 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 		for _, v := range exludedValues {
 			excludePart = excludePart + fmt.Sprintf("\nOR (hd.FieldID = @ExcludeParts%d AND hd.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i), Value: v.FieldID})
-			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i+1), Value: v.FormattedValues()})
+			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i+1), Value: v.FormattedValues(biobankSource)})
 			i += 2
 		}
 	}
@@ -198,7 +199,22 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool) (*bigquer
 		"excludePart":  excludePart,
 	}
 
-	// Assemble all the parts (execute the template)
+	// Assemble all the parts
+	// Fetch desired template from embedded resources
+	templateBytes, err := embeddedQueryTemplates.ReadFile(fmt.Sprintf("query_template_%s.sql", biobankSource))
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the selected template
+	queryTemplate, err := template.New("").
+		Funcs(template.FuncMap(map[string]interface{}{"mkMap": mkMap})).
+		Parse(string(templateBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	// (execute the template)
 	populatedQuery := &strings.Builder{}
 	if err := queryTemplate.Execute(populatedQuery, queryParts); err != nil {
 		return nil, err

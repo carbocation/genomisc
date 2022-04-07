@@ -20,11 +20,12 @@ type TabEntry struct {
 // The UK Biobank keys up the ICD and OPCS codes without any decimals, so e.g.,
 // K41.2 becomes K412. You can look up the true value using the coding table,
 // but for simplicity we just strip the dots.
-func (t TabEntry) FormattedValues() []string {
+func (t TabEntry) FormattedValues(biobankSource string) []string {
 	out := make([]string, 0, len(t.Values))
 
-	// HESIN is special-cased to exclude "." (So K41.2 becomes K412)
-	if IsHesin(t.FieldID) {
+	// In the UK Biobank HESIN data, fields are special-cased to exclude "." (So
+	// K41.2 becomes K412)
+	if biobankSource == BiobankSourceUKBiobank && IsHesin(t.FieldID) {
 		for _, v := range t.Values {
 			out = append(out, strings.Replace(v, ".", "", -1))
 		}
