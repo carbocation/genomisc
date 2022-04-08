@@ -14,10 +14,6 @@ import (
 	_ "github.com/carbocation/genomisc/compileinfoprint"
 )
 
-const (
-	BiobankSourceUKBiobank = "ukbb"
-)
-
 type WrappedBigQuery struct {
 	Context        context.Context
 	Client         *bigquery.Client
@@ -104,7 +100,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tabs, err := ParseTabFile(tabfile)
+	tabs, err := ParseTabFile(tabfile, biobankSource)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -140,7 +136,11 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, "Including:")
 	for _, v := range tabs.AllIncluded() {
-		fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
+		if DoesBiobankUseNumericFieldID(biobankSource) {
+			fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
+		} else {
+			fmt.Fprintf(os.Stderr, "\tFieldName %v values:\n", v.FieldName)
+		}
 		fmt.Fprintf(os.Stderr, "\t\t")
 		fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
 		fmt.Fprintf(os.Stderr, "\n")
@@ -149,7 +149,11 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, "Excluding:")
 	for _, v := range tabs.AllExcluded() {
-		fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
+		if DoesBiobankUseNumericFieldID(biobankSource) {
+			fmt.Fprintf(os.Stderr, "\tFieldID %v values:\n", v.FieldID)
+		} else {
+			fmt.Fprintf(os.Stderr, "\tFieldName %v values:\n", v.FieldName)
+		}
 		fmt.Fprintf(os.Stderr, "\t\t")
 		fmt.Fprintf(os.Stderr, "%s", strings.Join(v.Values, ", "))
 		fmt.Fprintf(os.Stderr, "\n")

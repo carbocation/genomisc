@@ -48,11 +48,11 @@ FROM (
 		MIN(c.missing_fields) missing_fields
 	FROM censor c
 	LEFT OUTER JOIN (
-        SELECT * FROM ukbb_first_occurrence
-        -- TODO: Add other data beyond ICD. E.g.:
-        -- UNION DISTINCT
-        -- SELECT * FROM ukbb_style_first_procedure
-     ) hd ON c.sample_id=hd.sample_id
+		SELECT * FROM ukbb_first_occurrence
+		-- TODO: Add other data beyond ICD. E.g.:
+		UNION DISTINCT
+		SELECT * FROM ukbb_first_procedure_occurrence
+	 ) hd ON c.sample_id=hd.sample_id
 	AND (
 		FALSE
 		{{/* The .includePart or .excludePart is passed here */}}
@@ -69,102 +69,130 @@ WITH
 --------------------------------------------------------------------------------
 death_dates AS (
   -- People can have multiple entries in the death table
-    SELECT
-        d.person_id,
-        MAX(d.death_date) death_date,
-    FROM `{{.database}}.death` d
-    GROUP BY person_id
+	SELECT
+		d.person_id,
+		MAX(d.death_date) death_date,
+	FROM `{{.database}}.death` d
+	GROUP BY person_id
 )
 , enrollment AS (
   -- We're given age at enrollment, but here we compute an estimated *date* at
   -- enrollment
   SELECT
-    cbsp.person_id,
-    DATE_ADD(cbsp.dob, INTERVAL CAST(ROUND(cbsp.age_at_cdr*365.25, 0) AS INT64) DAY) enrolled, 
+	cbsp.person_id,
+	DATE_ADD(cbsp.dob, INTERVAL CAST(ROUND(cbsp.age_at_cdr*365.25, 0) AS INT64) DAY) enrolled, 
   FROM `{{.database}}.cb_search_person` cbsp
 )
 , censor_query AS (
-    SELECT 
-        p.person_id sample_id,
-        e.enrolled,
-        CAST(p.year_of_birth AS STRING) born_year,
-        CAST(p.month_of_birth AS STRING) born_month,
-        CAST(NULL AS DATE) lost,
-        CASE WHEN cbsp.has_ehr_data IS NULL THEN FALSE ELSE cbsp.has_ehr_data >= 1 END has_primary_care_data,
-        cbsp.sex_at_birth sex,
-        CONCAT(cbsp.race, '|', cbsp.ethnicity) ethnicity,
-        d.death_date died,
-        -- Extension
-        CAST(p.birth_datetime AS DATE) birthdate,
-    FROM `{{.database}}.person` p
-    LEFT JOIN `{{.database}}.cb_search_person` cbsp USING(person_id)
-    LEFT JOIN death_dates d USING(person_id)
-    LEFT JOIN enrollment e USING(person_id)
+	SELECT 
+		p.person_id sample_id,
+		e.enrolled,
+		CAST(p.year_of_birth AS STRING) born_year,
+		CAST(p.month_of_birth AS STRING) born_month,
+		CAST(NULL AS DATE) lost,
+		CASE WHEN cbsp.has_ehr_data IS NULL THEN FALSE ELSE cbsp.has_ehr_data >= 1 END has_primary_care_data,
+		cbsp.sex_at_birth sex,
+		CONCAT(cbsp.race, '|', cbsp.ethnicity) ethnicity,
+		d.death_date died,
+		-- Extension
+		CAST(p.birth_datetime AS DATE) birthdate,
+	FROM `{{.database}}.person` p
+	LEFT JOIN `{{.database}}.cb_search_person` cbsp USING(person_id)
+	LEFT JOIN death_dates d USING(person_id)
+	LEFT JOIN enrollment e USING(person_id)
 )
 -- Mimicking the precomputed censor table
 , censor AS (
-    SELECT 
-        sample_id,
-        CAST(NULL AS STRING) missing_fields,
-        CURRENT_DATE() computed_date,
-        birthdate,
-        enrolled enroll_date,
-        SAFE.DATE_DIFF(enrolled, birthdate, DAY)/1.0 enroll_age_days,
-        SAFE.DATE_DIFF(enrolled, birthdate, DAY)/365.25 enroll_age,
-        died death_date,
-        SAFE.DATE_DIFF(died, birthdate, DAY)/1.0 death_age_days,
-        SAFE.DATE_DIFF(died, birthdate, DAY)/365.25 death_age,
-        -- TODO: this date needs to be a query parameter
-        PARSE_DATE("%F", "2021-04-01") phenotype_censor_date,
-        SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/1.0 phenotype_censor_age_days,
-        SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/365.25 phenotype_censor_age,
-        -- TODO: this date needs to be a query parameter
-        PARSE_DATE("%F", "2021-04-01") death_censor_date,
-        SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/1.0 death_censor_age_days,
-        SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/365.25 death_censor_age,
-    FROM censor_query
+	SELECT 
+		sample_id,
+		CAST(NULL AS STRING) missing_fields,
+		CURRENT_DATE() computed_date,
+		birthdate,
+		enrolled enroll_date,
+		SAFE.DATE_DIFF(enrolled, birthdate, DAY)/1.0 enroll_age_days,
+		SAFE.DATE_DIFF(enrolled, birthdate, DAY)/365.25 enroll_age,
+		died death_date,
+		SAFE.DATE_DIFF(died, birthdate, DAY)/1.0 death_age_days,
+		SAFE.DATE_DIFF(died, birthdate, DAY)/365.25 death_age,
+		-- TODO: this date needs to be a query parameter
+		PARSE_DATE("%F", "2021-04-01") phenotype_censor_date,
+		SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/1.0 phenotype_censor_age_days,
+		SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/365.25 phenotype_censor_age,
+		-- TODO: this date needs to be a query parameter
+		PARSE_DATE("%F", "2021-04-01") death_censor_date,
+		SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/1.0 death_censor_age_days,
+		SAFE.DATE_DIFF(PARSE_DATE("%F", "2021-04-01"), birthdate, DAY)/365.25 death_censor_age,
+	FROM censor_query
 )
 --------------------------------------------------------------------------------
 -- Usual ukbb2disease CTE queries
 --------------------------------------------------------------------------------
 , first_occurrence AS (
-    SELECT 
-        co.person_id, 
-        c.vocabulary_id,
-        c.concept_code,
-        MIN(co.condition_start_date) condition_start_date,
-    FROM `{{.database}}.condition_occurrence` co
-    JOIN `{{.database}}.concept` c ON c.concept_id = co.condition_source_concept_id
-    WHERE TRUE
-        AND c.vocabulary_id IN ('ICD9CM', 'ICD10CM')
-    GROUP BY 
-        person_id, 
-        vocabulary_id,
-        concept_code
+	SELECT 
+		co.person_id, 
+		c.vocabulary_id,
+		c.concept_code,
+		MIN(co.condition_start_date) condition_start_date,
+	FROM `{{.database}}.condition_occurrence` co
+	JOIN `{{.database}}.concept` c ON (c.concept_id = co.condition_concept_id OR c.concept_id = co.condition_source_concept_id)
+	WHERE TRUE
+		AND c.vocabulary_id IN ('ICD9CM', 'ICD10CM', 'SNOMED')
+	GROUP BY 
+		person_id, 
+		vocabulary_id,
+		concept_code
 )
 , ukbb_first_occurrence AS (
-    -- Here we simulate the structure that we use for UK Biobank to faciliate
-    -- the use of tools that expect that format. We assign ICD9CM codes to the
-    -- UK Biobank FieldID for ICD9, and the ICD10CM codes to the UK Biobank
-    -- FieldID for ICD10. Even though, note, that the -CM codes can differ
-    -- somewhat from the non-CM codes used in UK Biobank.
-    SELECT
-        person_id sample_id,
-        CASE 
-            WHEN vocabulary_id = 'ICD9CM' THEN 41203
-            WHEN vocabulary_id = 'ICD10CM' THEN 41202
-            ELSE NULL
-        END FieldID,
-        -- Since the UK Biobank ICD9 and ICD10 fields strip out the ".", one
-        -- approach would be to do the same for other datasets. But the approach
-        -- I'm taking for now for non-UK Biobank datasets is to require that the
-        -- tabfiles be properly formatted (i.e., include the "." where it is
-        -- supposed to be in an ICD code).
-        -- 
-        -- REPLACE(concept_code, '.', '') value,
-        concept_code value,
-        condition_start_date first_date,
-    FROM first_occurrence
+	-- Here we simulate the structure that we use for UK Biobank to faciliate
+	-- the use of tools that expect that format. We assign ICD9CM codes to the
+	-- UK Biobank FieldID for ICD9, and the ICD10CM codes to the UK Biobank
+	-- FieldID for ICD10. Even though, note, that the -CM codes can differ
+	-- somewhat from the non-CM codes used in UK Biobank.
+	SELECT
+		person_id sample_id,
+		-- Note that the field types are strings, not integers, so we refer to
+		-- FieldName rather than FieldID.
+		vocabulary_id FieldName, -- E.g., 'ICD9CM' or 'SNOMED'
+		-- CASE 
+		--     WHEN vocabulary_id = 'ICD9CM' THEN 41203
+		--     WHEN vocabulary_id = 'ICD10CM' THEN 41202
+		--     ELSE NULL
+		-- END FieldID,
+		-- Since the UK Biobank ICD9 and ICD10 fields strip out the ".", one
+		-- approach would be to do the same for other datasets. But the approach
+		-- I'm taking for now for non-UK Biobank datasets is to require that the
+		-- tabfiles be properly formatted (i.e., include the "." where it is
+		-- supposed to be in an ICD code).
+		-- 
+		-- REPLACE(concept_code, '.', '') value,
+		concept_code value,
+		condition_start_date first_date,
+	FROM first_occurrence
+)
+, first_procedure_occurrence AS (
+	SELECT 
+		co.person_id, 
+		c.vocabulary_id,
+		c.concept_code,
+		MIN(co.procedure_date) condition_start_date,
+	FROM `{{.database}}.procedure_occurrence` co
+	JOIN `{{.database}}.concept` c ON (c.concept_id = co.procedure_concept_id OR c.concept_id = co.procedure_source_concept_id)
+	WHERE TRUE
+		AND c.vocabulary_id IN ('ICD9Proc', 'ICD10PCS', 'SNOMED', 'CPT4')
+	GROUP BY 
+		person_id, 
+		vocabulary_id,
+		concept_code
+)
+, ukbb_first_procedure_occurrence AS (
+	SELECT
+		person_id sample_id,
+		-- Note that the field types are strings, not integers, so we refer to
+		-- FieldName rather than FieldID.
+		vocabulary_id FieldName, -- E.g., 'ICD9CM' or 'SNOMED'
+		concept_code value,
+		condition_start_date first_date,
+	FROM first_procedure_occurrence
 )
 , included_only AS (
 	{{template "include_exclude" (mkMap "g" . "whichPart" .includePart)}}

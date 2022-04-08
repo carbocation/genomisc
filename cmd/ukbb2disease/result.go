@@ -166,8 +166,17 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool, biobankSo
 	if len(includedValues) > 0 {
 		i := 0
 		for _, v := range includedValues {
-			includePart = includePart + fmt.Sprintf("\nOR (hd.FieldID = @IncludeParts%d AND hd.value IN UNNEST(@IncludeParts%d) )", i, i+1)
-			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i), Value: v.FieldID})
+			// The field key specificier (e.g., "ICD" or 42000) depends on
+			// whether the biobank uses numeric field IDs or not. However, the
+			// paired field value parameter is always a string. The same
+			// explanation is true for the exclusion portion below.
+			if DoesBiobankUseNumericFieldID(biobankSource) {
+				includePart = includePart + fmt.Sprintf("\nOR (hd.FieldID = @IncludeParts%d AND hd.value IN UNNEST(@IncludeParts%d) )", i, i+1)
+				params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i), Value: v.FieldID})
+			} else {
+				includePart = includePart + fmt.Sprintf("\nOR (hd.FieldName = @IncludeParts%d AND hd.value IN UNNEST(@IncludeParts%d) )", i, i+1)
+				params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i), Value: v.FieldName})
+			}
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("IncludeParts%d", i+1), Value: v.FormattedValues(biobankSource)})
 			i += 2
 		}
@@ -178,8 +187,13 @@ func BuildQuery(BQ *WrappedBigQuery, tabs *TabFile, displayQuery bool, biobankSo
 	if len(exludedValues) > 0 {
 		i := 0
 		for _, v := range exludedValues {
-			excludePart = excludePart + fmt.Sprintf("\nOR (hd.FieldID = @ExcludeParts%d AND hd.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
-			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i), Value: v.FieldID})
+			if DoesBiobankUseNumericFieldID(biobankSource) {
+				excludePart = excludePart + fmt.Sprintf("\nOR (hd.FieldID = @ExcludeParts%d AND hd.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
+				params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i), Value: v.FieldID})
+			} else {
+				excludePart = excludePart + fmt.Sprintf("\nOR (hd.FieldName = @ExcludeParts%d AND hd.value IN UNNEST(@ExcludeParts%d) )", i, i+1)
+				params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i), Value: v.FieldName})
+			}
 			params = append(params, bigquery.QueryParameter{Name: fmt.Sprintf("ExcludeParts%d", i+1), Value: v.FormattedValues(biobankSource)})
 			i += 2
 		}

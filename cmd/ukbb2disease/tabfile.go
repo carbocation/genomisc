@@ -12,9 +12,10 @@ import (
 )
 
 type TabEntry struct {
-	FieldID int
-	Values  []string
-	Exclude bool
+	FieldID   int
+	FieldName string
+	Values    []string
+	Exclude   bool
 }
 
 // The UK Biobank keys up the ICD and OPCS codes without any decimals, so e.g.,
@@ -210,22 +211,27 @@ func (t *TabFile) CheckUndatedFields() ([]int, error) {
 	return stdFields, fmt.Errorf("The following fields are not recognized as having a date: %+v. Currently, if matched, they will cause the person to have *prevalent* disease only and will prevent them from having incident disease. If this is in error, please contact the maintainer of this software", stdFields)
 }
 
+type dupeCheckKey struct {
+	FieldID   int
+	FieldName string
+}
+
 func consolidateDuplicates(list []TabEntry) ([]TabEntry, error) {
-	outputMap := make(map[int]TabEntry)
+	outputMap := make(map[dupeCheckKey]TabEntry)
 
 	// Consolidate so that each ID is seen in only one TabEntry, which may still
 	// have duplicate values
 	for _, row := range list {
-		field, exists := outputMap[row.FieldID]
+		field, exists := outputMap[dupeCheckKey{row.FieldID, row.FieldName}]
 		if !exists {
 			field = row
-			outputMap[row.FieldID] = field
+			outputMap[dupeCheckKey{row.FieldID, row.FieldName}] = field
 			continue
 		}
 		mixedList := field.Values
 		mixedList = append(mixedList, row.Values...)
 		field.Values = mixedList
-		outputMap[row.FieldID] = field
+		outputMap[dupeCheckKey{row.FieldID, row.FieldName}] = field
 	}
 
 	// Now consolidate values within each ID, so that each ID will only see each
@@ -299,7 +305,7 @@ func (t *TabFile) consolidateDuplicates() error {
 
 // ParseTabFile consumes a tabfile and returns our machine representation of
 // that file
-func ParseTabFile(tabPath string) (*TabFile, error) {
+func ParseTabFile(tabPath, biobankSource string) (*TabFile, error) {
 	f, err := os.Open(tabPath)
 	if err != nil {
 		return nil, err
@@ -330,15 +336,22 @@ func ParseTabFile(tabPath string) (*TabFile, error) {
 			Values:  strings.Split(row[1], ","),
 			Exclude: row[2] == "1",
 		}
-		entry.FieldID, err = strconv.Atoi(row[0])
-		if err != nil {
-			return nil, err
+
+		if DoesBiobankUseNumericFieldID(biobankSource) {
+			entry.FieldID, err = strconv.Atoi(row[0])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			entry.FieldName = row[0]
 		}
 
 		// Assign to the right field type
 		switch entry.Exclude {
 		case true:
-			if IsHesin(entry.FieldID) {
+			// For now, treat all non-numeric field types (e.g., 'ICD10CM') as
+			// if they have an associated date.
+			if IsHesin(entry.FieldID) || !DoesBiobankUseNumericFieldID(biobankSource) {
 				output.Exclude.Hesin = append(output.Exclude.Hesin, entry)
 			} else if IsSpecial(entry.FieldID) {
 				output.Exclude.Special = append(output.Exclude.Special, entry)
@@ -346,7 +359,9 @@ func ParseTabFile(tabPath string) (*TabFile, error) {
 				output.Exclude.Standard = append(output.Exclude.Standard, entry)
 			}
 		default:
-			if IsHesin(entry.FieldID) {
+			// For now, treat all non-numeric field types (e.g., 'ICD10CM') as
+			// if they have an associated date.
+			if IsHesin(entry.FieldID) || !DoesBiobankUseNumericFieldID(biobankSource) {
 				output.Include.Hesin = append(output.Include.Hesin, entry)
 			} else if IsSpecial(entry.FieldID) {
 				output.Include.Special = append(output.Include.Special, entry)
