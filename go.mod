@@ -14,9 +14,9 @@ require (
 	github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a
 	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
 	github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc
-	github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea
+	github.com/carbocation/pfx v0.0.0-20210408121254-ad6c6d3ac2f0
 	github.com/carbocation/runningvariance v0.0.0-20150817162428-fdcce8a03b6b
-	github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d
+	github.com/carbocation/vcfgo v0.0.0-20200314161059-d5dc8a644c8a
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
 	github.com/disintegration/imaging v1.6.2
 	github.com/extrame/xls v0.0.1

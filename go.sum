@@ -108,12 +108,14 @@ github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31 h1:SDMgCFII5d
 github.com/carbocation/handlers v0.0.0-20140528190747-c939c6d9ef31/go.mod h1:iGISoFvZYz358DFlmHvYFlh4CgRdzPLXB2NJE48x6lY=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3 h1:RtCys6GUprNaPOP04Zuo65wS10PMbSPPZNvIb9xYYLE=
 github.com/carbocation/interpose v0.0.0-20161206215253-723534742ba3/go.mod h1:4PGcghc3ZjA/uozANO8lCHo/gnHyMsm8iFYppSkVE/M=
-github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea h1:6yY+5KdWRWXrnUOWGpu7V468Ib9yQJDJBmDAVBFLKrM=
 github.com/carbocation/pfx v0.0.0-20170506025114-9d1550a512ea/go.mod h1:blyZVy/xxFP68VyTV39Olio+z1I234JG41kvqPIA/wM=
+github.com/carbocation/pfx v0.0.0-20210408121254-ad6c6d3ac2f0 h1:8icaFr15W5N+QQMYFMNGZ3TR+4y//+Y2PDBjUum9kLk=
+github.com/carbocation/pfx v0.0.0-20210408121254-ad6c6d3ac2f0/go.mod h1:blyZVy/xxFP68VyTV39Olio+z1I234JG41kvqPIA/wM=
 github.com/carbocation/runningvariance v0.0.0-20150817162428-fdcce8a03b6b h1:eIkvWftzb2qqxmQxxh9Kgqv+uKPgO3Q/LfmtWBA9VJw=
 github.com/carbocation/runningvariance v0.0.0-20150817162428-fdcce8a03b6b/go.mod h1:qwhZOoE0xBYowvDRZxTqRQYr8Bk1gZzwuiVnLL+d+Hk=
-github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d h1:m4hBORFhIgQedvMYMf0f+bD1PyUZFQ4NIX4Rp4aisGM=
 github.com/carbocation/vcfgo v0.0.0-20190824021612-654ed2e5945d/go.mod h1:9BVYmRbN3yJcYfg9F0YQi4BEMSqphj2ZYfwaYFoOVJA=
+github.com/carbocation/vcfgo v0.0.0-20200314161059-d5dc8a644c8a h1:v1rJOnESjA/8qb+DGXGPqe8YsazgCxHwCKHhAqTgEOM=
+github.com/carbocation/vcfgo v0.0.0-20200314161059-d5dc8a644c8a/go.mod h1:9BVYmRbN3yJcYfg9F0YQi4BEMSqphj2ZYfwaYFoOVJA=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927/go.mod h1:h/aW8ynjgkuj+NQRlZcDbAbM1ORAbXjXX77sX7T289U=

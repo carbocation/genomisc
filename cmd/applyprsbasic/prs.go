@@ -21,6 +21,11 @@ type ChrPos struct {
 	SNP        string
 }
 
+type PRSSitesOnChrom struct {
+	Chrom    string
+	PRSSites []prsparser.PRS
+}
+
 // LoadPRS is ***not*** safe for concurrent access from multiple goroutines
 func LoadPRS(prsPath, layout string, alwaysIncrement bool) error {
 	parser, err := prsparser.New(layout)
@@ -136,4 +141,52 @@ func ChromosomalPRS(currentVariantScoreLookup map[ChrPos]prsparser.PRS) map[stri
 	}
 
 	return output
+}
+
+// splitter parallelizes the computation. Each separate goroutine will process a
+// set of sites. Each goroutine will have its own BGEN and BGI filehandles.
+func splitter(chromosomalPRS map[string][]prsparser.PRS, chunkSize int) []PRSSitesOnChrom {
+	out := make([]PRSSitesOnChrom, 0)
+
+	var subChunk PRSSitesOnChrom
+
+	// For each chromosome
+	for chrom, prsSites := range chromosomalPRS {
+		if subChunk.Chrom == "" {
+			// We are initializing from scratch
+			subChunk.Chrom = chrom
+			subChunk.PRSSites = make([]prsparser.PRS, 0, chunkSize)
+		}
+
+		if subChunk.Chrom != chrom {
+			// We have moved to a new chromosome
+			out = append(out, subChunk)
+			subChunk = PRSSitesOnChrom{
+				Chrom:    chrom,
+				PRSSites: make([]prsparser.PRS, 0, chunkSize),
+			}
+		}
+
+		// Within this chromosome, add sites into different chunks
+		for k, prsSite := range prsSites {
+			subChunk.PRSSites = append(subChunk.PRSSites, prsSite)
+
+			// But if we have iterated to our chunk size, then create a new
+			// chunk
+			if k > 0 && k%chunkSize == 0 {
+				out = append(out, subChunk)
+				subChunk = PRSSitesOnChrom{
+					Chrom:    chrom,
+					PRSSites: make([]prsparser.PRS, 0, chunkSize),
+				}
+			}
+		}
+	}
+
+	// Clean up at the end
+	if subChunk.Chrom != "" {
+		out = append(out, subChunk)
+	}
+
+	return out
 }
