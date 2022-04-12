@@ -63,6 +63,7 @@ func main() {
 		customLayout     string
 		samplePath       string
 		alwaysIncrement  bool
+		stripPRSChrom    bool
 		maxConcurrency   int
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol,SNPCol. Either PositionCol or SNPCol (but not both) may be set to -1, indicating that it is not present.")
@@ -75,6 +76,7 @@ func main() {
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
 	flag.StringVar(&samplePath, "sample", "", "Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
 	flag.BoolVar(&alwaysIncrement, "alwaysincrement", true, "If true, flips effect (and effect allele) at sites with negative effect sizes so that scores will always be > 0.")
+	flag.BoolVar(&stripPRSChrom, "stripprschr", true, "If true, strips the 'chr' or 'chrom' prefix from the PRS file's chromosome names before processing.")
 	flag.IntVar(&maxConcurrency, "maxconcurrency", 0, "(Optional) If greater than 0, will only parallelize to maxConcurrency parallel processes, insted of 2*number of cores (the default).")
 	flag.Parse()
 
@@ -127,8 +129,10 @@ func main() {
 			}
 
 			// ... remove common prefixes from the chomosome column
-			p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chrom_")
-			p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chr")
+			if stripPRSChrom {
+				p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chrom_")
+				p.Chromosome = strings.TrimPrefix(row[layout.ColChromosome], "chr")
+			}
 
 			return p, pfx.Err(err)
 		}
