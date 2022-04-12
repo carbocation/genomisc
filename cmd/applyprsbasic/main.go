@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -62,19 +63,23 @@ func main() {
 		sourceFile       string
 		customLayout     string
 		samplePath       string
+		outFilePath      string
+		prsReportPath    string
 		alwaysIncrement  bool
 		stripPRSChrom    bool
 		maxConcurrency   int
 	)
 	flag.StringVar(&customLayout, "custom-layout", "", "Optional: a PRS layout with 0-based columns as follows: EffectAlleleCol,Allele1Col,Allele2Col,ChromosomeCol,PositionCol,ScoreCol,SNPCol. Either PositionCol or SNPCol (but not both) may be set to -1, indicating that it is not present.")
-	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number")
+	flag.StringVar(&bgenTemplatePath, "bgen-template", "", "Templated path to bgen with %s in place of its chromosome number. Either --vcf-template or --bgen-template must be set.")
 	flag.StringVar(&bgiTemplatePath, "bgi-template", "", "Optional: Templated path to bgi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.bgi'")
-	flag.StringVar(&vcfTemplatePath, "vcf-template", "", "Templated path to vcf with %s in place of its chromosome number.")
+	flag.StringVar(&vcfTemplatePath, "vcf-template", "", "Templated path to vcf. May have %s in place of a chromosome number. Either --vcf-template or --bgen-template must be set.")
 	flag.StringVar(&vcfiTemplatePath, "vcfi-template", "", "Optional: Templated path to vcfi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.vcf.gz'")
 	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
-	flag.StringVar(&samplePath, "sample", "", "Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
+	flag.StringVar(&samplePath, "sample", "", "Optional: Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
+	flag.StringVar(&outFilePath, "out", "", "Optional: Path to output file. If empty, emits to STDOUT")
+	flag.StringVar(&prsReportPath, "prs-report", "", "Optional: Path to PRS report file. If not empty, will produce information about sites in the PRS. Currently only implemented for VCF data.")
 	flag.BoolVar(&alwaysIncrement, "alwaysincrement", true, "If true, flips effect (and effect allele) at sites with negative effect sizes so that scores will always be > 0.")
 	flag.BoolVar(&stripPRSChrom, "stripprschr", true, "If true, strips the 'chr' or 'chrom' prefix from the PRS file's chromosome names before processing.")
 	flag.IntVar(&maxConcurrency, "maxconcurrency", 0, "(Optional) If greater than 0, will only parallelize to maxConcurrency parallel processes, insted of 2*number of cores (the default).")
@@ -160,6 +165,38 @@ func main() {
 		prsparser.Layouts["CUSTOM"] = udf
 	}
 
+	var OutputWriterPipe io.Writer
+	if outFilePath != "" {
+		f, err := os.Create(outFilePath)
+		if err != nil {
+			log.Fatalf("Could not create output file %q: %v", outFilePath, err)
+		}
+		defer f.Close()
+
+		bw := bufio.NewWriterSize(f, BufferSize)
+		defer bw.Flush()
+
+		OutputWriterPipe = bw
+	} else {
+		OutputWriterPipe = STDOUT
+	}
+
+	var PRSStatusWriterPipe io.Writer
+	if prsReportPath != "" {
+		f, err := os.Create(prsReportPath)
+		if err != nil {
+			log.Fatalf("Could not create PRS report file %q: %v", prsReportPath, err)
+		}
+		defer f.Close()
+
+		bw := bufio.NewWriterSize(f, BufferSize)
+		defer bw.Flush()
+
+		PRSStatusWriterPipe = bw
+	} else {
+		PRSStatusWriterPipe = io.Discard
+	}
+
 	// Connect to Google Storage if requested
 	if strings.HasPrefix(inputBucket, "gs://") ||
 		strings.HasPrefix(samplePath, "gs://") ||
@@ -184,7 +221,7 @@ func main() {
 		break
 	}
 
-	chromosomalPRS := ChromosomalPRS(currentVariantScoreLookup)
+	chromosomalPRS := ChromosomalPRS()
 
 	// Increase parallelism. The goal is to split the job into 2 * sqrt(jobs)
 	// chunks of tasks, or ncpu chunks of tasks, whichever is lower.
@@ -205,8 +242,13 @@ func main() {
 
 	log.Println("Split into", len(chromosomalPRSChunks), "chunks")
 
+	type chunkResult struct {
+		scores   []Sample
+		prsFacts []PRSFact
+	}
+
 	wg := sync.WaitGroup{}
-	scoreChan := make(chan []Sample)
+	scoreChan := make(chan chunkResult)
 	taskCount := 0
 
 	go func() {
@@ -228,7 +270,7 @@ func main() {
 	for whichChunk, chromsomalPRSChunk := range chromosomalPRSChunks {
 		taskCount++
 		wg.Add(1)
-		go func(whichChunk int, chromosome string, chromosomalSites []prsparser.PRS, scoreChan chan []Sample) {
+		go func(whichChunk int, chromosome string, chromosomalSites []prsparser.PRS, scoreChan chan chunkResult) {
 
 			switch {
 			case bgenTemplatePath != "":
@@ -236,13 +278,13 @@ func main() {
 				if err != nil {
 					log.Fatalln(err)
 				}
-				scoreChan <- subScore
+				scoreChan <- chunkResult{scores: subScore, prsFacts: nil}
 			case vcfTemplatePath != "":
-				subScore, err := scoreVCF(whichChunk, chromosome, chromosomalSites, vcfTemplatePath, vcfiTemplatePath)
+				subScore, prsFacts, err := scoreVCF(whichChunk, chromosome, chromosomalSites, vcfTemplatePath, vcfiTemplatePath)
 				if err != nil {
 					log.Fatalln(err)
 				}
-				scoreChan <- subScore
+				scoreChan <- chunkResult{scores: subScore, prsFacts: prsFacts}
 			}
 		}(whichChunk, chromsomalPRSChunk.Chrom, chromsomalPRSChunk.PRSSites, scoreChan)
 	}
@@ -251,16 +293,45 @@ func main() {
 
 	// Accumulate
 	score := make([]Sample, 0)
+	fmt.Fprintln(PRSStatusWriterPipe, strings.Join([]string{"chr", "pos", "effect_allele", "allele1", "allele2", "site_ea", "site_nea", "weight", "n_samples_scorable", "n_samples_scored"}, "\t"))
 	go func() {
 		for i := 0; i < taskCount; i++ {
-			scores := <-scoreChan
+			res := <-scoreChan
 
 			if len(score) == 0 {
-				score = append(score, scores...)
+				score = append(score, res.scores...)
 			} else {
-				for k, v := range scores {
+				for k, v := range res.scores {
 					score[k].NIncremented += v.NIncremented
 					score[k].SumScore += v.SumScore
+				}
+			}
+
+			if res.prsFacts != nil {
+				for _, prsFact := range res.prsFacts {
+					fmt.Fprintf(PRSStatusWriterPipe,
+						strings.Join([]string{
+							"%s",
+							"%d",
+							"%s",
+							"%s",
+							"%s",
+							"%s",
+							"%s",
+							"%f",
+							"%d",
+							"%d",
+						}, "\t")+"\n",
+						prsFact.Chromosome,
+						prsFact.Position,
+						prsFact.EffectAllele,
+						prsFact.Allele1,
+						prsFact.Allele2,
+						prsFact.SiteEA,
+						prsFact.SiteNEA,
+						prsFact.Score,
+						prsFact.Scorable,
+						prsFact.Scored)
 				}
 			}
 
@@ -272,7 +343,7 @@ func main() {
 	wg.Wait()
 
 	// Header
-	fmt.Printf("sample_id\tsource\tscore\tn_incremented\n")
+	fmt.Fprintf(OutputWriterPipe, "sample_id\tsource\tscore\tn_incremented\n")
 
 	// Create a row-number-to-sample-ID mapping
 	var sampleFileContentsLookup func(int) string
@@ -302,7 +373,7 @@ func main() {
 	for fileRow, v := range score {
 		sampleID := sampleFileContentsLookup(fileRow)
 
-		fmt.Fprintf(STDOUT, "%s\t%s\t%f\t%d\n", sampleID, sourceFile, v.SumScore, v.NIncremented)
+		fmt.Fprintf(OutputWriterPipe, "%s\t%s\t%f\t%d\n", sampleID, sourceFile, v.SumScore, v.NIncremented)
 	}
 
 }

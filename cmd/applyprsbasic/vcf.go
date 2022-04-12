@@ -35,7 +35,7 @@ func (tl TabixLocus) End() uint32 {
 	return uint32(tl.end)
 }
 
-func scoreVCF(whichChunk int, chromosome string, chromosomalSites []prsparser.PRS, vcfTemplatePath, vcfiTemplatePath string) ([]Sample, error) {
+func scoreVCF(whichChunk int, chromosome string, chromosomalSites []prsparser.PRS, vcfTemplatePath, vcfiTemplatePath string) ([]Sample, []PRSFact, error) {
 	vcfFile := vcfTemplatePath
 	if strings.Contains(vcfTemplatePath, "%") {
 		vcfFile = fmt.Sprintf(vcfTemplatePath, chromosome)
@@ -44,7 +44,7 @@ func scoreVCF(whichChunk int, chromosome string, chromosomalSites []prsparser.PR
 
 	out, err := VCFInitializeSampleList(vcfFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tabixLocus := TabixLocus{
@@ -64,18 +64,19 @@ func scoreVCF(whichChunk int, chromosome string, chromosomalSites []prsparser.PR
 	// Exit early if we have no sites to iterate over
 	if tabixLocus.end == -1 {
 		// log.Printf("Chunk %d had no sites to iterate over (%v)\n", whichChunk, tabixLocus)
-		return out, nil
+		return out, nil, nil
 	}
 
 	log.Printf("Seeking sites in %v for chunk %d\n", tabixLocus, whichChunk)
 
 	// for _, prsForSNP := range chromosomalSites {
-	if err := ReadTabixVCF(vcfFile, []TabixLocus{tabixLocus}, &out); err != nil {
-		return nil, err
+	prsFacts, err := ReadTabixVCF(vcfFile, []TabixLocus{tabixLocus}, &out)
+	if err != nil {
+		return nil, nil, err
 	}
 	// }
 
-	return out, nil
+	return out, prsFacts, nil
 }
 
 func VCFInitializeSampleList(vcfFile string) ([]Sample, error) {
@@ -112,18 +113,20 @@ func VCFInitializeSampleList(vcfFile string) ([]Sample, error) {
 	return out, nil
 }
 
-func ReadTabixVCF(vcfFile string, loci []TabixLocus, scores *[]Sample) error {
+func ReadTabixVCF(vcfFile string, loci []TabixLocus, scores *[]Sample) ([]PRSFact, error) {
 	tbx, err := bix.NewGCP(vcfFile, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tbx.Close()
+
+	prsFacts := make([]PRSFact, 0)
 
 	j := 0
 	for _, locus := range loci {
 		vals, err := tbx.Query(locus)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		// defer vals.Close()
 
@@ -132,7 +135,7 @@ func ReadTabixVCF(vcfFile string, loci []TabixLocus, scores *[]Sample) error {
 			v, err := vals.Next()
 			if err != nil && err != io.EOF {
 				// True error
-				return err
+				return nil, err
 			} else if err == io.EOF {
 				// Finished all data.
 				break
@@ -142,30 +145,34 @@ func ReadTabixVCF(vcfFile string, loci []TabixLocus, scores *[]Sample) error {
 
 			v2, ok := v.(interfaces.VarWrap)
 			if !ok {
-				return fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid VarWrap")
+				return nil, fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid VarWrap")
 			}
 
 			snp, ok := v2.IVariant.(*vcfgo.Variant)
 			if !ok {
-				return fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid IVariant")
+				return nil, fmt.Errorf(v.Chrom(), v.Source(), v.End(), "Not valid IVariant")
 			}
 
 			if err := tbx.VReader.Header.ParseSamples(snp); err != nil {
-				return err
+				return nil, err
 			}
 
-			if err := ProcessOneVariantVCF(snp, scores); err != nil {
-				return err
+			prsFact, err := ProcessOneVariantVCF(snp, scores)
+			if err != nil {
+				return nil, err
+			}
+			if prsFact != (PRSFact{}) {
+				prsFacts = append(prsFacts, prsFact)
 			}
 		}
 		// vals.Close()
 	}
 	// log.Printf("Processed %d variants.\n", j)
 
-	return nil
+	return prsFacts, nil
 }
 
-func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) error {
+func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) (PRSFact, error) {
 	nonNilErr := ErrorInfo{Message: "", Chromosome: b.Chromosome, Position: uint32(b.Pos)}
 
 	// Lookup this SNP in our PRS map
@@ -175,21 +182,23 @@ func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) error {
 		// through a genomic chunk based on a tabix fetch.
 
 		// log.Printf("Skipping %v which has no weight", b)
-		return nil
+		return PRSFact{}, nil
 	}
+
+	prsFact := PRSFact{*prs, "", "", 0, 0}
 
 	// log.Println("Scoring these:", b.Chromosome, b.Pos, b.Ref(), b.Alt(), prs)
 	incremented := 0
 
 	if b == nil {
 		nonNilErr.Message = "Variant contents are nil"
-		return nonNilErr
+		return PRSFact{}, nonNilErr
 	} else if scores == nil {
 		nonNilErr.Message = "Sample list is nil"
-		return nonNilErr
+		return PRSFact{}, nonNilErr
 	} else if b.Samples == nil {
 		nonNilErr.Message = "VCF Sample genotypes are nil"
-		return nonNilErr
+		return PRSFact{}, nonNilErr
 	}
 
 	// Make sure that both the effect and non-effect PRS alleles are observed
@@ -198,16 +207,16 @@ func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) error {
 	prsAllele2Numeric := -1
 	siteAlleles := append([]string{b.Ref()}, b.Alt()...)
 	for alleleNumeric, chrPosAlleleValue := range siteAlleles {
-		if strings.EqualFold(chrPosAlleleValue, string(prs.Allele1)) {
+		if prsAllele1Numeric < 0 && strings.EqualFold(chrPosAlleleValue, string(prs.Allele1)) {
 			prsAllele1Numeric = alleleNumeric
 		}
-		if strings.EqualFold(chrPosAlleleValue, string(prs.Allele2)) {
+		if prsAllele2Numeric < 0 && strings.EqualFold(chrPosAlleleValue, string(prs.Allele2)) {
 			prsAllele2Numeric = alleleNumeric
 		}
 	}
 	if prsAllele1Numeric < 0 || prsAllele2Numeric < 0 {
 		log.Printf("None of the possible ref/alt pairs for %v matched %v", b, prs)
-		return nil
+		return PRSFact{}, nil
 	}
 
 	// Assign the effect and non-effect alleles to the 0 (ref) to 1...NAllele
@@ -225,6 +234,10 @@ func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) error {
 		results[i].SumScore += scoreAdd
 		results[i].NIncremented += incrementAdd
 		incremented += incrementAdd
+		prsFact.SiteEA = siteAlleles[effectAlleleNumeric]
+		prsFact.SiteNEA = siteAlleles[nonEffectAlleleNumeric]
+		prsFact.Scorable += 1
+		prsFact.Scored += incrementAdd
 	}
 
 	// if incremented == 0 {
@@ -233,7 +246,7 @@ func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) error {
 
 	atomic.AddUint64(&nSitesProcessed, 1)
 
-	return nil
+	return prsFact, nil
 }
 
 func ComputeScoreVCF(sampleProb *vcfgo.SampleGenotype, effectAlleleNumeric, nonEffectAlleleNumeric int, prs prsparser.PRS) (float64, int) {

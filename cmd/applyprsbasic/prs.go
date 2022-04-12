@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/carbocation/genomisc"
@@ -13,6 +14,7 @@ import (
 	"github.com/carbocation/pfx"
 )
 
+var prsSorted = make([]prsparser.PRS, 0)
 var currentVariantScoreLookup map[ChrPos]prsparser.PRS
 
 type ChrPos struct {
@@ -24,6 +26,14 @@ type ChrPos struct {
 type PRSSitesOnChrom struct {
 	Chrom    string
 	PRSSites []prsparser.PRS
+}
+
+type PRSFact struct {
+	prsparser.PRS
+	SiteEA   string
+	SiteNEA  string
+	Scorable int
+	Scored   int
 }
 
 // LoadPRS is ***not*** safe for concurrent access from multiple goroutines
@@ -100,7 +110,24 @@ func LoadPRS(prsPath, layout string, alwaysIncrement bool) error {
 		}
 
 		currentVariantScoreLookup[ChrPos{p.Chromosome, uint32(p.Position), p.SNP}] = p
+		prsSorted = append(prsSorted, p)
 	}
+
+	sort.Slice(prsSorted, func(i, j int) bool {
+		if prsSorted[i].Chromosome == prsSorted[j].Chromosome {
+			return prsSorted[i].Position < prsSorted[j].Position
+		} else {
+			// If both chromosomes are integers, sort by chromosome integer
+			if _, err := strconv.Atoi(prsSorted[i].Chromosome); err == nil {
+				if _, err := strconv.Atoi(prsSorted[j].Chromosome); err == nil {
+					return prsSorted[i].Chromosome < prsSorted[j].Chromosome
+				}
+			}
+
+			// If one or both are not integers, sort by string
+			return prsSorted[i].Chromosome < prsSorted[j].Chromosome
+		}
+	})
 
 	return nil
 }
@@ -129,10 +156,10 @@ func LookupPRS(chromosome string, position uint32, snp string) *prsparser.PRS {
 
 // ChromosomalPRS creates a map containing each chromosome and the PRS variants
 // on that chromosome.
-func ChromosomalPRS(currentVariantScoreLookup map[ChrPos]prsparser.PRS) map[string][]prsparser.PRS {
+func ChromosomalPRS() map[string][]prsparser.PRS {
 	output := make(map[string][]prsparser.PRS)
 
-	for _, v := range currentVariantScoreLookup {
+	for _, v := range prsSorted {
 		if _, exists := output[v.Chromosome]; !exists {
 			output[v.Chromosome] = make([]prsparser.PRS, 0)
 		}
