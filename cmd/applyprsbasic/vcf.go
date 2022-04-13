@@ -215,7 +215,7 @@ func ProcessOneVariantVCF(b *vcfgo.Variant, scores *[]Sample) (PRSFact, error) {
 		}
 	}
 	if prsAllele1Numeric < 0 || prsAllele2Numeric < 0 {
-		log.Printf("None of the possible ref/alt pairs for %v matched %v", b, prs)
+		log.Printf("None of the possible ref/alt pairs for %s:%d:%s:%v matched %v", b.Chromosome, b.Pos, b.Ref(), b.Alt(), prs)
 		return PRSFact{}, nil
 	}
 
