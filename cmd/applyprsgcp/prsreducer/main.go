@@ -93,21 +93,31 @@ func main() {
 		}
 
 		for i, cols := range rows {
+			score, err := strconv.ParseFloat(cols[ScoreCol], 64)
+
 			if i == 0 {
-				if k == 0 {
-					header = cols
+				// Within each file, the first row is the header. However, if
+				// the header is not set, then the ScoreCol will be able to be
+				// parsed as a number.
+				if err != nil {
+					// There is a header
+					if k == 0 {
+						// If this is the first file, then save the header
+						header = cols
+					}
+					continue
 				}
-				continue
+			}
+
+			// For any other line besides the first line, the score not being
+			// numeric is an error.
+			if err != nil {
+				log.Fatalln(err)
 			}
 
 			ss := SampleSource{
 				SampleID: cols[SampleIDCol],
 				Source:   cols[SourceCol],
-			}
-
-			score, err := strconv.ParseFloat(cols[ScoreCol], 64)
-			if err != nil {
-				log.Fatalln(err)
 			}
 
 			count, err := strconv.ParseInt(cols[NCol], 10, 64)
@@ -148,13 +158,16 @@ func main() {
 		}
 	}
 
-	// If we passed a sample file, then override the sample header
-	if len(samp) > 0 {
-		header[SampleIDCol] = "sample_id"
-	}
+	// If a header was set, then print it.
+	if header != nil {
+		// If we passed a sample file, then override the sample header
+		if len(samp) > 0 {
+			header[SampleIDCol] = "sample_id"
+		}
 
-	// Emit header
-	fmt.Println(strings.Join(header, "\t"))
+		// Emit header
+		fmt.Println(strings.Join(header, "\t"))
+	}
 
 	// Emit output
 	for _, ss := range sorted {

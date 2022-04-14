@@ -74,7 +74,7 @@ func main() {
 	flag.StringVar(&bgiTemplatePath, "bgi-template", "", "Optional: Templated path to bgi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.bgi'")
 	flag.StringVar(&vcfTemplatePath, "vcf-template", "", "Templated path to vcf. May have %s in place of a chromosome number. Either --vcf-template or --bgen-template must be set.")
 	flag.StringVar(&vcfiTemplatePath, "vcfi-template", "", "Optional: Templated path to vcfi with %s in place of its chromosome number. If empty, will be replaced with the bgen-template path + '.vcf.gz'")
-	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file")
+	flag.StringVar(&inputBucket, "input", "", "Local path to the PRS input file. If the first line contains a non-numeric chromosomal position, it infers that a header is present and the first line is skipped.")
 	flag.StringVar(&layout, "layout", "LDPRED", fmt.Sprint("Layout of your prs file. Currently, options include: ", prsparser.LayoutNames()))
 	flag.StringVar(&sourceFile, "source", "", "Source of your score (e.g., a trait and a version, or whatever you find convenient to track)")
 	flag.StringVar(&samplePath, "sample", "", "Optional: Path to sample file, which is an Oxford-format file that contains sample IDs for each row in the BGEN")
