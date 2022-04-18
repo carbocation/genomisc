@@ -74,7 +74,8 @@ func main() {
 	var header []string
 
 	// Accumulate score
-	for k, f := range files {
+	firstFile := true
+	for _, f := range files {
 		if f.IsDir() {
 			continue
 		}
@@ -101,9 +102,10 @@ func main() {
 				// parsed as a number.
 				if err != nil {
 					// There is a header
-					if k == 0 {
+					if firstFile {
 						// If this is the first file, then save the header
 						header = cols
+						firstFile = false
 					}
 					continue
 				}
