@@ -17,13 +17,13 @@ func runQC(samplesWithFlags SampleFlags, entries map[string]File, cycle []cardia
 
 	// Flag entries that are above or below N-SD above or below the mean for
 	// connected components
-	flagConnectedComponents(samplesWithFlags, entries, nStandardDeviations)
-	log.Println("Flagged entries beyond", nStandardDeviations, "standard deviations above or below the mean connected components")
+	mean, std := flagConnectedComponents(samplesWithFlags, entries, nStandardDeviations)
+	log.Printf("connected components: mean %.5f, std %.5f. flagged entries beyond %.1f SD (below %.5f or above %.5f)", mean, std, nStandardDeviations, mean-std*nStandardDeviations, mean+std*nStandardDeviations)
 
 	// Flag samples that are above or below N-SD above or below the mean for
 	// onestep shifts in the pixel area between each timepoint
-	flagOnestepShifts(samplesWithFlags, cycle, nStandardDeviations)
-	log.Println("Flagged entries beyond", nStandardDeviations, "standard deviations above or below the mean onstep pixel shift")
+	mean, std = flagOnestepShifts(samplesWithFlags, cycle, nStandardDeviations)
+	log.Printf("onestep pixel shift: mean %.5f, std %.5f. flagged entries beyond %.1f SD (below %.5f or above %.5f)", mean, std, nStandardDeviations, mean-std*nStandardDeviations, mean+std*nStandardDeviations)
 
 	// Flag samples that don't have the modal number of images
 	flagAbnormalImageCounts(samplesWithFlags, entries)
@@ -81,7 +81,7 @@ func flagAbnormalImageCounts(out SampleFlags, entries map[string]File) {
 	}
 }
 
-func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDeviations float64) {
+func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDeviations float64) (mean, std float64) {
 
 	value := make([]float64, 0, len(cycle))
 
@@ -93,20 +93,27 @@ func flagOnestepShifts(out SampleFlags, cycle []cardiaccycle.Result, nStandardDe
 			continue
 		}
 
+		// Do not include entries with divide-by-zero errors (yielding NaN)
+		if math.IsNaN(entry.MaxOneStepShift) {
+			continue
+		}
+
 		value = append(value, entry.MaxOneStepShift)
 	}
 
-	m, s := stat.MeanStdDev(value, nil)
+	mean, std = stat.MeanStdDev(value, nil)
 
 	// Pass 2: flag entries that exceed the bounds:
 	for _, entry := range cycle {
-		if entry.MaxOneStepShift < m-nStandardDeviations*s || entry.MaxOneStepShift > m+nStandardDeviations*s {
+		if entry.MaxOneStepShift < mean-nStandardDeviations*std || entry.MaxOneStepShift > mean+nStandardDeviations*std {
 			out.AddFlag(entry.Identifier, "OnestepShift")
 		}
 	}
+
+	return
 }
 
-func flagConnectedComponents(samplesWithFlags SampleFlags, entries map[string]File, nStandardDeviations float64) {
+func flagConnectedComponents(samplesWithFlags SampleFlags, entries map[string]File, nStandardDeviations float64) (mean, std float64) {
 
 	value := make([]float64, 0, len(entries))
 
@@ -122,15 +129,17 @@ func flagConnectedComponents(samplesWithFlags SampleFlags, entries map[string]Fi
 		value = append(value, entry.ConnectedComponents)
 	}
 
-	m, s := stat.MeanStdDev(value, nil)
+	mean, std = stat.MeanStdDev(value, nil)
 
 	// Pass 2: flag entries that exceed the bounds:
 	for k, entry := range entries {
-		if entry.ConnectedComponents < m-nStandardDeviations*s || entry.ConnectedComponents > m+nStandardDeviations*s {
+		if entry.ConnectedComponents < mean-nStandardDeviations*std || entry.ConnectedComponents > mean+nStandardDeviations*std {
 			entry.BadWhy = append(entry.BadWhy, "ConnectedComponents")
 			entries[k] = entry
 		}
 	}
+
+	return
 }
 
 func flagZeroes(entries map[string]File) {
