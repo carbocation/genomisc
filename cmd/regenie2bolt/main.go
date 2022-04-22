@@ -279,6 +279,11 @@ func negLogPToScientificNotationP(negLogPString string) (string, error) {
 		exponent -= 1.0
 	}
 
+	// Special case where we don't need to represent the exponent at all.
+	if exponent == 0 {
+		return fmt.Sprintf("%.1f", mantissa), nil
+	}
+
 	return fmt.Sprintf("%.1fE%.0f", mantissa, exponent), nil
 }
 
