@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -27,9 +28,25 @@ import (
 // # REGENIE-v2.2.4 (space-delim) binary trait with --af-cc flag
 // # CHROM GENPOS ID ALLELE0 ALLELE1 A1FREQ A1FREQ_CASES A1FREQ_CONTROLS INFO N TEST BETA SE CHISQ LOG10P EXTRA
 
+// # REGENIE-v2.2.4 (no imputation data)
+// # CHROM GENPOS ID ALLELE0 ALLELE1 A1FREQ N TEST BETA SE CHISQ LOG10P EXTRA
+// # REGENIE-v2.2.4 (no imputation data) binary trait with --af-cc flag
+// # CHROM GENPOS ID ALLELE0 ALLELE1 A1FREQ A1FREQ_CASES A1FREQ_CONTROLS N TEST BETA SE CHISQ LOG10P EXTRA
+
 // {print $3 OFS $1 OFS $2 OFS "NA" OFS $5 OFS $4 OFS $6 OFS $7 OFS $12 OFS 10 ^ (-1 * $13) OFS $10 OFS $11 OFS $12 OFS 10 ^ (-1 * $13) OFS $12 OFS 10 ^ (-1 * $13) }' -
 
+const (
+	HeaderTypeFixedOrderDefault = iota
+	HeaderTypeFixedOrderCC
+	HeaderTypeFixedOrderNoINFO
+	HeaderTypeFixedOrderCCNoINFO
+)
+
+var headerType = HeaderTypeFixedOrderDefault
+
 // REGENIE header that we expect
+
+// 0-based regenie column ID -> column name
 var expectedHeader = map[int]string{
 	0:  "CHROM",
 	1:  "GENPOS",
@@ -46,6 +63,23 @@ var expectedHeader = map[int]string{
 	13: "EXTRA",
 }
 
+// 0-based regenie column ID -> column name
+var expectedHeaderNoINFO = map[int]string{
+	0:  "CHROM",
+	1:  "GENPOS",
+	2:  "ID",
+	3:  "ALLELE0",
+	4:  "ALLELE1",
+	5:  "A1FREQ",
+	8:  "BETA",
+	9:  "SE",
+	10: "CHISQ",
+	11: "LOG10P",
+	// New:
+	12: "EXTRA",
+}
+
+// 0-based regenie column ID -> column name
 var expectedHeaderCaseControl = map[int]string{
 	0: "CHROM",
 	1: "GENPOS",
@@ -64,6 +98,26 @@ var expectedHeaderCaseControl = map[int]string{
 	14: "LOG10P",
 	// New
 	15: "EXTRA",
+}
+
+// 0-based regenie column ID -> column name
+var expectedHeaderCaseControlNoINFO = map[int]string{
+	0: "CHROM",
+	1: "GENPOS",
+	2: "ID",
+	3: "ALLELE0",
+	4: "ALLELE1",
+	5: "A1FREQ",
+	// New:
+	6: "A1FREQ_CASES",
+	7: "A1FREQ_CONTROLS",
+	// Different locations:
+	10: "BETA",
+	11: "SE",
+	12: "CHISQ",
+	13: "LOG10P",
+	// New
+	14: "EXTRA",
 }
 
 // Mapping between BOLT column name and its corresponding column number from
@@ -85,6 +139,57 @@ var (
 	CHISQ_BOLT_LMM     = 11
 	P_BOLT_LMM         = 12
 )
+
+func overrideColMapping(m map[int]string) {
+	for regenieColumnKey, regenieColumnName := range m {
+		switch regenieColumnName {
+		case "CHROM":
+			CHR = regenieColumnKey
+		case "GENPOS":
+			POS = regenieColumnKey
+		case "ID":
+			SNP = regenieColumnKey
+		case "ALLELE0":
+			ALLELE0 = regenieColumnKey
+		case "ALLELE1":
+			ALLELE1 = regenieColumnKey
+		case "A1FREQ":
+			A1FREQ = regenieColumnKey
+		case "INFO":
+			INFO = regenieColumnKey
+		case "BETA":
+			BETA = regenieColumnKey
+		case "SE":
+			SE = regenieColumnKey
+		case "CHISQ":
+			CHISQ_BOLT_LMM = regenieColumnKey
+			CHISQ_LINREG = regenieColumnKey
+			CHISQ_BOLT_LMM_INF = regenieColumnKey
+		case "LOG10P":
+			P_BOLT_LMM = regenieColumnKey
+			P_LINREG = regenieColumnKey
+			P_BOLT_LMM_INF = regenieColumnKey
+		}
+	}
+}
+
+// var kvMap = map[string]int{
+// 	"SNP":                SNP,
+// 	"CHR":                CHR,
+// 	"POS":                POS,
+// 	"ALLELE1":            ALLELE1,
+// 	"ALLELE0":            ALLELE0,
+// 	"A1FREQ":             A1FREQ,
+// 	"INFO":               INFO,
+// 	"CHISQ_LINREG":       CHISQ_LINREG,
+// 	"P_LINREG":           P_LINREG,
+// 	"BETA":               BETA,
+// 	"SE":                 SE,
+// 	"CHISQ_BOLT_LMM_INF": CHISQ_BOLT_LMM_INF,
+// 	"P_BOLT_LMM_INF":     P_BOLT_LMM_INF,
+// 	"CHISQ_BOLT_LMM":     CHISQ_BOLT_LMM,
+// 	"P_BOLT_LMM":         P_BOLT_LMM,
+// }
 
 func main() {
 	var regenie string
@@ -160,7 +265,16 @@ func negLogPToScientificNotationP(negLogPString string) (string, error) {
 	exponent := math.Ceil((-1 * negLogP) / 1.0)
 
 	// Make it pretty (should get mantissa into the 1-10 range)
-	if mantissa < 1.0 {
+
+	// If you don't round during this comparison check, then you end up with
+	// things like "10.0E-3" when the -logP is 2.001.
+
+	// Via https://stackoverflow.com/a/49175144/199475 . This is overkill here,
+	// but we certainly won't overflow this way...
+	f := new(big.Float).SetMode(big.ToNearestEven).SetFloat64(mantissa)
+	f = f.SetPrec(1)
+	mantissaRounded, _ := f.Float64()
+	if mantissaRounded < 1.0 {
 		mantissa *= 10.0
 		exponent -= 1.0
 	}
@@ -180,6 +294,16 @@ func PrintLine(line []string) error {
 	}
 	line[P_BOLT_LMM] = Pstring
 
+	var infoField string
+	if headerType == HeaderTypeFixedOrderCCNoINFO || headerType == HeaderTypeFixedOrderNoINFO {
+		// TODO: make this an option in the command line. 1.0 makes sense for
+		// whole genome sequencing, but may not make sense in all cases where
+		// INFO is not provided.
+		infoField = "1.0"
+	} else {
+		infoField = line[INFO]
+	}
+
 	_, err = fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		line[SNP],
 		line[CHR],
@@ -188,7 +312,7 @@ func PrintLine(line []string) error {
 		line[ALLELE1],
 		line[ALLELE0],
 		line[A1FREQ],
-		line[INFO],
+		infoField,
 		line[CHISQ_LINREG],
 		line[P_LINREG],
 		line[BETA],
@@ -203,34 +327,36 @@ func PrintLine(line []string) error {
 
 func validateHeader(header []string) error {
 	var err error
-	for key, observed := range header {
-		if expected, exists := expectedHeader[key]; exists && expected != observed {
-			// We'll just keep the last error
-			err = fmt.Errorf("for column %d, expected %s but saw %s", key, expected, observed)
-		}
-	}
 
-	if err != nil {
-		// Perhaps we're using the new case-control header instead
+	for headerTypeOrder, expectedHeaderGroup := range []map[int]string{
+		// Note: order is important here
+		expectedHeader,
+		expectedHeaderCaseControl,
+		expectedHeaderNoINFO,
+		expectedHeaderCaseControlNoINFO,
+	} {
+		log.Println("testing header type", headerTypeOrder)
 		err = nil
 
-		INFO = 8
-		CHISQ_LINREG = 13
-		P_LINREG = 14
-		BETA = 11
-		SE = 12
-		CHISQ_BOLT_LMM_INF = 13
-		P_BOLT_LMM_INF = 14
-		CHISQ_BOLT_LMM = 13
-		P_BOLT_LMM = 14
-
 		for key, observed := range header {
-			if expected, exists := expectedHeaderCaseControl[key]; exists && expected != observed {
-				// We'll just keep the last error
+			if expected, exists := expectedHeaderGroup[key]; exists && expected != observed {
 				err = fmt.Errorf("for column %d, expected %s but saw %s", key, expected, observed)
+
+				// Break the inner loop as soon as we see an error, since this
+				// cannot be the right format
+				break
 			}
 		}
+
+		if err == nil {
+			headerType = headerTypeOrder
+			overrideColMapping(expectedHeaderGroup)
+			break
+		}
 	}
+
+	// If we make it to here and err is still not nil, then we return the error,
+	// since none of the candidate header types matched.
 
 	return err
 }
