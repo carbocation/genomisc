@@ -40,8 +40,8 @@ func main() {
 	flag.StringVar(&path1, "path1", "", "Path to folder with encoded overlay images (base/truth)")
 	flag.StringVar(&path2, "path2", "", "Path to folder with encoded overlay images (comparator)")
 	flag.StringVar(&jsonConfig, "config", "", "JSONConfig file from the github.com/carbocation/genomisc/overlay package")
-	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to manifest. If provided, will only look at files in the manifest rather than listing the entire directory's contents.")
-	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after .dcm. Only used if using the -manifest option.")
+	flag.StringVar(&manifest, "manifest", "", "(Optional) Path to tab-delimited manifest. If provided, will only look at files in the manifest (under column name 'dicom_file') rather than listing the entire directory's contents.")
+	flag.StringVar(&suffix, "suffix", ".png.mask.png", "(Optional) Suffix after the filename provided in the 'dicom_file' column. Only used if using the -manifest option.")
 	flag.Parse()
 
 	if path1 == "" || path2 == "" || jsonConfig == "" {
