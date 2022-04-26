@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/carbocation/genomisc/ukbb/bulkprocess"
@@ -67,6 +68,8 @@ func loadImagesFromFolder(folder string) ([]image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sort.StringSlice(names).Sort()
 
 	images := make([]image.Image, 0, len(names))
 	for _, name := range names {
