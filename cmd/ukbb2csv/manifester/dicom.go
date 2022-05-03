@@ -64,7 +64,7 @@ func ManifestForDicom(path, fileList string) error {
 		}
 	}
 
-	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	fmt.Fprintf(STDOUT, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		"sample_id",
 		"field_id",
 		"instance",
@@ -96,6 +96,7 @@ func ManifestForDicom(path, fileList string) error {
 		"slice_location",
 		"trigger_time",
 		"acquisition_time",
+		"protocol_name",
 	)
 
 	concurrency := 4 * runtime.NumCPU()

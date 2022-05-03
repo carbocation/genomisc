@@ -96,7 +96,7 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		overlayText = "HasOverlay"
 	}
 
-	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%s\t%s\t%s\t%s\t%s\t%v\t%s\t%s\t%s\t%s",
+	results <- fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.8f\t%d\t%d\t%d\t%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%s\t%s\t%s\t%s\t%s\t%v\t%s\t%s\t%s\t%s\t%s",
 		row.SampleID,
 		row.FieldID,
 		row.Instance,
@@ -128,6 +128,7 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		row.DicomMeta.SliceLocation,
 		row.DicomMeta.TriggerTime,
 		row.DicomMeta.AcquisitionTime,
+		row.DicomMeta.ProtocolName,
 	)
 	return nil
 }
