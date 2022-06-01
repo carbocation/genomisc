@@ -29,6 +29,14 @@ type Label struct {
 // label.
 type LabelMap map[string]Label
 
+func (l LabelMap) ToIDMap() map[uint]Label {
+	out := make(map[uint]Label)
+	for _, v := range l {
+		out[v.ID] = v
+	}
+	return out
+}
+
 // EncodeImageToImageSegment consumes a multi-color human-visible image into an
 // image where each pixel has the same R, G, and B value mapped to the integer
 // ID of the Label. For example, if background is transparent (ID 0) and the

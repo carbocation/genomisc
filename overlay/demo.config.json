@@ -1,4 +1,7 @@
 {
+  "label_path": ".",
+  "image_path": ".",
+  "preparsed": true,
   "labels": {
     "Background": { "id": 0, "color": "" },
     "CurveBottomRight": { "id": 1, "color": "#f900c4" },
