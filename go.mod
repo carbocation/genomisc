@@ -3,9 +3,9 @@ module github.com/carbocation/genomisc
 go 1.18
 
 require (
-	cloud.google.com/go v0.100.2
+	cloud.google.com/go v0.102.0
 	cloud.google.com/go/bigquery v1.8.0
-	cloud.google.com/go/storage v1.22.0
+	cloud.google.com/go/storage v1.22.1
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
@@ -38,7 +38,7 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/montanaflynn/stats v0.6.6
 	github.com/suyashkumar/dicom v0.4.6-0.20200816032854-6ffe547e2a08
-	github.com/tdewolff/canvas v0.0.0-20220113195134-ed6dd6946a43
+	github.com/tdewolff/canvas v0.0.0-20220526192843-8b6243c34174
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
 	github.com/tj/go-rle v0.0.0-20180508204109-877ab66bb189
 	github.com/tokenme/probab v0.0.0-20181005071258-8703a4c31653
@@ -46,14 +46,14 @@ require (
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
-	golang.org/x/net v0.0.0-20220412020605-290c469a71a5
+	golang.org/x/net v0.0.0-20220531201128-c960675eff93
 	gonum.org/v1/gonum v0.9.3
-	google.golang.org/api v0.74.0
+	google.golang.org/api v0.81.0
 	gopkg.in/guregu/null.v3 v3.5.0
 )
 
 require (
-	cloud.google.com/go/compute v1.5.0 // indirect
+	cloud.google.com/go/compute v1.6.1 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	github.com/ByteArena/poly2tri-go v0.0.0-20170716161910-d102ad91854f // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
@@ -72,6 +72,7 @@ require (
 	github.com/glycerine/gostat v0.0.0-20160815084721-ccc4a6d847f9 // indirect
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab // indirect
+	github.com/go-pdf/fpdf v0.6.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -82,9 +83,9 @@ require (
 	github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9 // indirect
 	github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9 // indirect
 	github.com/goods/httpbuf v0.0.0-20120503183857-5709e9bb814c // indirect
-	github.com/google/go-cmp v0.5.7 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.3.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.4.0 // indirect
 	github.com/googleapis/go-type-adapters v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20220410123724-9e86199038b0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
@@ -106,14 +107,14 @@ require (
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220412012744-41445a152478 // indirect
-	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.0.0-20220412015802-83041a38b14a // indirect
+	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect
-	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
+	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220407144326-9054f6ed7bac // indirect
-	google.golang.org/grpc v1.45.0 // indirect
+	google.golang.org/genproto v0.0.0-20220531173845-685668d2de03 // indirect
+	google.golang.org/grpc v1.47.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/uint128 v1.2.0 // indirect
