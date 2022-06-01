@@ -12,7 +12,7 @@ require (
 	github.com/brentp/irelate v0.0.1
 	github.com/carbocation/GLO v0.0.0-20220406163132-bf6b00b1c2c5
 	github.com/carbocation/bgen v0.0.0-20220601063906-45338605b88d
-	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
+	github.com/carbocation/bix v0.0.0-20220601070946-6c14ab6e1740
 	github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc
 	github.com/carbocation/pfx v0.0.0-20210408121254-ad6c6d3ac2f0
 	github.com/carbocation/runningvariance v0.0.0-20150817162428-fdcce8a03b6b
@@ -29,7 +29,7 @@ require (
 	github.com/henghuang/nifti v0.0.0-20190719235241-c5d3abcd4525
 	github.com/icza/gox v0.0.0-20201215141822-6edfac6c05b5
 	github.com/interpose/middleware v0.0.0-20150216143757-05ed56ed52fa
-	github.com/jblindsay/lidario v0.0.0-00010101000000-000000000000
+	github.com/jblindsay/lidario v0.0.0-20170420150243-bb03e55f9757
 	github.com/jfcg/butter v0.1.6
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/justinas/alice v1.2.0
@@ -68,6 +68,7 @@ require (
 	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
+	github.com/glycerine/goconvey v0.0.0-20190410193231-58a59202ab31 // indirect
 	github.com/glycerine/gostat v0.0.0-20160815084721-ccc4a6d847f9 // indirect
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab // indirect
@@ -76,6 +77,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac // indirect
 	github.com/gonum/floats v0.0.0-20181209220543-c233463c7e82 // indirect
+	github.com/gonum/integrate v0.0.0-20181209220457-a422b5c0fdf2 // indirect
 	github.com/gonum/internal v0.0.0-20181124074243-f884aa714029 // indirect
 	github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9 // indirect
 	github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9 // indirect
@@ -85,6 +87,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.3.0 // indirect
 	github.com/googleapis/go-type-adapters v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20220410123724-9e86199038b0 // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/justinas/nosurf v1.1.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
@@ -96,6 +99,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/skelterjohn/go.matrix v0.0.0-20130517144113-daa59528eefd // indirect
+	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/tdewolff/minify/v2 v2.10.0 // indirect
 	github.com/tdewolff/parse/v2 v2.5.27 // indirect
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
