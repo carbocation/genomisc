@@ -22,7 +22,6 @@ require (
 	github.com/extrame/xls v0.0.1
 	github.com/fogleman/gg v1.3.0
 	github.com/glycerine/golang-fisher-exact v0.0.0-20160911222405-aea2106439d4
-	github.com/gobuffalo/packr v1.30.1
 	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/gorilla/mux v1.8.0
@@ -72,8 +71,6 @@ require (
 	github.com/glycerine/gostat v0.0.0-20160815084721-ccc4a6d847f9 // indirect
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab // indirect
-	github.com/gobuffalo/envy v1.7.0 // indirect
-	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -88,7 +85,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.3.0 // indirect
 	github.com/googleapis/go-type-adapters v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20220410123724-9e86199038b0 // indirect
-	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/justinas/nosurf v1.1.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
@@ -98,7 +94,6 @@ require (
 	github.com/phyber/negroni-gzip v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
-	github.com/rogpeppe/go-internal v1.5.2 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/skelterjohn/go.matrix v0.0.0-20130517144113-daa59528eefd // indirect
 	github.com/tdewolff/minify/v2 v2.10.0 // indirect
