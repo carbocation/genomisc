@@ -109,8 +109,8 @@ github.com/carbocation/GLO v0.0.0-20220406163132-bf6b00b1c2c5/go.mod h1:wFhcBlnN
 github.com/carbocation/bgen v0.0.0-20210108225046-c4af259fd9d9/go.mod h1:5+3ek+df6GDa54YoixyywWmUTc02waGNH1TbvmMoCgk=
 github.com/carbocation/bgen v0.0.0-20210318182738-fda1a0f352b0/go.mod h1:OurdCRZRgd6FXO41hgosoKGh6G1j0sqz0MYzYVAnU9I=
 github.com/carbocation/bgen v0.0.0-20210612124641-61ace4afb05a/go.mod h1:zvAgoK93GYljFc1AbKw0vZdr6jsfdHV0XkbvASM5INA=
-github.com/carbocation/bgen v0.0.0-20220412041608-e0312e49c589 h1:AuAyvTzxhX+dtDHJhobEqjJN3VDIc/BqIO9zuakNDAI=
-github.com/carbocation/bgen v0.0.0-20220412041608-e0312e49c589/go.mod h1:jnpfESiwPQwN/8Bl2tgrTb0utjgnpVVMKYBHHLyimlc=
+github.com/carbocation/bgen v0.0.0-20220601063906-45338605b88d h1:lqtQBdqQETvhfmbjgxdcotMCnOBDlcyN+ql83/OdQsM=
+github.com/carbocation/bgen v0.0.0-20220601063906-45338605b88d/go.mod h1:DPvi3ds/GS92XoOumk2IxA3sLXCfJ6Twv1j/ozmh2uc=
 github.com/carbocation/bix v0.0.0-20190718140914-00aa7a7f205d/go.mod h1:CjCTMv/8p/YjBBcRQn6aIQLCdaDPaoFuHpLCHlpDT5o=
 github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec h1:+qwVX4erqf/l/Mgdo3+mLRwLu117Q/jYsEkK0v52I5I=
 github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec/go.mod h1:fpiSXT6oBN2lM74yztgukSvusvABmpJoi3R0+IggHGE=

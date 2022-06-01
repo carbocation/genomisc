@@ -11,7 +11,7 @@ require (
 	github.com/aybabtme/uniplot v0.0.0-20151203143629-039c559e5e7e
 	github.com/brentp/irelate v0.0.1
 	github.com/carbocation/GLO v0.0.0-20220406163132-bf6b00b1c2c5
-	github.com/carbocation/bgen v0.0.0-20220412041608-e0312e49c589
+	github.com/carbocation/bgen v0.0.0-20220601063906-45338605b88d
 	github.com/carbocation/bix v0.0.0-20210612180058-6ad674da1dec
 	github.com/carbocation/go-quantize v0.0.0-20220308192728-857cc7c8fdfc
 	github.com/carbocation/pfx v0.0.0-20210408121254-ad6c6d3ac2f0
