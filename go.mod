@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	cloud.google.com/go v0.102.0
-	cloud.google.com/go/bigquery v1.8.0
+	cloud.google.com/go/bigquery v1.32.0
 	cloud.google.com/go/storage v1.22.1
 	github.com/BenLubar/memoize v0.0.0-20151117215343-6fdb23a94b24
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
