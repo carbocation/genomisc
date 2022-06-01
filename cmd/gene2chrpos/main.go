@@ -2,14 +2,13 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"strings"
-
-	"github.com/gobuffalo/packr"
 )
 
 const (
@@ -46,13 +45,18 @@ func SymbolMaxWindow(geneName string) error {
 	return nil
 }
 
+//go:embed lookups/*
+var embeddedTemplates embed.FS
+
 // Fetches all transcripts for a named symbol
 func LookupTranscripts(geneName string) error {
-	lookups := packr.NewBox("./lookups")
+	BioMartFilename := "ensembl.grch37.p13.genes"
+	fileBytes, err := embeddedTemplates.ReadFile(fmt.Sprintf("lookups/%s", BioMartFilename))
+	if err != nil {
+		return err
+	}
 
-	file := lookups.Bytes("ensembl.grch37.p13.genes")
-	buf := bytes.NewBuffer(file)
-	cr := csv.NewReader(buf)
+	cr := csv.NewReader(bytes.NewReader(fileBytes))
 	cr.Comma = '\t'
 
 	results := make([][]string, 0)

@@ -2,14 +2,13 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/gobuffalo/packr"
 )
 
 const (
@@ -58,15 +57,19 @@ func ReadMendelianGeneFile(fileName string) (map[string]struct{}, error) {
 	return genes, nil
 }
 
+//go:embed lookups/*
+var embeddedTemplates embed.FS
+
 // Fetches all transcripts for a named symbol and simplifies them to the largest
 // span of transcript start - transcript end, so there is just one entry per
 // gene.
 func SimplifyTranscripts(geneNames map[string]struct{}) (map[string]Gene, error) {
-	lookups := packr.NewBox("./lookups")
+	fileBytes, err := embeddedTemplates.ReadFile(fmt.Sprintf("lookups/%s", BioMartFilename))
+	if err != nil {
+		return nil, err
+	}
 
-	file := lookups.Bytes(BioMartFilename)
-	buf := bytes.NewBuffer(file)
-	cr := csv.NewReader(buf)
+	cr := csv.NewReader(bytes.NewReader(fileBytes))
 	cr.Comma = '\t'
 	cr.Comment = '#'
 
