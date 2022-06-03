@@ -77,6 +77,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 				errchan <- err
 				return
 			}
+			im = rescaleMaxBright(im)
 			errchan <- savePNG(im, outName)
 
 		}(zip, imgMap, pngData)
@@ -88,6 +89,7 @@ func processEntries(entries []manifestEntry, key manifestKey, folder string, doN
 				errchan <- err
 				return
 			}
+			im = rescaleMaxBright(im)
 			errchan <- savePNG(im, outName)
 		}(zip, imgMap, pngData)
 
