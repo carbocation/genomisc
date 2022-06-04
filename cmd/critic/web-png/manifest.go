@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -91,9 +93,27 @@ type ManifestEntry struct {
 	Annotation     Annotation
 }
 
+// ManifestPathToBufferedReader consumes the entire manifest file into a
+// buffered reader to permit potentially multiple reads.
+func ManifestPathToBufferedReader(manifestPath string) (*bytes.Reader, int64, error) {
+	if manifestPath == "" {
+		return nil, 0, pfx.Err(fmt.Errorf("manifest path is empty"))
+	}
+
+	x, size, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
+	if err != nil {
+		return nil, 0, pfx.Err(err)
+	}
+	fileBytes, err := io.ReadAll(x)
+	buf := bytes.NewReader(fileBytes)
+	x.Close()
+
+	return buf, size, nil
+}
+
 // ReadNestedManifest will attempt to parse a classical manifest. This is
 // necessary when the image files are nested within a container.
-func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*AnnotationTracker, error) {
+func ReadNestedManifest(manifest io.ReadSeeker, annotationPath, nestedSuffix string) (*AnnotationTracker, error) {
 
 	mayBeNested := true
 
@@ -109,13 +129,8 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 	}
 
 	// Now open the full manifest of files we want to critique.
-	f, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	cr := csv.NewReader(f)
+	manifest.Seek(0, 0)
+	cr := csv.NewReader(manifest)
 	cr.Comma = '\t'
 	recs, err := cr.ReadAll()
 	if err != nil {
@@ -201,11 +216,12 @@ func ReadNestedManifest(manifestPath, annotationPath, nestedSuffix string) (*Ann
 // output directory. It checks to see if the output file has already been
 // created. If so, it reads the output and matches it with the input, returning
 // pre-populated values.
-func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath, nestedSuffix string) (*AnnotationTracker, error) {
+func CreateManifestAndOutput(mergedPath, annotationPath string, manifest io.ReadSeeker, nestedSuffix string) (*AnnotationTracker, error) {
 
 	// First, if we happen to be given a complete manifest, read it. If that
 	// conforms to our old manifest format, use it. Just mark it non-nested.
-	tracker, err := ReadNestedManifest(manifestPath, annotationPath, nestedSuffix)
+	manifest.Seek(0, 0)
+	tracker, err := ReadNestedManifest(manifest, annotationPath, nestedSuffix)
 	if err == nil {
 		tracker.Nested = false
 		return tracker, nil
@@ -226,13 +242,9 @@ func CreateManifestAndOutput(mergedPath, annotationPath, manifestPath, nestedSuf
 	// Now open the full manifest of files we want to critique.
 
 	// If we actually passed a manifest file, assume it is valid and populate:
-	if manifestPath != "" {
-		rdr, _, err := bulkprocess.MaybeOpenFromGoogleStorage(manifestPath, global.storageClient)
-		if err != nil {
-			return nil, err
-		}
-
-		r := csv.NewReader(rdr)
+	if manifest != nil {
+		manifest.Seek(0, 0)
+		r := csv.NewReader(manifest)
 		r.Comma = '\t'
 
 		lines, err := r.ReadAll()

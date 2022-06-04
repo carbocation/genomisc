@@ -50,7 +50,7 @@ func main() {
 	flag.StringVar(&manifestPath, "manifest", "", "(Optional) Path with a file whose first column is the file names of the images of interest from the --merged folder.")
 	flag.StringVar(&mergedRoot, "merged", "", "(Optional) Path under which all main images of interest sit. If --manifest is set, this may be a gs:// URL. Either raw or merged (or both) must be set.")
 	flag.StringVar(&outputPath, "output", "", "Path to a local file where all output will be written. Will be created if it does not yet exist.")
-	flag.StringVar(&nestedSuffix, "nested-suffix", "", "If images are nested within .tar.gz files, how is the zip file name modified?")
+	flag.StringVar(&nestedSuffix, "nested-suffix", "", "If images are nested within .tar.gz files, the wrapper file is assumed to be in a manifest column named 'zip_file' and the image filename assumed to be in a column named 'dicom_file'. --nested-suffix defines how the zip_file name is modified (.zip is removed and nested-suffix is added)")
 	flag.IntVar(&port, "port", 9019, "Port for HTTP server")
 	flag.StringVar(&labelsFile, "labels", "", "(Optional) json file with labels. E.g.: {Labels: [{'name':'Label 1', 'value':'l1'}]}")
 	flag.Parse()
@@ -97,10 +97,14 @@ func main() {
 
 	var sortedAnnotatedManifest *AnnotationTracker
 
+	manReader, _, err := ManifestPathToBufferedReader(manifestPath)
+	if manifestPath != "" && err != nil {
+		log.Fatalln(err)
+	}
 	if nestedSuffix != "" {
-		sortedAnnotatedManifest, err = ReadNestedManifest(manifestPath, outputPath, nestedSuffix)
+		sortedAnnotatedManifest, err = ReadNestedManifest(manReader, outputPath, nestedSuffix)
 	} else {
-		sortedAnnotatedManifest, err = CreateManifestAndOutput(mergedRoot, outputPath, manifestPath, nestedSuffix)
+		sortedAnnotatedManifest, err = CreateManifestAndOutput(mergedRoot, outputPath, manReader, nestedSuffix)
 	}
 	if err != nil {
 		log.Fatalln(err)

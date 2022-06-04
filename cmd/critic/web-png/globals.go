@@ -28,7 +28,7 @@ type Global struct {
 	manifest *AnnotationTracker
 }
 
-func (g Global) Manifest() []ManifestEntry {
+func (g *Global) Manifest() []ManifestEntry {
 	g.m.RLock()
 	defer g.m.RUnlock()
 
