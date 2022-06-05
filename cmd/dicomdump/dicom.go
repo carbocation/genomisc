@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/carbocation/pfx"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/dicomtag"
+	"github.com/suyashkumar/dicom/element"
 )
 
 func IterateOverFolder(path string) error {
@@ -86,11 +88,13 @@ func ProcessDicom(dicomReader io.Reader) error {
 	}
 
 	parsedData, err := bulkprocess.SafelyDicomParse(p, dicom.ParseOptions{
-		DropPixelData: true,
+		DropPixelData: false,
 	})
 	if parsedData == nil || err != nil {
 		return fmt.Errorf("Error reading dicom: %v", err)
 	}
+
+	var bitsStored float64
 
 	for _, elem := range parsedData.Elements {
 		tagName, _ := dicomtag.Find(elem.Tag)
@@ -99,13 +103,43 @@ func ProcessDicom(dicomReader io.Reader) error {
 			tagName.Name = "____"
 		}
 
+		if elem.Tag == dicomtag.BitsStored {
+			bitsStored = float64(elem.Value[0].(uint16))
+		}
+
 		// We don't want to flood the screen with pixel data. Note that as long
 		// as we have set DropPixelData: true above in dicom.ParseOptions, these
 		// checks are redundant.
 
 		if elem.Tag == dicomtag.PixelData {
+			data := elem.Value[0].(element.PixelDataInfo)
+
+			imgPixels := make([]int, 0)
+
+			for _, frame := range data.Frames {
+				if frame.IsEncapsulated() {
+					_, err := frame.GetImage()
+					if err != nil {
+						return fmt.Errorf("Frame is encapsulated, which we did not expect. Additionally, %s", err.Error())
+					}
+
+					// We're done, since it's not clear how to add an overlay
+					return fmt.Errorf("Exiting encapsulated dicom")
+				}
+
+				for j := 0; j < len(frame.NativeData.Data); j++ {
+					imgPixels = append(imgPixels, frame.NativeData.Data[j][0])
+				}
+			}
+
+			maxIntensity := 0
+			for _, v := range imgPixels {
+				if v > maxIntensity {
+					maxIntensity = v
+				}
+			}
 			// Don't print the main image as text
-			fmt.Println(elem.Tag, tagName.Name, "~~skipping pixel data~~")
+			fmt.Println(elem.Tag, tagName.Name, "maxIntensity:", maxIntensity, "maxAllowed:", math.Pow(2., bitsStored), "~~skipping pixel data~~")
 			continue
 		}
 
