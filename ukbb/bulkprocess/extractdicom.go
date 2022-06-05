@@ -76,6 +76,20 @@ func ExtractDicomFromZipReader(rc *zip.Reader, dicomName string, includeOverlay 
 
 // ExtractDicomFromReader operates on a reader that contains one DICOM.
 func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOverlay bool) (image.Image, error) {
+	opts := []func(*ExtractDicomOptions){
+		func(opts *ExtractDicomOptions) {
+			opts.IncludeOverlay = includeOverlay
+		},
+	}
+
+	return ExtractDicomFromReaderFuncOp(dicomReader, nReaderBytes, opts...)
+}
+
+func ExtractDicomFromReaderFuncOp(dicomReader io.Reader, nReaderBytes int64, options ...func(*ExtractDicomOptions)) (image.Image, error) {
+	opts := &ExtractDicomOptions{}
+	for _, opt := range options {
+		opt(opts)
+	}
 
 	p, err := dicom.NewParser(dicomReader, nReaderBytes, nil)
 	if err != nil {
@@ -212,7 +226,7 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 		}
 
 		// Extract the overlay, if it exists and we want it
-		if includeOverlay && elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
+		if opts.IncludeOverlay && elem.Tag.Compare(dicomtag.Tag{Group: 0x6000, Element: 0x3000}) == 0 {
 			// log.Println("Found the Overlay")
 
 			// log.Println("Overlay bounds:", nOverlayCols, nOverlayRows)
@@ -261,15 +275,19 @@ func ExtractDicomFromReader(dicomReader io.Reader, nReaderBytes int64, includeOv
 		leVal := imgPixels[j]
 
 		// Should be %cols and /cols -- row count is not necessary here
-		if true { //j > 3000 {
-			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyOfficialWindowScaling(leVal, rescaleSlope, rescaleIntercept, windowWidth, windowCenter, bitsAllocated)})
-		} else {
+		switch opts.WindowScaling {
+		case "pythonic":
 			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyPythonicWindowScaling(leVal, maxIntensity)})
+		case "raw":
+			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyNoWindowScaling(leVal)})
+		default:
+			// "official" window scaling
+			img.SetGray16(j%imgCols, j/imgCols, color.Gray16{Y: ApplyOfficialWindowScaling(leVal, rescaleSlope, rescaleIntercept, windowWidth, windowCenter, bitsAllocated)})
 		}
 	}
 
 	// Draw the overlay
-	if includeOverlay && img != nil && overlayPixels != nil {
+	if opts.IncludeOverlay && img != nil && overlayPixels != nil {
 		// Iterate over the bytes. There will be 1 value for each cell.
 		// So in a 1024x1024 overlay, you will expect 1,048,576 cells.
 		for i, overlayValue := range overlayPixels {
@@ -360,4 +378,8 @@ func ApplyPythonicWindowScaling(intensity, maxIntensity int) uint16 {
 	}
 
 	return uint16(float64(math.MaxUint16) * float64(intensity) / float64(maxIntensity))
+}
+
+func ApplyNoWindowScaling(intensity int) uint16 {
+	return uint16(intensity)
 }
