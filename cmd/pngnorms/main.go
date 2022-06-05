@@ -134,8 +134,8 @@ func processOneImage(img image.Image, forceGrayscale bool, cn *ChannelNorms) err
 			nativePixel := img.At(x, y)
 
 			if forceGrayscale {
-				col := color.GrayModel.Convert(nativePixel)
-				if err := cn.Push(float64(col.(color.Gray).Y), 0); err != nil {
+				col := color.Gray16Model.Convert(nativePixel)
+				if err := cn.Push(float64(col.(color.Gray16).Y), 0); err != nil {
 					return err
 				}
 			} else {
