@@ -123,12 +123,20 @@ func PrintCSVRow(row bulkprocess.DicomOutput, results chan<- string) error {
 		row.DicomMeta.DeviceSerialNumber,
 		row.DicomMeta.StationName,
 		row.DicomMeta.SoftwareVersions,
-		row.DicomMeta.EchoTime,
-		row.DicomMeta.NominalInterval,
+		NA(row.DicomMeta.EchoTime),
+		NA(row.DicomMeta.NominalInterval),
 		row.DicomMeta.SliceLocation,
-		row.DicomMeta.TriggerTime,
+		NA(row.DicomMeta.TriggerTime),
 		row.DicomMeta.AcquisitionTime,
-		row.DicomMeta.ProtocolName,
+		NA(row.DicomMeta.ProtocolName),
 	)
 	return nil
+}
+
+func NA(in string) string {
+	if in == "" {
+		return "NA"
+	}
+
+	return in
 }
