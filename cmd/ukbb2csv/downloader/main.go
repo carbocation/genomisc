@@ -16,6 +16,8 @@ func main() {
 	// Consume a .bulk file
 	// Download all data with ukbfetch
 
+	start := time.Now()
+
 	var bulkPath, ukbKey, ukbFetch string
 	var concurrency int
 	var exhaustiveDupeCheck bool
@@ -62,6 +64,7 @@ func main() {
 	sem := make(chan bool, concurrency)
 
 	finishedCheckingExisting := false
+	startI := 0
 	for i, row := range entries {
 		exists := false
 		zipFile := fmt.Sprintf("%s_%s", row[0], row[1])
@@ -83,6 +86,7 @@ func main() {
 		}
 
 		if exists {
+			startI = i
 			continue
 		}
 
@@ -92,7 +96,9 @@ func main() {
 			finishedCheckingExisting = true
 		}
 
-		log.Println(i, len(entries), "Downloading", zipFile)
+		timeString := fmt.Sprintf("%.0fs", time.Now().Sub(start).Seconds())
+
+		log.Printf("%d/%d (%d new in %s). Downloading %s", i, len(entries), i-startI, timeString, zipFile)
 
 		sem <- true
 		go func(row []string) {
