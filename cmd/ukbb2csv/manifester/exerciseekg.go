@@ -15,6 +15,8 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
+const ExerciseEKGFieldIDChunk = "_6025_"
+
 func ManifestForExerciseEKG(path string) error {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -96,7 +98,7 @@ func ManifestForExerciseEKG(path string) error {
 				return
 			}
 
-			if !strings.Contains(file.Name(), "_6025_") {
+			if !strings.Contains(file.Name(), ExerciseEKGFieldIDChunk) {
 				return
 			}
 			// Exercise EKG
@@ -150,32 +152,32 @@ func ManifestForExerciseEKG(path string) error {
 				strings.Split(file.Name(), "_")[1],
 				strings.Split(file.Name(), "_")[2],
 				file.Name(),
-				ekg.ObservationType,
-				ekg.ObservationDateTime.Year,
-				ekg.ObservationDateTime.Month,
-				ekg.ObservationDateTime.Day,
-				ekg.ObservationDateTime.Hour,
-				testDuration,
-				ekg.ClinicalInfo.DeviceInfo.Desc,
-				ekg.ClinicalInfo.DeviceInfo.SoftwareVer,
-				ekg.ClinicalInfo.DeviceInfo.AnalysisVer,
-				ekg.PatientVisit.AssignedPatientLocation.Facility,
-				ekg.PatientVisit.AssignedPatientLocation.LocationNumber,
-				ekg.PatientInfo.PaceMaker,
+				NA(ekg.ObservationType),
+				NA(ekg.ObservationDateTime.Year),
+				NA(ekg.ObservationDateTime.Month),
+				NA(ekg.ObservationDateTime.Day),
+				NA(ekg.ObservationDateTime.Hour),
+				NA(testDuration),
+				NA(ekg.ClinicalInfo.DeviceInfo.Desc),
+				NA(ekg.ClinicalInfo.DeviceInfo.SoftwareVer),
+				NA(ekg.ClinicalInfo.DeviceInfo.AnalysisVer),
+				NA(ekg.PatientVisit.AssignedPatientLocation.Facility),
+				NA(ekg.PatientVisit.AssignedPatientLocation.LocationNumber),
+				NA(ekg.PatientInfo.PaceMaker),
 
 				// Only relevant for exercise
-				ekg.Protocol.Device,
-				ekg.ExerciseMeasurements.ExercisePhaseTime.Minute,
-				ekg.ExerciseMeasurements.MaxWorkload.Text,
-				ekg.ExerciseMeasurements.RestingStats.RestHR,
-				ekg.ExerciseMeasurements.MaxHeartRate,
-				ekg.ExerciseMeasurements.MaxPredictedHR,
-				ekg.ExerciseMeasurements.PercentAchievedMaxPredicted,
-				ekg.TWACycleData.Resolution.Text,
-				ekg.TWACycleData.Resolution.Units,
-				ekg.TWACycleData.SampleRate.Text,
-				ekg.TWACycleData.SampleRate.Units,
-				ekg.TrendData.NumberOfEntries,
+				NA(ekg.Protocol.Device),
+				NA(ekg.ExerciseMeasurements.ExercisePhaseTime.Minute),
+				NA(ekg.ExerciseMeasurements.MaxWorkload.Text),
+				NA(ekg.ExerciseMeasurements.RestingStats.RestHR),
+				NA(ekg.ExerciseMeasurements.MaxHeartRate),
+				NA(ekg.ExerciseMeasurements.MaxPredictedHR),
+				NA(ekg.ExerciseMeasurements.PercentAchievedMaxPredicted),
+				NA(ekg.TWACycleData.Resolution.Text),
+				NA(ekg.TWACycleData.Resolution.Units),
+				NA(ekg.TWACycleData.SampleRate.Text),
+				NA(ekg.TWACycleData.SampleRate.Units),
+				NA(ekg.TrendData.NumberOfEntries),
 			)
 		}(file)
 	}

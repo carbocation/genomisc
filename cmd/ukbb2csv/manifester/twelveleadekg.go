@@ -14,6 +14,8 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
+const EKGFieldIDChunk = "_20205_"
+
 func ManifestFor12LeadEKG(path string) error {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -98,7 +100,7 @@ func ManifestFor12LeadEKG(path string) error {
 				return
 			}
 
-			if !strings.Contains(file.Name(), "_20205_") {
+			if !strings.Contains(file.Name(), EKGFieldIDChunk) {
 				return
 			}
 			// Exercise EKG
@@ -125,35 +127,35 @@ func ManifestFor12LeadEKG(path string) error {
 				strings.Split(file.Name(), "_")[1],
 				strings.Split(file.Name(), "_")[2],
 				file.Name(),
-				ekg.ObservationType,
-				ekg.ObservationDateTime.Year,
-				ekg.ObservationDateTime.Month,
-				ekg.ObservationDateTime.Day,
-				ekg.ObservationDateTime.Hour,
-				ekg.ClinicalInfo.DeviceInfo.Desc,
-				ekg.ClinicalInfo.DeviceInfo.SoftwareVer,
-				ekg.ClinicalInfo.DeviceInfo.AnalysisVer,
-				ekg.PatientInfo.PaceMaker,
+				NA(ekg.ObservationType),
+				NA(ekg.ObservationDateTime.Year),
+				NA(ekg.ObservationDateTime.Month),
+				NA(ekg.ObservationDateTime.Day),
+				NA(ekg.ObservationDateTime.Hour),
+				NA(ekg.ClinicalInfo.DeviceInfo.Desc),
+				NA(ekg.ClinicalInfo.DeviceInfo.SoftwareVer),
+				NA(ekg.ClinicalInfo.DeviceInfo.AnalysisVer),
+				NA(ekg.PatientInfo.PaceMaker),
 
 				// Only relevant for 12-lead
-				ekg.DeviceType,
-				ekg.RestingECGMeasurements.SokolovLVHIndex.Text,
-				ekg.RestingECGMeasurements.SokolovLVHIndex.Units,
-				ekg.RestingECGMeasurements.MeasurementTable.LeadOrder,
-				ekg.RestingECGMeasurements.VentricularRate.Text,
-				ekg.RestingECGMeasurements.PQInterval.Text,
-				ekg.RestingECGMeasurements.PDuration.Text,
-				ekg.RestingECGMeasurements.QRSDuration.Text,
-				ekg.RestingECGMeasurements.QTInterval.Text,
-				ekg.RestingECGMeasurements.QTCInterval.Text,
-				ekg.RestingECGMeasurements.RRInterval.Text,
-				ekg.RestingECGMeasurements.PPInterval.Text,
-				ekg.RestingECGMeasurements.PAxis.Text,
-				ekg.RestingECGMeasurements.RAxis.Text,
-				ekg.RestingECGMeasurements.TAxis.Text,
-				ekg.RestingECGMeasurements.QTDispersion.Text,
-				ekg.RestingECGMeasurements.QTDispersionBazett.Text,
-				ekg.RestingECGMeasurements.QRSNum,
+				NA(ekg.DeviceType),
+				NA(ekg.RestingECGMeasurements.SokolovLVHIndex.Text),
+				NA(ekg.RestingECGMeasurements.SokolovLVHIndex.Units),
+				NA(ekg.RestingECGMeasurements.MeasurementTable.LeadOrder),
+				NA(ekg.RestingECGMeasurements.VentricularRate.Text),
+				NA(ekg.RestingECGMeasurements.PQInterval.Text),
+				NA(ekg.RestingECGMeasurements.PDuration.Text),
+				NA(ekg.RestingECGMeasurements.QRSDuration.Text),
+				NA(ekg.RestingECGMeasurements.QTInterval.Text),
+				NA(ekg.RestingECGMeasurements.QTCInterval.Text),
+				NA(ekg.RestingECGMeasurements.RRInterval.Text),
+				NA(ekg.RestingECGMeasurements.PPInterval.Text),
+				NA(ekg.RestingECGMeasurements.PAxis.Text),
+				NA(ekg.RestingECGMeasurements.RAxis.Text),
+				NA(ekg.RestingECGMeasurements.TAxis.Text),
+				NA(ekg.RestingECGMeasurements.QTDispersion.Text),
+				NA(ekg.RestingECGMeasurements.QTDispersionBazett.Text),
+				NA(ekg.RestingECGMeasurements.QRSNum),
 			)
 		}(file)
 	}
