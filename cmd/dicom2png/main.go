@@ -39,10 +39,12 @@ func main() {
 		log.Printf("dicom2png end. Took %.2f seconds\n", time.Since(start).Seconds())
 	}()
 
-	var inputPath, outputPath, manifest string
+	var inputPath, outputPath, scaling, imageType, manifest string
 	var includeOverlay bool
 	flag.StringVar(&inputPath, "raw", "", "Path to the folder containing the raw zip files (if begins with gs://, will try the Google Storage URL)")
 	flag.StringVar(&outputPath, "out", "", "Path to the local folder where the extracted PNGs will go")
+	flag.StringVar(&scaling, "scaling", "official", "Pixel intensity scaling to use. Can be official (DICOM standard), pythonic (scaled to the max observed pixel value), or raw")
+	flag.StringVar(&imageType, "imagetype", "PNGRGBA", "Options include PNGRGBA (default) or PNGGray16")
 	flag.StringVar(&manifest, "manifest", "", "Manifest file containing Zip names and Dicom names.")
 	flag.BoolVar(&includeOverlay, "include-overlay", true, "Print the overlay on top of the images?")
 
@@ -62,12 +64,26 @@ func main() {
 		}
 	}
 
-	if err := run(inputPath, outputPath, manifest, includeOverlay); err != nil {
+	// FuncOpts
+	opts := make([]func(*bulkprocess.ExtractDicomOptions), 0)
+	if includeOverlay {
+		opts = append(opts, bulkprocess.OptIncludeOverlay())
+	}
+	switch scaling {
+	case "pythonic":
+		opts = append(opts, bulkprocess.OptWindowScalingPythonic())
+	case "raw":
+		opts = append(opts, bulkprocess.OptWindowScalingRaw())
+	default:
+		opts = append(opts, bulkprocess.OptWindowScalingOfficial())
+	}
+
+	if err := run(inputPath, outputPath, manifest, imageType, opts); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
+func run(inputPath, outputPath, manifest, imageType string, opts []func(*bulkprocess.ExtractDicomOptions)) error {
 
 	zipMap, err := getZipMap(manifest)
 	if err != nil {
@@ -91,7 +107,7 @@ func run(inputPath, outputPath, manifest string, includeOverlay bool) error {
 			// retry a few times before giving up.
 			for loadAttempts, maxLoadAttempts := 1, 10; loadAttempts <= maxLoadAttempts; loadAttempts++ {
 
-				err := ProcessOneZipFile(inputPath, outputPath, zipFile, dicoms, includeOverlay)
+				err := ProcessOneZipFile(inputPath, outputPath, zipFile, imageType, dicoms, opts)
 
 				if err != nil && loadAttempts == maxLoadAttempts {
 					// We've exhausted our retries. Fail hard.
@@ -163,7 +179,7 @@ func getZipMap(manifest string) (map[string][]string, error) {
 // ProcessOneZipFile prints out PNGs for all DICOM images within a zip file that
 // are found in dicomList. TODO: handle errors more thoughtfully, e.g., with an
 // error channel.
-func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string, includeOverlay bool) error {
+func ProcessOneZipFile(inputPath, outputPath, zipName, imageType string, dicomList []string, opts []func(*bulkprocess.ExtractDicomOptions)) error {
 
 	path := filepath.Join(inputPath, zipName)
 	if strings.HasPrefix(inputPath, "gs://") {
@@ -236,12 +252,21 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 			}
 			dicomReaderBuffered = bytes.NewReader(dicomReaderBytes)
 
-			img, err := bulkprocess.ExtractDicomFromReader(dicomReaderBuffered, int64(fileInZip.UncompressedSize64), includeOverlay)
+			img, err := bulkprocess.ExtractDicomFromReaderFuncOp(dicomReaderBuffered, int64(fileInZip.UncompressedSize64), opts...)
 			if err != nil {
 				return err
 			}
 
-			return imgToPNG(img, outputPath, fileInZip.Name)
+			switch imageType {
+			case "PNGGray16":
+				// this is the native output format from the DICOM extraction library
+				return imgToPNG(img, outputPath, fileInZip.Name)
+			default:
+				// PNGRGBA
+				return imgToPNGRGBA(img, outputPath, fileInZip.Name)
+			}
+
+			// return imgToPNG(img, outputPath, fileInZip.Name)
 		}(fileInZip)
 
 		// Since we want to continue processing the zip even if one of its
@@ -267,7 +292,7 @@ func ProcessOneZipFile(inputPath, outputPath, zipName string, dicomList []string
 	return nil
 }
 
-func imgToPNG(img image.Image, outputPath, dicomName string) error {
+func imgToPNGRGBA(img image.Image, outputPath, dicomName string) error {
 
 	// Will output an RGBA image since that's apparently easier for FastAI to work with
 	size := img.Bounds().Size()
@@ -281,17 +306,18 @@ func imgToPNG(img image.Image, outputPath, dicomName string) error {
 		}
 	}
 
+	return imgToPNG(colImg, outputPath, dicomName)
+}
+
+func imgToPNG(img image.Image, outputPath, dicomName string) error {
 	f, err := os.Create(outputPath + "/" + dicomName + ".png")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	// Use a buffered writer in case we end up writing to a high-latency disk
-	// such as gcsfuse
 	fw := bufio.NewWriter(f)
 
-	if err := png.Encode(fw, colImg); err != nil {
+	if err := png.Encode(fw, img); err != nil {
 		return err
 	}
 
