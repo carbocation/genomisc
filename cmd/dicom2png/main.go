@@ -33,6 +33,8 @@ var builddate string
 // Safe for concurrent use by multiple goroutines
 var client *storage.Client
 
+var DicomColName string
+
 func main() {
 	start := time.Now()
 	defer func() {
@@ -46,6 +48,7 @@ func main() {
 	flag.StringVar(&scaling, "scaling", "official", "Pixel intensity scaling to use. Can be official (DICOM standard), pythonic (scaled to the max observed pixel value), or raw")
 	flag.StringVar(&imageType, "imagetype", "PNGRGBA", "Options include PNGRGBA (default) or PNGGray16")
 	flag.StringVar(&manifest, "manifest", "", "Manifest file containing Zip names and Dicom names.")
+	flag.StringVar(&DicomColName, "dicom_col", "dicom_file", "Name of column containing the dicom filename, which should include the .dcm suffix")
 	flag.BoolVar(&includeOverlay, "include-overlay", true, "Print the overlay on top of the images?")
 
 	flag.Parse()
@@ -159,14 +162,14 @@ func getZipMap(manifest string) (map[string][]string, error) {
 			for j, col := range row {
 				if col == "zip_file" {
 					zipFileCol = j
-				} else if col == "dicom_file" {
+				} else if col == DicomColName {
 					dicomFileCol = j
 				}
 			}
 
 			continue
 		} else if zipFileCol < 0 || dicomFileCol < 0 {
-			return nil, fmt.Errorf("Did not identify zip_file or dicom_file in the header line of %s", manifest)
+			return nil, fmt.Errorf("Did not identify zip_file or %s in the header line of %s", DicomColName, manifest)
 		}
 
 		// Append to this zip file's list of individual dicom images to process
