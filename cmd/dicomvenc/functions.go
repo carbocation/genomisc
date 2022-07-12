@@ -195,6 +195,8 @@ type histBucket struct {
 	Count    int
 }
 
+// TODO(jpp): have a separate unwrapped for the forwards and reverse direction
+// to help understand error modes.
 func deAlias(pixdat segmentationPixelBulkProperties, flowVenc *bulkprocess.VENC, dt, pxHeightCM, pxWidthCM float64, pixels []vencPixel) (outPixdat segmentationPixelBulkProperties, unwrappedPixels []vencPixel, unwrapped bool) {
 	// Generate a histogram. The number of buckets is arbitrary. TODO: find a
 	// rational bucket count.

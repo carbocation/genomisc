@@ -36,6 +36,8 @@ var (
 // Consider aliasing in .profile: alias gobuild='go build -ldflags "-X main.builddate=`date -u +%Y-%m-%d:%H:%M:%S%Z`"'
 var builddate string
 
+var attemptPhaseUnwrapping bool
+
 func main() {
 	defer STDOUT.Flush()
 
@@ -49,6 +51,7 @@ func main() {
 	flag.StringVar(&maskPath, "mask", "", "Path to the local mask file, in the form of an encoded PNG.")
 	flag.StringVar(&configPath, "config", "", "Path to the config.json file, to interpret the pixel mask meaning.")
 	flag.StringVar(&plot, "plot", "", "(Optional) Produce a plot? Accepts 'vti' or ''.")
+	flag.BoolVar(&attemptPhaseUnwrapping, "unwrap", false, "(Optional) Attempt phase unwrapping if at risk for aliasing?")
 
 	flag.Parse()
 
@@ -292,7 +295,7 @@ func run(f io.ReadSeeker, rawOverlayImg image.Image, dicomName string, config ov
 			math.Abs(pixdat.PixelVelocityMinCMPerSec) > 0.99*flowVenc.FlowVenc
 
 		unwrapped := false
-		if aliasRisk {
+		if aliasRisk && attemptPhaseUnwrapping {
 			pixdat, _, unwrapped = deAlias(pixdat, flowVenc, dt, pxHeightCM, pxWidthCM, v)
 		}
 
