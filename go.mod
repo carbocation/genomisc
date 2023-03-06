@@ -45,8 +45,8 @@ require (
 	github.com/unixpickle/ffmpego v0.1.4
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
-	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
-	golang.org/x/net v0.0.0-20220531201128-c960675eff93
+	golang.org/x/image v0.5.0
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 	gonum.org/v1/gonum v0.9.3
 	google.golang.org/api v0.81.0
 	gopkg.in/guregu/null.v3 v3.5.0
@@ -106,11 +106,11 @@ require (
 	github.com/tokenme/go-fn v0.0.0-20130403065544-37331e464987 // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/mod v0.6.0-dev.0.20220412012744-41445a152478 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
-	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.10 // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220531173845-685668d2de03 // indirect
